@@ -5,6 +5,7 @@ set -Eeuo pipefail
 : "${USB:="qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"}"
 
 APP="OSX"
+VGA="vmware"
 SUPPORT="https://github.com/dockur/osx/"
 
 cd /run
