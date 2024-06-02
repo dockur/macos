@@ -61,13 +61,13 @@ kubectl apply -f kubernetes.yml
   
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
-  - Select `macOs Base System` with your keyboard to begin the installation.
+  - Select `macOs Base System` using your keyboard instead of the mouse to begin the installation.
 
-  - Select `Disk Utility` and then select the `QEMU HARDDISK Media` that has the size you specified.
+  - Select `Disk Utility` and then select the `Apple Inc. VirtIO Block Media` disk.
 
-  - Click `Erase` to format the disk, you can give it any name you want.
+  - Click `Erase` to format the disk, and give it the name you want.
 
-  - When finished, go back by closing the window and then proceed the installation by clicking `Reinstall macOS <version>`.
+  - Close the window and proceed the installation by clicking `Reinstall macOS <version>`.
   
   - When prompted where to install it, select the disk you created.
 
