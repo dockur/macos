@@ -1,9 +1,10 @@
 FROM scratch
-COPY --from=qemux/qemu-docker:5.09 / /
+COPY --from=qemux/qemu-docker:5.10 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_OSX_KVM="326053dd61f49375d5dfb28ee715d38b04b5cd8e"
 ARG REPO_OSX_KVM="https://raw.githubusercontent.com/kholia/OSX-KVM"
+
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN="true"
