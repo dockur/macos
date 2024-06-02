@@ -26,9 +26,9 @@ RUN set -eu && \
 
 COPY --chmod=755 ./src /run/
 
-COPY --chmod=755 $REPO_OSX_KVM/$VERSION_OSX_KVM/fetch-macOS-v2.py /run/
-COPY --chmod=755 $REPO_OSX_KVM/$VERSION_OSX_KVM/OpenCore/OpenCore.qcow2 /images/
-COPY --chmod=755 \
+ADD --chmod=755 $REPO_OSX_KVM/$VERSION_OSX_KVM/fetch-macOS-v2.py /run/
+ADD --chmod=755 $REPO_OSX_KVM/$VERSION_OSX_KVM/OpenCore/OpenCore.qcow2 /images/
+ADD --chmod=755 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1024x768.fd \
