@@ -95,6 +95,55 @@ kubectl apply -f kubernetes.yml
   | `monterey`    | Monterey           | ? GB     |
   | `ventura`     | Ventura            | 3 GB     |
   | `sonoma`      | Sonoma             | ? GB     |
+ 
+* ### How do I change the storage location?
+
+  To change the storage location, include the following bind mount in your compose file:
+
+  ```yaml
+  volumes:
+    - /var/osx:/storage
+  ```
+
+  Replace the example path `/var/osx` with the desired storage folder.
+
+* ### How do I change the size of the disk?
+
+  To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
+
+  ```yaml
+  environment:
+    DISK_SIZE: "256G"
+  ```
+  
+  This can also be used to resize the existing disk to a larger capacity without any data loss.
+
+* ### How do I verify if my system supports KVM?
+
+  To verify if your system supports KVM, run the following commands:
+
+  ```bash
+  sudo apt install cpu-checker
+  sudo kvm-ok
+  ```
+
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
+
+* ### How do I change the amount of CPU or RAM?
+
+  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
+
+  If you want to adjust this, you can specify the desired amount using the following environment variables:
+
+  ```yaml
+  environment:
+    RAM_SIZE: "8G"
+    CPU_CORES: "4"
+  ```
+ 
+* ### Is this project legal?
+
+  Yes, this project contains only open-source code and does not distribute any copyrighted material. So under all applicable laws, this project will be considered legal.
 
  ## Acknowledgements
 
