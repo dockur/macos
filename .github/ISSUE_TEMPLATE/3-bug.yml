@@ -29,7 +29,7 @@ body:
     id: log
     attributes:
       label: Docker log
-      description: The logfile of the container (as shown by `docker logs windows`).
+      description: The logfile of the container (as shown by `docker logs osx`).
     validations:
       required: true
   - type: textarea

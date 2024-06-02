@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: windows-pvc
+  name: osx-pvc
 spec:
   accessModes:
     - ReadWriteOnce
@@ -12,14 +12,15 @@ spec:
 apiVersion: v1
 kind: Pod
 metadata:
-  name: windows
+  name: osx
   labels:
-    name: windows
+    name: osx
 spec:
   terminationGracePeriodSeconds: 120 # the Kubernetes default is 30 seconds and it may be not enough
   containers:
-    - name: windows
-      image: dockurr/windows
+    - name: osx
+      build:
+        dockerfile: Dockerfile
       ports:
         - containerPort: 8006
           protocol: TCP
@@ -45,29 +46,29 @@ spec:
   volumes:
     - name: storage
       persistentVolumeClaim:
-        claimName: windows-pvc
+        claimName: osx-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: windows
+  name: osx
 spec:
   type: NodePort
   selector:
-    name: windows
+    name: osx
   ports:
     - name: tcp-8006
       protocol: TCP
       port: 8006
       targetPort: 8006
       nodePort: 48006
-    - name: tcp-3389
+    - name: tcp-5900
       protocol: TCP
-      port: 3389
-      targetPort: 3389
+      port: 5900
+      targetPort: 5900
       nodePort: 43389
-    - name: udp-3389
+    - name: udp-5900
       protocol: UDP
-      port: 3389
-      targetPort: 3389
+      port: 5900
+      targetPort: 5900
       nodePort: 43388
