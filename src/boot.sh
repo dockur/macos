@@ -6,9 +6,8 @@ set -Eeuo pipefail
 
 BOOT_DESC=""
 BOOT_OPTS=""
-BOOT_DRIVE="/images/OpenCore.qcow2"
 BOOT_DRIVE_ID="OpenCoreBoot"
-BOOT_DRIVE_BUS="ide.2"
+BOOT_DRIVE="/images/OpenCore.qcow2"
 SECURE="off"
 OVMF="/usr/share/OVMF"
 
@@ -36,11 +35,13 @@ esac
 
 BOOT_OPTS="$BOOT_OPTS -smbios type=2 -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
 BOOT_OPTS="$BOOT_OPTS -device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc"
+
 # OVMF
 BOOT_OPTS="$BOOT_OPTS -drive if=pflash,format=raw,readonly=on,file=$OVMF/$ROM"
 BOOT_OPTS="$BOOT_OPTS -drive if=pflash,format=raw,file=$OVMF/$VARS"
+
 # OpenCoreBoot
-BOOT_OPTS="$BOOT_OPTS -device ide-hd,drive=$BOOT_DRIVE_ID,bus=$BOOT_DRIVE_BUS,rotation_rate=1,bootindex=1"
-BOOT_OPTS="$BOOT_OPTS -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=writeback,aio=threads,discard=on,detect-zeroes=on,if=none"
+DISK_OPTS="$DISK_OPTS -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=1"
+DISK_OPTS="$DISK_OPTS -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=$DISK_CACHE,aio=$DISK_IO,discard=$DISK_DISCARD,detect-zeroes=on,if=none"
 
 return 0
