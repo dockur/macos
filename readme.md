@@ -88,14 +88,14 @@ kubectl apply -f kubernetes.yml
   
   |   **Value**   | **Version**        | **Size** |
   |----|-----|----|
-  | `high-sierra` | High Sierra        | ? GB     |
-  | `mojave`      | Mojave             | ? GB     |
-  | `catalina`    | Catalina           | ? GB     |
-  | `big-sur`     | Big Sur            | ? GB     |
-  | `monterey`    | Monterey           | ? GB     |
-  | `ventura`     | Ventura            | 3 GB     |
   | `sonoma`      | Sonoma             | ? GB     |
- 
+  | `ventura`     | Ventura            | 3.0 GB   |
+  | `monterey`    | Monterey           | ? GB     |
+  | `big-sur`     | Big Sur            | ? GB     |
+  | `catalina`    | Catalina           | ? GB     |
+  | `mojave`      | Mojave             | ? GB     |
+  | `high-sierra` | High Sierra        | ? GB     |
+
 * ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
