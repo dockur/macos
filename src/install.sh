@@ -4,39 +4,45 @@ set -Eeuo pipefail
 # Docker environment variables
 : "${VERSION:="ventura"}"  # OSX Version
 
-BASE_IMG="$STORAGE/BaseSystem.img"
 BASE_IMG_ID="InstallMedia"
-BASE_IMG_BUS="ide.4"
+BASE_IMG="$STORAGE/BaseSystem.img"
 
 downloadImage() {
 
   local msg="Downloading $APP $VERSION image..."
   info "$msg" && html "$msg"
 
-  /run/fetch-macOS-v2.py -s "$VERSION"
+  if ! /run/fetch-macOS-v2.py -s "$VERSION"; then
+    error "Failed to fetch MacOS $VERSION!"
+    return 1
+  fi
 
-  msg="Converting image format..."
+  msg="Converting base image format..."
   info "$msg" && html "$msg"
 
-  dmg2img -i BaseSystem.dmg "$BASE_IMG"
+  if ! dmg2img -i BaseSystem.dmg "$BASE_IMG"; then
+    error "Failed to convert base image format!"
+    return 1
+  fi
+
   rm -f BaseSystem.dmg
 
   echo "$VERSION" > "$STORAGE/$PROCESS.version"
 }
 
 if [ ! -f "$BASE_IMG" ]; then
-  downloadImage
+  ! downloadImage && exit 34
 fi
 
 STORED_VERSION=$(cat "$STORAGE/$PROCESS.version")
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
-  info "Different version detected switching base image from $STORED_VERSION to $VERSION"
+  info "Different version detected, switching base image from $STORED_VERSION to $VERSION"
   rm -f "$BASE_IMG"
-  downloadImage
+  ! downloadImage && exit 34
 fi
-
-DISK_OPTS="$DISK_OPTS -device ide-hd,drive=$BASE_IMG_ID,bus=$BASE_IMG_BUS,rotation_rate=1"
-DISK_OPTS="$DISK_OPTS -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=raw,cache=writeback,aio=threads,discard=on,detect-zeroes=on,if=none"
+    
+DISK_OPTS="$DISK_OPTS -device virtio-blk-pci,drive=${BASE_IMG_ID},scsi=off,bus=pcie.0,addr=0x6,iothread=io2"
+DISK_OPTS="$DISK_OPTS -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=raw,cache=$DISK_CACHE,aio=$DISK_IO,discard=$DISK_DISCARD,detect-zeroes=on,if=none"
 
 return 0
