@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${DISK_TYPE:="ide"}"
+: "${DISK_TYPE:="blk"}"
 : "${USB:="qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"}"
 
 APP="OSX"
