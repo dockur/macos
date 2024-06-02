@@ -34,7 +34,7 @@ case "${BOOT_MODE,,}" in
     ;;
 esac
 
-BOOT_OPTS="$BOOT_OPTS -smbios type=2 -device vmware-svga,bus=pcie.0,addr=0x5 -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
+BOOT_OPTS="$BOOT_OPTS -smbios type=2 -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
 BOOT_OPTS="$BOOT_OPTS -device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc"
 # OVMF
 BOOT_OPTS="$BOOT_OPTS -drive if=pflash,format=raw,readonly=on,file=$OVMF/$ROM"
