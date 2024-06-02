@@ -14,6 +14,10 @@ downloadImage() {
   info "$msg" && html "$msg"
 
   /run/fetch-macOS-v2.py -s "$VERSION"
+
+  msg="Converting image format..."
+  info "$msg" && html "$msg"
+
   dmg2img -i BaseSystem.dmg "$BASE_IMG"
   rm -f BaseSystem.dmg
 
