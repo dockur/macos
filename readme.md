@@ -61,7 +61,7 @@ kubectl apply -f kubernetes.yml
   
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
-  - Select `macOs Base System` using your keyboard instead of the mouse to begin the installation.
+  - Select `macOs Base System` using your keyboard to begin the installation.
 
   - Select `Disk Utility` and then select the `Apple Inc. VirtIO Block Media` disk.
 
