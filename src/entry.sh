@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-: "${DISK_TYPE:="ide"}"
+: "${DISK_TYPE:="blk"}"
 : "${USB:="qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"}"
 
 APP="OSX"
@@ -20,7 +20,7 @@ cd /run
 
 trap - ERR
 
-version=$(qemu-system-aarch64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
+version=$(qemu-system-x86_64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
 exec qemu-system-x86_64 ${ARGS:+ $ARGS}
