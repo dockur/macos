@@ -5,7 +5,7 @@ set -Eeuo pipefail
 : "${USB:="qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"}"
 
 APP="OSX"
-SUPPORT="https://github.com/seitenca/osx/"
+SUPPORT="https://github.com/dockur/osx/"
 
 cd /run
 
@@ -20,6 +20,7 @@ cd /run
 
 trap - ERR
 
-info "Booting ${APP}${BOOT_DESC}..."
+version=$(qemu-system-aarch64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
+info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
 exec qemu-system-x86_64 ${ARGS:+ $ARGS}
