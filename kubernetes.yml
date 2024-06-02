@@ -19,14 +19,13 @@ spec:
   terminationGracePeriodSeconds: 120 # the Kubernetes default is 30 seconds and it may be not enough
   containers:
     - name: osx
-      build:
-        dockerfile: Dockerfile
+      image: dockurr/osx
       ports:
         - containerPort: 8006
           protocol: TCP
-        - containerPort: 3389
+        - containerPort: 5000
           protocol: TCP
-        - containerPort: 3389
+        - containerPort: 5000
           protocol: UDP
       resources:
         limits:
