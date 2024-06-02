@@ -65,7 +65,7 @@ kubectl apply -f kubernetes.yml
 
   - Select `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
-  - Click `Erase` to format the disk, and give it a name you like.
+  - Click `Erase` to format the disk, and give it a recognizable name you like.
 
   - Close the window and proceed the installation by clicking `Reinstall macOS <version>`.
   
