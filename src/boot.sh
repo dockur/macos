@@ -41,6 +41,6 @@ BOOT_OPTS="$BOOT_OPTS -drive if=pflash,format=raw,readonly=on,file=$OVMF/$ROM"
 BOOT_OPTS="$BOOT_OPTS -drive if=pflash,format=raw,file=$OVMF/$VARS"
 # OpenCoreBoot
 BOOT_OPTS="$BOOT_OPTS -device ide-hd,drive=$BOOT_DRIVE_ID,bus=$BOOT_DRIVE_BUS,rotation_rate=1,bootindex=1"
-BOOT_OPTS="$BOOT_OPTS -drive file="$BOOT_DRIVE",id=$BOOT_DRIVE_ID,format=qcow2,cache=writeback,aio=threads,discard=on,detect-zeroes=on,if=none"
+BOOT_OPTS="$BOOT_OPTS -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=writeback,aio=threads,discard=on,detect-zeroes=on,if=none"
 
 return 0

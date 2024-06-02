@@ -11,9 +11,9 @@ BASE_IMG_BUS="ide.4"
 downloadImage() {
   local msg="Downloading $APP $VERSION image..."
   info "$msg" && html "$msg"
-	/run/fetch-macOS-v2.py -s $VERSION
+	/run/fetch-macOS-v2.py -s "$VERSION"
 	dmg2img -i BaseSystem.dmg "$BASE_IMG"
-  echo $VERSION > $STORAGE/$PROCESS.version
+  echo "$VERSION" > "$STORAGE/$PROCESS.version"
   rm -f BaseSystem.dmg
 }
 
@@ -25,7 +25,7 @@ STORED_VERSION=$(cat "$STORAGE/$PROCESS.version")
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
   info "Different version detected switching base image from $STORED_VERSION to $VERSION"
-  rm -f $BASE_IMG
+  rm -f "$BASE_IMG"
   downloadImage
 fi
 
