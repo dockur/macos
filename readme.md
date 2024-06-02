@@ -4,6 +4,11 @@
 </div>
 <div align="center">
 
+[![Build]][build_url]
+[![Version]][tag_url]
+[![Size]][tag_url]
+[![Pulls]][hub_url]
+
 </div></h1>
 
 OSX inside a Docker container.
@@ -91,11 +96,22 @@ kubectl apply -f kubernetes.yml
   | `ventura`     | Ventura            | 3 GB     |
   | `sonoma`      | Sonoma             | ? GB     |
 
-
  ## Acknowledgements
 
 Special thanks to [OSX-KVM](https://github.com/kholia/OSX-KVM) and [qemu-docker](https://github.com/qemus/qemu-docker/). This would not exist without their invaluable work.
 
+## Stars
+[![Stars](https://starchart.cc/dockur/osx.svg?variant=adaptive)](https://starchart.cc/dockur/osx)
+
 ## Disclaimer
 
 The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Apple Inc.
+
+[build_url]: https://github.com/dockur/osx/
+[hub_url]: https://hub.docker.com/r/dockurr/osx/
+[tag_url]: https://hub.docker.com/r/dockurr/osx/tags
+
+[Build]: https://github.com/dockur/osx/actions/workflows/build.yml/badge.svg
+[Size]: https://img.shields.io/docker/image-size/dockurr/osx/latest?color=066da5&label=size
+[Pulls]: https://img.shields.io/docker/pulls/dockurr/osx.svg?style=flat&label=pulls&logo=docker
+[Version]: https://img.shields.io/docker/v/dockurr/osx/latest?arch=amd64&sort=semver&color=066da5
