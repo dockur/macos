@@ -63,13 +63,13 @@ kubectl apply -f kubernetes.yml
 
   - Select `macOs Base System` using your keyboard to begin the installation.
 
-  - Select `Disk Utility` and then select the `Apple Inc. VirtIO Block Media` disk.
+  - Select `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
-  - Click `Erase` to format the disk, and give it the name you want.
+  - Click `Erase` to format the disk, and give it a name you like.
 
   - Close the window and proceed the installation by clicking `Reinstall macOS <version>`.
   
-  - When prompted where to install it, select the disk you created.
+  - When prompted where to install it, select the disk you just created.
 
   - Once you see the desktop, your OSX installation is ready for use.
   
