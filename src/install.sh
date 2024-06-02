@@ -2,19 +2,22 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${VERSION:="sonoma"}"  # OSX Version
+: "${VERSION:="ventura"}"  # OSX Version
 
 BASE_IMG="$STORAGE/BaseSystem.img"
 BASE_IMG_ID="InstallMedia"
 BASE_IMG_BUS="ide.4"
 
 downloadImage() {
+
   local msg="Downloading $APP $VERSION image..."
   info "$msg" && html "$msg"
-	/run/fetch-macOS-v2.py -s "$VERSION"
-	dmg2img -i BaseSystem.dmg "$BASE_IMG"
-  echo "$VERSION" > "$STORAGE/$PROCESS.version"
+
+  /run/fetch-macOS-v2.py -s "$VERSION"
+  dmg2img -i BaseSystem.dmg "$BASE_IMG"
   rm -f BaseSystem.dmg
+
+  echo "$VERSION" > "$STORAGE/$PROCESS.version"
 }
 
 if [ ! -f "$BASE_IMG" ]; then
