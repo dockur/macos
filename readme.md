@@ -61,15 +61,15 @@ kubectl apply -f kubernetes.yml
   
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
-  - Select `macOs Base System` with your keyboard to begin the installation.
+  - Select `macOs Base System` using your keyboard to begin the installation.
 
-  - Select `Disk Utility` and then select the `QEMU HARDDISK Media` that has the size you specified.
+  - Select `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
-  - Click `Erase` to format the disk, you can give it any name you want.
+  - Click `Erase` to format the disk, and give it a recognizable name you like.
 
-  - When finished, go back by closing the window and then proceed the installation by clicking `Reinstall macOS <version>`.
+  - Close the window and proceed the installation by clicking `Reinstall macOS <version>`.
   
-  - When prompted where to install it, select the disk you created.
+  - When prompted where to install it, select the disk you just created.
 
   - Once you see the desktop, your OSX installation is ready for use.
   
@@ -88,14 +88,14 @@ kubectl apply -f kubernetes.yml
   
   |   **Value**   | **Version**        | **Size** |
   |----|-----|----|
-  | `high-sierra` | High Sierra        | ? GB     |
-  | `mojave`      | Mojave             | ? GB     |
-  | `catalina`    | Catalina           | ? GB     |
-  | `big-sur`     | Big Sur            | ? GB     |
-  | `monterey`    | Monterey           | ? GB     |
-  | `ventura`     | Ventura            | 3 GB     |
   | `sonoma`      | Sonoma             | ? GB     |
- 
+  | `ventura`     | Ventura            | 3.0 GB   |
+  | `monterey`    | Monterey           | ? GB     |
+  | `big-sur`     | Big Sur            | ? GB     |
+  | `catalina`    | Catalina           | ? GB     |
+  | `mojave`      | Mojave             | ? GB     |
+  | `high-sierra` | High Sierra        | ? GB     |
+
 * ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
@@ -118,17 +118,6 @@ kubectl apply -f kubernetes.yml
   
   This can also be used to resize the existing disk to a larger capacity without any data loss.
 
-* ### How do I verify if my system supports KVM?
-
-  To verify if your system supports KVM, run the following commands:
-
-  ```bash
-  sudo apt install cpu-checker
-  sudo kvm-ok
-  ```
-
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
-
 * ### How do I change the amount of CPU or RAM?
 
   By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
@@ -140,7 +129,18 @@ kubectl apply -f kubernetes.yml
     RAM_SIZE: "8G"
     CPU_CORES: "4"
   ```
- 
+
+ * ### How do I verify if my system supports KVM?
+
+  To verify if your system supports KVM, run the following commands:
+
+  ```bash
+  sudo apt install cpu-checker
+  sudo kvm-ok
+  ```
+
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
+
 * ### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. So under all applicable laws, this project will be considered legal.
