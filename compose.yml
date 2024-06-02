@@ -1,7 +1,6 @@
 services:
   osx:
-    build:
-      dockerfile: Dockerfile
+    image: dockurr/osx
     container_name: osx
     environment:
       VERSION: "ventura"
