@@ -120,7 +120,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I change the amount of CPU or RAM?
 
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
+  By default, the container will be allowed to use a maximum of 2 CPU cores and 3 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
