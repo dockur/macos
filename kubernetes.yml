@@ -34,7 +34,7 @@ spec:
         privileged: true
       env:
         - name: RAM_SIZE
-          value: 4G
+          value: 3G
         - name: CPU_CORES
           value: "2"
         - name: DISK_SIZE
