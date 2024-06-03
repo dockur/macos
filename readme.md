@@ -65,7 +65,7 @@ kubectl apply -f kubernetes.yml
 
   - Select `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
-  - Click `Erase` to format the disk, and give it a recognizable name you like.
+  - Click `Erase` to format the disk, and give it any recognizable name you like.
 
   - Close the window and proceed the installation by clicking `Reinstall macOS <version>`.
   
@@ -130,6 +130,8 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
+  Please note that OSX requires the CPU core count to be a power of 2.
+ 
 * ### How do I verify if my system supports KVM?
   
   To verify if your system supports KVM, run the following commands:
