@@ -69,7 +69,7 @@ kubectl apply -f kubernetes.yml
 
   - Close the window and proceed the installation by clicking `Reinstall macOS <version>`.
   
-  - When prompted where to install it, select the disk you just created.
+  - When prompted where to install the OS, select the disk you just created.
 
   - Once you see the desktop, your OSX installation is ready for use.
   
@@ -130,8 +130,8 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
- * ### How do I verify if my system supports KVM?
-
+* ### How do I verify if my system supports KVM?
+  
   To verify if your system supports KVM, run the following commands:
 
   ```bash
