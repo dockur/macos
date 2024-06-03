@@ -7,7 +7,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 64Gi
+      storage: 32Gi
 ---
 apiVersion: v1
 kind: Pod
@@ -38,7 +38,7 @@ spec:
         - name: CPU_CORES
           value: "2"
         - name: DISK_SIZE
-          value: "64G"
+          value: "32G"
       volumeMounts:
         - mountPath: /storage
           name: storage
