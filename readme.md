@@ -102,10 +102,10 @@ kubectl apply -f kubernetes.yml
 
   ```yaml
   volumes:
-    - /var/osx:/storage
+    - /var/macos:/storage
   ```
 
-  Replace the example path `/var/osx` with the desired storage folder.
+  Replace the example path `/var/macos` with the desired storage folder.
 
 * ### How do I change the size of the disk?
 
