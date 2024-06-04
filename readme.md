@@ -11,7 +11,7 @@
 
 </div></h1>
 
-OSX inside a Docker container.
+OSX (macOS) inside a Docker container.
 
 ## Features
 
@@ -61,9 +61,9 @@ kubectl apply -f kubernetes.yml
   
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
-  - Select `macOs Base System` using your keyboard to begin the installation.
+  - Select `macOS Base System` using your keyboard to begin the installation.
 
-  - Select `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
+  - Select `Disk Utility` and then select the first `Apple Inc. VirtIO Block Media` disk.
 
   - Click `Erase` to format the disk, and give it any recognizable name you like.
 
@@ -71,13 +71,13 @@ kubectl apply -f kubernetes.yml
   
   - When prompted where to install the OS, select the disk you just created.
 
-  - Once you see the desktop, your OSX installation is ready for use.
+  - Once you see the desktop, your macOS installation is ready for use.
   
   Enjoy your brand new machine, and don't forget to star this repo!
 
-* ### How do I select the OSX version?
+* ### How do I select the macOS version?
 
-  By default, Ventura will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative OSX version to be downloaded:
+  By default, Ventura will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
 
   ```yaml
   environment:
@@ -130,7 +130,7 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
-  Please note that OSX requires the CPU core count to be a power of 2.
+  Please note that macOS requires the CPU core count to always be a power of 2.
  
 * ### How do I verify if my system supports KVM?
   
@@ -149,7 +149,7 @@ kubectl apply -f kubernetes.yml
 
  ## Acknowledgements
 
-Special thanks to [OSX-KVM](https://github.com/kholia/OSX-KVM) and [qemu-docker](https://github.com/qemus/qemu-docker/). This would not exist without their invaluable work.
+Special thanks to [seitenca](https://github.com/seitenca) and [OSX-KVM](https://github.com/kholia/OSX-KVM), this project would not exist without their invaluable work.
 
 ## Stars
 [![Stars](https://starchart.cc/dockur/osx.svg?variant=adaptive)](https://starchart.cc/dockur/osx)
