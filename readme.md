@@ -1,6 +1,6 @@
 <h1 align="center">OSX<br />
 <div align="center">
-<a href="https://github.com/dockur/osx/"><img src="https://github.com/dockur/osx/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
+<a href="https://github.com/dockur/macos/"><img src="https://github.com/dockur/macos/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
 </div>
 <div align="center">
 
@@ -25,9 +25,9 @@ Via Docker Compose:
 
 ```yaml
 services:
-  osx:
-    image: dockurr/osx
-    container_name: osx
+  macos:
+    image: dockurr/macos
+    container_name: macos
     environment:
       VERSION: "ventura"
     devices:
@@ -44,7 +44,7 @@ services:
 Via Docker CLI:
 
 ```bash
-docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-timeout 120 dockurr/osx
+docker run -it --rm -p 8006:8006 --device=/dev/kvm --cap-add NET_ADMIN --stop-timeout 120 dockurr/macos
 ```
 
 Via Kubernetes:
@@ -152,17 +152,17 @@ kubectl apply -f kubernetes.yml
 Special thanks to [seitenca](https://github.com/seitenca) and [OSX-KVM](https://github.com/kholia/OSX-KVM), this project would not exist without their invaluable work.
 
 ## Stars
-[![Stars](https://starchart.cc/dockur/osx.svg?variant=adaptive)](https://starchart.cc/dockur/osx)
+[![Stars](https://starchart.cc/dockur/macos.svg?variant=adaptive)](https://starchart.cc/dockur/macos)
 
 ## Disclaimer
 
 The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Apple Inc.
 
-[build_url]: https://github.com/dockur/osx/
-[hub_url]: https://hub.docker.com/r/dockurr/osx/
-[tag_url]: https://hub.docker.com/r/dockurr/osx/tags
+[build_url]: https://github.com/dockur/macos/
+[hub_url]: https://hub.docker.com/r/dockurr/macos/
+[tag_url]: https://hub.docker.com/r/dockurr/macos/tags
 
-[Build]: https://github.com/dockur/osx/actions/workflows/build.yml/badge.svg
-[Size]: https://img.shields.io/docker/image-size/dockurr/osx/latest?color=066da5&label=size
-[Pulls]: https://img.shields.io/docker/pulls/dockurr/osx.svg?style=flat&label=pulls&logo=docker
-[Version]: https://img.shields.io/docker/v/dockurr/osx/latest?arch=amd64&sort=semver&color=066da5
+[Build]: https://github.com/dockur/macos/actions/workflows/build.yml/badge.svg
+[Size]: https://img.shields.io/docker/image-size/dockurr/macos/latest?color=066da5&label=size
+[Pulls]: https://img.shields.io/docker/pulls/dockurr/macos.svg?style=flat&label=pulls&logo=docker
+[Version]: https://img.shields.io/docker/v/dockurr/macos/latest?arch=amd64&sort=semver&color=066da5
