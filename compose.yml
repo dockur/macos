@@ -1,7 +1,7 @@
 services:
   osx:
-    image: dockurr/osx
-    container_name: osx
+    image: dockurr/macos
+    container_name: macos
     environment:
       VERSION: "ventura"
     devices:

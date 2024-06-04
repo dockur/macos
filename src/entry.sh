@@ -4,7 +4,7 @@ set -Eeuo pipefail
 : "${DISK_TYPE:="blk"}"
 : "${USB:="qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"}"
 
-APP="OSX"
+APP="macOS"
 VGA="vmware"
 SUPPORT="https://github.com/dockur/osx/"
 
@@ -12,7 +12,7 @@ cd /run
 
 . reset.sh      # Initialize system
 . disk.sh       # Initialize disks
-. install.sh    # Get the osx images
+. install.sh    # Get the OSX images
 . display.sh    # Initialize graphics
 . network.sh    # Initialize network
 . boot.sh       # Configure boot
