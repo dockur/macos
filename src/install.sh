@@ -13,13 +13,10 @@ BASE_CHK="$STORAGE/$BASE_FILE.chunklist"
 
 downloadImage() {
 
-  rm -f "$BASE_DMG"
-  rm -f "$BASE_IMG"
-  rm -f "$BASE_TMP"
-
   local msg="Downloading macOS ($VERSION) image"
   info "$msg..." && html "$msg..."
 
+  rm -f "$STORAGE/$BASE_FILE.*"
   /run/progress.sh "$BASE_TMP" "" "$msg ([P])..." &
 
   if ! /run/fetch-macOS-v2.py --action download -s "$VERSION" -n "$BASE_FILE" -o "$STORAGE"; then
