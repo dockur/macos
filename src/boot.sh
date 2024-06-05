@@ -33,8 +33,14 @@ case "${BOOT_MODE,,}" in
     ;;
 esac
 
-BOOT_OPTS="$BOOT_OPTS -smbios type=2 -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
-BOOT_OPTS="$BOOT_OPTS -device isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc"
+BOOT_OPTS="$BOOT_OPTS -smbios type=2"
+BOOT_OPTS="$BOOT_OPTS -rtc base=utc,base=localtime"
+BOOT_OPTS="$BOOT_OPTS -global ICH9-LPC.disable_s3=1"
+BOOT_OPTS="$BOOT_OPTS -global ICH9-LPC.disable_s4=1"
+BOOT_OPTS="$BOOT_OPTS -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
+
+osk=$(echo "bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap" | tr 'A-Za-z' 'N-ZA-Mn-za-m')
+BOOT_OPTS="$BOOT_OPTS -device isa-applesmc,osk=$osk"
 
 # OVMF
 BOOT_OPTS="$BOOT_OPTS -drive if=pflash,format=raw,readonly=on,file=$OVMF/$ROM"
