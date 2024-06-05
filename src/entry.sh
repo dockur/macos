@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+: "${VGA:="vmware"}"
 : "${DISK_TYPE:="blk"}"
-: "${USB:="qemu-xhci,id=xhci -device usb-kbd,bus=xhci.0"}"
 
 APP="macOS"
-VGA="vmware"
-SUPPORT="https://github.com/dockur/osx/"
+SUPPORT="https://github.com/dockur/macos/"
 
 cd /run
 
