@@ -5,7 +5,7 @@ set -Eeuo pipefail
 : "${DISK_TYPE:="blk"}"
 
 APP="macOS"
-SUPPORT="https://github.com/dockur/macos/"
+SUPPORT="https://github.com/dockur/macos"
 
 cd /run
 
