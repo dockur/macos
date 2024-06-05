@@ -16,12 +16,17 @@ downloadImage() {
   rm -f "$BASE_IMG"  
   rm -f "$BASE_TMP"
 
-  local msg="Downloading $VERSION image..."
+  local msg="Downloading macOS ($VERSION) image..."
   info "$msg" && html "$msg"
 
   if ! /run/fetch-macOS-v2.py -s "$VERSION" -o "$STORAGE"; then
-    error "Failed to fetch MacOS $VERSION!"
+    error "Failed to fetch macOS ($VERSION)!"
     rm -f "$BASE_DMG"
+    return 1
+  fi
+
+  if [ ! -f "$BASE_DMG" ] || [ ! -s "$BASE_DMG" ]; then
+    error "Failed to find $BASE_DMG, aborting..."
     return 1
   fi
 
