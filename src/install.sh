@@ -17,7 +17,7 @@ downloadImage() {
   info "$msg..." && html "$msg..."
 
   rm -f "$STORAGE/$BASE_FILE.*"
-  /run/progress.sh "$BASE_TMP" "" "$msg ([P])..." &
+  /run/progress.sh "$BASE_DMG" "" "$msg ([P])..." &
 
   if ! /run/fetch-macOS-v2.py --action download -s "$VERSION" -n "$BASE_FILE" -o "$STORAGE"; then
     error "Failed to fetch macOS ($VERSION)!"
