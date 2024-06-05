@@ -73,7 +73,7 @@ kubectl apply -f kubernetes.yml
 
   - There will be several reboots during the installation, keep selecting `macOS Installer` until it offers the option to select the disk you created.
 
-  - Keep selecting your own disk each reboot.
+  - Keep selecting your own disk each reboot from now on.
 
   - You will be guided through the installation. Select your region, account name, and other options.
 
