@@ -52,7 +52,7 @@ DISK_OPTS="$DISK_OPTS -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus
 DISK_OPTS="$DISK_OPTS -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=$DISK_CACHE,aio=$DISK_IO,readonly=on,if=none"
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
-CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on"
+CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
 
 if [[ "$CPU_VENDOR" != "GenuineIntel" ]]; then
   CPU_MODEL="Haswell-noTSX"
