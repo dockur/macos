@@ -29,7 +29,7 @@ downloadImage() {
   fi
 
   fKill "progress.sh"
-  
+
   if [ ! -f "$BASE_DMG" ] || [ ! -s "$BASE_DMG" ]; then
     error "Failed to find $BASE_DMG, aborting..."
     return 1
