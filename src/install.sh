@@ -2,47 +2,63 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${VERSION:="ventura"}"  # OSX Version
+: "${VERSION:="sonoma"}"  # OSX Version
 
+TMP="$STORAGE/tmp"
+BASE_FILE="BaseSystem"
 BASE_IMG_ID="InstallMedia"
-BASE_IMG="$STORAGE/BaseSystem.img"
+BASE_IMG="$STORAGE/base.dmg"
+BASE_TMP="$TMP/$BASE_FILE.dmg"
 
 downloadImage() {
 
-  local msg="Downloading $APP $VERSION image..."
-  info "$msg" && html "$msg"
+  rm -rf "$TMP"
+  mkdir -p "$TMP"
 
-  if ! /run/fetch-macOS-v2.py -s "$VERSION"; then
-    error "Failed to fetch MacOS $VERSION!"
+  local msg="Downloading macOS ($VERSION) image"
+  info "$msg..." && html "$msg..."
+
+  /run/progress.sh "$BASE_TMP" "" "$msg ([P])..." &
+
+  if ! /run/fetch-macOS-v2.py --action download -s "$VERSION" -n "$BASE_FILE" -o "$TMP"; then
+    error "Failed to fetch macOS ($VERSION)!"
+    fKill "progress.sh"
     return 1
   fi
 
-  msg="Converting base image format..."
-  info "$msg" && html "$msg"
+  fKill "progress.sh"
 
-  if ! dmg2img -i BaseSystem.dmg "$BASE_IMG"; then
-    error "Failed to convert base image format!"
+  if [ ! -f "$BASE_TMP" ] || [ ! -s "$BASE_TMP" ]; then
+    error "Failed to find file $BASE_TMP !"
     return 1
   fi
-
-  rm -f BaseSystem.dmg
 
   echo "$VERSION" > "$STORAGE/$PROCESS.version"
+
+  mv "$BASE_TMP" "$BASE_IMG"
+  rm -rf "$TMP"
+
+  return 0
 }
 
-if [ ! -f "$BASE_IMG" ]; then
-  ! downloadImage && exit 34
+if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
+  if ! downloadImage; then
+    rm -rf "$TMP"
+    exit 34
+  fi
 fi
 
 STORED_VERSION=$(cat "$STORAGE/$PROCESS.version")
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
   info "Different version detected, switching base image from $STORED_VERSION to $VERSION"
-  rm -f "$BASE_IMG"
-  ! downloadImage && exit 34
+  if ! downloadImage; then
+    rm -rf "$TMP"
+    exit 34
+  fi
 fi
 
 DISK_OPTS="$DISK_OPTS -device virtio-blk-pci,drive=${BASE_IMG_ID},scsi=off,bus=pcie.0,addr=0x6,iothread=io2"
-DISK_OPTS="$DISK_OPTS -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=raw,cache=$DISK_CACHE,aio=$DISK_IO,discard=$DISK_DISCARD,detect-zeroes=on,if=none"
+DISK_OPTS="$DISK_OPTS -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=$DISK_CACHE,aio=$DISK_IO,readonly=on,if=none"
 
 return 0

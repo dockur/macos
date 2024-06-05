@@ -1,5 +1,5 @@
 FROM scratch
-COPY --from=qemux/qemu-docker:5.10 / /
+COPY --from=qemux/qemu-docker:5.11 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_OSX_KVM="326053dd61f49375d5dfb28ee715d38b04b5cd8e"
@@ -12,14 +12,7 @@ ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
-    uml-utilities \
-    libguestfs-tools \
-    p7zip-full \
-    make \
-    dmg2img \
-    python3 \
-    tesseract-ocr \
-    tesseract-ocr-eng && \
+    python3 && \
     apt-get clean && \
     echo "$VERSION_ARG" > /run/version && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -40,6 +33,6 @@ VOLUME /storage
 ENV RAM_SIZE "3G"
 ENV CPU_CORES "2"
 ENV DISK_SIZE "32G"
-ENV VERSION "ventura"
+ENV VERSION "sonoma"
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]
