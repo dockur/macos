@@ -12,14 +12,8 @@ ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
-    uml-utilities \
-    libguestfs-tools \
-    p7zip-full \
-    make \
     dmg2img \
     python3 \
-    tesseract-ocr \
-    tesseract-ocr-eng && \
     apt-get clean && \
     echo "$VERSION_ARG" > /run/version && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
