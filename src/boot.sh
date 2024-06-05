@@ -49,7 +49,7 @@ BOOT_OPTS+=" -drive if=pflash,format=raw,file=$OVMF/$VARS"
 
 # OpenCoreBoot
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=1"
-DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=$DISK_CACHE,aio=$DISK_IO,readonly=on,if=none"
+DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=unsafe,aio=$DISK_IO,readonly=on,if=none"
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
