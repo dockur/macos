@@ -94,7 +94,6 @@ kubectl apply -f kubernetes.yml
   | `big-sur`     | Big Sur            | ? GB     |
   | `catalina`    | Catalina           | ? GB     |
   | `mojave`      | Mojave             | ? GB     |
-  | `high-sierra` | High Sierra        | ? GB     |
 
 * ### How do I change the storage location?
 
