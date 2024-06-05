@@ -48,6 +48,6 @@ BOOT_OPTS="$BOOT_OPTS -drive if=pflash,format=raw,file=$OVMF/$VARS"
 
 # OpenCoreBoot
 DISK_OPTS="$DISK_OPTS -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=1"
-DISK_OPTS="$DISK_OPTS -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=$DISK_CACHE,aio=$DISK_IO,discard=$DISK_DISCARD,detect-zeroes=on,if=none"
+DISK_OPTS="$DISK_OPTS -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=$DISK_CACHE,aio=$DISK_IO,discard=$DISK_DISCARD,detect-zeroes=off,if=none"
 
 return 0
