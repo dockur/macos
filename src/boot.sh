@@ -60,7 +60,6 @@ fi
   
 USB="nec-usb-xhci,id=xhci"
 USB="$USB -device usb-kbd,bus=xhci.0"
-USB="$USB -device usb-mouse,bus=xhci.0"
 USB="$USB -global nec-usb-xhci.msi=off"
 
 return 0
