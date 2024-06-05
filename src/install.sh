@@ -7,8 +7,8 @@ set -Eeuo pipefail
 TMP="$STORAGE/tmp"
 BASE_FILE="BaseSystem"
 BASE_IMG_ID="InstallMedia"
+BASE_IMG="$STORAGE/base.dmg"
 BASE_TMP="$TMP/$BASE_FILE.dmg"
-BASE_IMG="$STORAGE/$BASE_FILE.dmg"
 
 downloadImage() {
 
