@@ -10,8 +10,8 @@ SUPPORT="https://github.com/dockur/macos"
 cd /run
 
 . reset.sh      # Initialize system
-. disk.sh       # Initialize disks
 . install.sh    # Get the OSX images
+. disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
 . network.sh    # Initialize network
 . boot.sh       # Configure boot
