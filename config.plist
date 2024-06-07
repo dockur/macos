@@ -1033,11 +1033,11 @@
 			<key>PollAppleHotKeys</key>
 			<true/>
 			<key>ShowPicker</key>
-			<false/>
+			<true/>
 			<key>TakeoffDelay</key>
 			<integer>0</integer>
 			<key>Timeout</key>
-			<integer>0</integer>
+			<integer>45</integer>
 		</dict>
 		<key>Debug</key>
 		<dict>
@@ -1083,7 +1083,7 @@
 			<key>PasswordSalt</key>
 			<data></data>
 			<key>ScanPolicy</key>
-			<integer>18809603</integer>
+			<integer>17761027</integer>
 			<key>SecureBootModel</key>
 			<string>Disabled</string>
 			<key>Vault</key>
@@ -1189,7 +1189,7 @@
 				<key>SystemAudioVolume</key>
 				<data>Rg==</data>
 				<key>boot-args</key>
-				<string>keepsyms=1</string>
+				<string>-v keepsyms=1 amfi_get_out_of_my_way=1 tlbto_us=0 vti=9</string>
 				<key>csr-active-config</key>
 				<data>Jg8=</data>
 				<key>prev-lang:kbd</key>
@@ -1260,13 +1260,11 @@
 			<key>AdviseFeatures</key>
 			<false/>
 			<key>MLB</key>
-			<string>C02717306J9JG361M</string>
-			<key>MaxBIOSVersion</key>
-			<false/>
+			<string>C02119700QXJG36JC</string>
 			<key>ProcessorType</key>
 			<integer>0</integer>
 			<key>ROM</key>
-			<data>m7zhIYfl</data>
+			<string>0022412e3d4a</string>
 			<key>SpoofVendor</key>
 			<true/>
 			<key>SystemMemoryStatus</key>
@@ -1274,9 +1272,9 @@
 			<key>SystemProductName</key>
 			<string>iMacPro1,1</string>
 			<key>SystemSerialNumber</key>
-			<string>C02TM2ZBHX87</string>
+			<string>C02FPBZPHX87</string>
 			<key>SystemUUID</key>
-			<string>007076A6-F2A2-4461-BBE5-BAD019F8025A</string>
+			<string>213FA768-A62C-4299-8598-47AA666E436F</string>
 		</dict>
 		<key>UpdateDataHub</key>
 		<true/>
