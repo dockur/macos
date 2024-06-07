@@ -12,6 +12,7 @@ ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
+    make \
     python3 && \
     apt-get clean && \
     echo "$VERSION_ARG" > /run/version && \
@@ -26,6 +27,8 @@ ADD --chmod=755 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1024x768.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1920x1080.fd /usr/share/OVMF/
+
+ADD --chmod=755 https://raw.githubusercontent.com/thenickdude/KVM-Opencore/master/Makefile /core/
 
 EXPOSE 8006 5900
 VOLUME /storage
