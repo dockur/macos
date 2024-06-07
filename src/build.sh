@@ -25,6 +25,7 @@ msg "Mounting template ISO..."
 trap 'cleanup' EXIT
 
 export LIBGUESTFS_BACKEND=direct
+# shellcheck disable=SC2046
 eval $(guestfish --listen)
 if test "$GUESTFISH_PID" = ""; then
   echo "ERROR: Starting Guestfish failed!"
