@@ -61,6 +61,8 @@ kubectl apply -f kubernetes.yml
   
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
+  - Select `macOS Base System` using your keyboard to begin the installation.
+
   - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
   - Click the `Erase` button to format the disk, and give it any recognizable name you like.
