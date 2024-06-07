@@ -46,7 +46,7 @@ COPY --chmod=755 ./src /run/
 COPY --from=builder /images /images
 
 ADD --chmod=755 $REPO_OSX_KVM/$VERSION_OSX_KVM/fetch-macOS-v2.py /run/
-ADD --chmod=755 \
+ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1024x768.fd \
