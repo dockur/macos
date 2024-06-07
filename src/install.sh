@@ -59,6 +59,6 @@ if [ "$VERSION" != "$STORED_VERSION" ]; then
 fi
 
 DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},scsi=off,bus=pcie.0,addr=0x6,iothread=io2"
-DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,aio=$DISK_IO,readonly=on,if=none"
+DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"
 
 return 0
