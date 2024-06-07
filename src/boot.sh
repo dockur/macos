@@ -14,17 +14,20 @@ OVMF="/usr/share/OVMF"
 
 case "${BOOT_MODE,,}" in
   full)
+    DEST="macos"
     BOOT_DESC=" 1920x1080"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS-1920x1080.fd"
     ;;
   hd)
+    DEST="macos_hd"
     BOOT_DESC=" 1024x768"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS-1024x768.fd"
     ;;
   default)
     BOOT_DESC=""
+    DEST="macos_default"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS.fd"
     ;;
@@ -44,8 +47,20 @@ osk=$(echo "bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap" | 
 BOOT_OPTS+=" -device isa-applesmc,osk=$osk"
 
 # OVMF
-BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$OVMF/$ROM"
-BOOT_OPTS+=" -drive if=pflash,format=raw,file=$OVMF/$VARS"
+DEST="$STORAGE/$DEST"
+
+if [ ! -s "$DEST.rom" ] || [ ! -f "$DEST.rom" ]; then
+  [ ! -s "$OVMF/$ROM" ] || [ ! -f "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
+  cp "$OVMF/$ROM" "$DEST.rom"
+fi
+
+if [ ! -s "$DEST.vars" ] || [ ! -f "$DEST.vars" ]; then
+  [ ! -s "$OVMF/$VARS" ] || [ ! -f "$OVMF/$VARS" ]&& error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
+  cp "$OVMF/$VARS" "$DEST.vars"
+fi
+
+BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$DEST.rom"
+BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 
 # OpenCoreBoot
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=$BOOT_INDEX"
