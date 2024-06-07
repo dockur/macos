@@ -63,19 +63,17 @@ kubectl apply -f kubernetes.yml
 
   - Select `macOS Base System` using your keyboard to begin the installation.
 
-  - Select `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
+  - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
-  - Click `Erase` to format the disk, and give it any recognizable name you like.
+  - Click the `Erase` button to format the disk, and give it any recognizable name you like.
 
-  - Close the window and proceed the installation by clicking `Reinstall macOS`.
+  - Close the current window and proceed the installation by clicking `Reinstall macOS`.
   
-  - When prompted where to install the OS, select the disk you just created.
+  - When prompted where you want to install macOS, select the disk you just created previously.
+ 
+  - There will be several reboots, select `macOS Installer` each time until it shows your own disk.
 
-  - There will be several reboots during the installation, keep selecting `macOS Installer` until it offers the option to select the disk you created.
-
-  - Keep selecting your own disk each reboot from now on.
-
-  - You will be guided through the installation. Select your region, account name, and other options.
+  - After all files are copied, select your region, language, and account settings.
 
   - Once you see the desktop, your macOS installation is ready for use.
   
@@ -152,7 +150,7 @@ kubectl apply -f kubernetes.yml
 
  ## Acknowledgements
 
-Special thanks to [seitenca](https://github.com/seitenca) and [OSX-KVM](https://github.com/kholia/OSX-KVM), this project would not exist without their invaluable work.
+Special thanks to [OSX-KVM](https://github.com/kholia/OSX-KVM), [KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) and [seitenca](https://github.com/seitenca), this project would not exist without their invaluable work.
 
 ## Stars
 [![Stars](https://starchart.cc/dockur/macos.svg?variant=adaptive)](https://starchart.cc/dockur/macos)

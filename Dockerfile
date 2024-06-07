@@ -1,4 +1,29 @@
-FROM scratch
+FROM debian:trixie-slim AS builder
+
+ARG VERSION_OPENCORE="v21"
+ARG REPO_OPENCORE="https://github.com/thenickdude/KVM-Opencore"
+
+ARG DEBCONF_NOWARNINGS="yes"
+ARG DEBIAN_FRONTEND="noninteractive"
+ARG DEBCONF_NONINTERACTIVE_SEEN="true"
+
+RUN set -eu && \
+    apt-get update && \
+    apt-get --no-install-recommends -y install \
+    guestfish \
+    linux-image-generic && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY --chmod=755 ./src/build.sh /run
+COPY --chmod=644 ./config.plist /run
+
+ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE.iso.gz /tmp/opencore.iso.gz
+
+RUN gzip -d /tmp/opencore.iso.gz
+RUN run/build.sh /tmp/opencore.iso /run/config.plist
+
+FROM scratch AS runner
 COPY --from=qemux/qemu-docker:5.11 / /
 
 ARG VERSION_ARG="0.0"
@@ -18,9 +43,9 @@ RUN set -eu && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --chmod=755 ./src /run/
+COPY --from=builder /images /images
 
 ADD --chmod=755 $REPO_OSX_KVM/$VERSION_OSX_KVM/fetch-macOS-v2.py /run/
-ADD --chmod=755 $REPO_OSX_KVM/$VERSION_OSX_KVM/OpenCore/OpenCore.qcow2 /images/
 ADD --chmod=755 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS.fd \
