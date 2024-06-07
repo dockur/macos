@@ -7,7 +7,7 @@ set -Eeuo pipefail
 BOOT_DESC=""
 BOOT_OPTS=""
 BOOT_DRIVE_ID="OpenCoreBoot"
-BOOT_DRIVE="/images/OpenCore.qcow2"
+BOOT_DRIVE="/images/OpenCore.img"
 
 SECURE="off"
 OVMF="/usr/share/OVMF"
@@ -48,8 +48,8 @@ BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$OVMF/$ROM"
 BOOT_OPTS+=" -drive if=pflash,format=raw,file=$OVMF/$VARS"
 
 # OpenCoreBoot
-DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=1"
-DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=qcow2,cache=unsafe,aio=$DISK_IO,readonly=on,if=none"
+DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=$BOOT_INDEX"
+DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=raw,cache=$DISK_CACHE,aio=$DISK_IO,readonly=on,if=none"
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
@@ -57,7 +57,7 @@ CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
 if [[ "$CPU_VENDOR" != "GenuineIntel" ]]; then
   CPU_MODEL="Haswell-noTSX"
 fi
-  
+
 USB="nec-usb-xhci,id=xhci"
 USB+=" -device usb-kbd,bus=xhci.0"
 USB+=" -global nec-usb-xhci.msi=off"
