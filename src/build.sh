@@ -19,6 +19,8 @@ fi
 START=$(sfdisk -l "$1" | grep -i -m 1 "EFI System" | awk '{print $2}')
 mcopy -bspmQ -i "$1@@${START}S" ::EFI "$OUT"
 
+cp "$2" "$OUT/EFI/OC/"
+
 echo "Creating OpenCore image..."
 
 START=2048
