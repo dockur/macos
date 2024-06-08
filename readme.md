@@ -144,7 +144,9 @@ kubectl apply -f kubernetes.yml
 
 * ### Is this project legal?
 
-  Yes, this project contains only open-source code and does not distribute any copyrighted material. So under all applicable laws, this project will be considered legal.
+  Yes, this project contains only open-source code and does not distribute any copyrighted material. Neither does it try to circumvent any copyright protection measures. So under all applicable laws, this project will be considered legal.
+
+  However, by installing Apple's macOS, you must accept their end-user license agreement, which does not permit installation on non-official hardware. So only run this container on hardware sold by Apple, as any other use will be a violation of their terms and conditions.
 
  ## Acknowledgements
 
@@ -155,7 +157,7 @@ Special thanks to [seitenca](https://github.com/seitenca), [OSX-KVM](https://git
 
 ## Disclaimer
 
-The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Apple Inc.
+Only run this container on Apple hardware, any other use is not permitted by their EULA. The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Apple Inc.
 
 [build_url]: https://github.com/dockur/macos/
 [hub_url]: https://hub.docker.com/r/dockurr/macos/
