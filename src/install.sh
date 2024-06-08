@@ -29,7 +29,7 @@ downloadImage() {
     *)
       error "Unknown VERSION specified, value \"${version}\" is not recognized!"
       return 1 ;;
-  esac    
+  esac
 
   local msg="Downloading macOS ${version^}"
   info "$msg..." && html "$msg..."
