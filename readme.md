@@ -148,7 +148,7 @@ kubectl apply -f kubernetes.yml
 
  ## Acknowledgements
 
-Special thanks to [OSX-KVM](https://github.com/kholia/OSX-KVM), [KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) and [seitenca](https://github.com/seitenca), this project would not exist without their invaluable work.
+Special thanks to [seitenca](https://github.com/seitenca), [OSX-KVM](https://github.com/kholia/OSX-KVM) and [KVM-Opencore](https://github.com/thenickdude/KVM-Opencore), this project would not exist without their invaluable work.
 
 ## Stars
 [![Stars](https://starchart.cc/dockur/macos.svg?variant=adaptive)](https://starchart.cc/dockur/macos)
