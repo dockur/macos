@@ -61,8 +61,6 @@ kubectl apply -f kubernetes.yml
   
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
-  - Select `macOS Base System` (by pressing the enter key) to begin the installation.
-
   - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
   - Click the `Erase` button to format the disk, and give it any recognizable name you like.
@@ -71,11 +69,7 @@ kubectl apply -f kubernetes.yml
   
   - When prompted where you want to install it, select the disk you just created previously.
  
-  - There will be several reboots, select `macOS Installer` each time until it shows your own disk.
-
   - After all files are copied, select your region, language, and account settings.
-
-  - Once you see the desktop, your macOS installation is ready for use.
   
   Enjoy your brand new machine, and don't forget to star this repo!
 
