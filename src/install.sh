@@ -5,44 +5,63 @@ set -Eeuo pipefail
 : "${VERSION:="sonoma"}"  # OSX Version
 
 TMP="$STORAGE/tmp"
-BASE_FILE="BaseSystem"
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
-BASE_TMP="$TMP/$BASE_FILE.dmg"
 
 downloadImage() {
+
+  local board
+  local version="$1"
+  local file="BaseSystem"
+  local path="$TMP/$file.dmg"
+
+  case "${version,,}" in
+    "sonoma" | "14"* )
+      board="Mac-A61BADE1FDAD7B05" ;;
+    "ventura" | "13"* )
+      board="Mac-4B682C642B45593E" ;;
+    "monterey" | "12"* )
+      board="Mac-B809C3757DA9BB8D" ;;
+    "bigsur" | "big-sur" | "11"* )
+      board="Mac-2BD1B31983FE1663" ;;
+    "catalina" | "10"* )
+      board="Mac-00BE6ED71E35EB86" ;;
+    *)
+      error "Unknown VERSION specified, value \"${version}\" is not recognized!"
+      return 1 ;;
+  esac    
+
+  local msg="Downloading macOS ($version) image"
+  info "$msg..." && html "$msg..."
 
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
-  local msg="Downloading macOS ($VERSION) image"
-  info "$msg..." && html "$msg..."
+  /run/progress.sh "$path" "" "$msg ([P])..." &
 
-  /run/progress.sh "$BASE_TMP" "" "$msg ([P])..." &
-
-  if ! /run/fetch-macOS-v2.py --action download -s "$VERSION" -n "$BASE_FILE" -o "$TMP"; then
-    error "Failed to fetch macOS ($VERSION)!"
+  if ! /run/fetch-macOS-v2.py --action download -b "$board" -n "$file" -o "$TMP"; then
+    error "Failed to fetch macOS \"$version\" with board id \"$board\"!"
     fKill "progress.sh"
     return 1
   fi
 
   fKill "progress.sh"
 
-  if [ ! -f "$BASE_TMP" ] || [ ! -s "$BASE_TMP" ]; then
-    error "Failed to find file $BASE_TMP !"
+  if [ ! -f "$path" ] || [ ! -s "$path" ]; then
+    error "Failed to find file \"$path\" !"
     return 1
   fi
 
-  echo "$VERSION" > "$STORAGE/$PROCESS.version"
+  echo "$version" > "$STORAGE/$PROCESS.version"
 
-  mv "$BASE_TMP" "$BASE_IMG"
+  mv "$path" "$BASE_IMG"
   rm -rf "$TMP"
 
   return 0
 }
 
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
-  if ! downloadImage; then
+  if ! downloadImage "$VERSION"; then
     rm -rf "$TMP"
     exit 34
   fi
@@ -52,7 +71,7 @@ STORED_VERSION=$(cat "$STORAGE/$PROCESS.version")
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
   info "Different version detected, switching base image from $STORED_VERSION to $VERSION"
-  if ! downloadImage; then
+  if ! downloadImage "$VERSION"; then
     rm -rf "$TMP"
     exit 34
   fi
