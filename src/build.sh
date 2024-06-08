@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-echo "Extracting template image..."
-
 DST="/images"
 OUT="/tmp/extract"
 
@@ -12,18 +10,24 @@ rm -rf "$DST"
 mkdir -p "$OUT"
 mkdir -p "$DST"
 
+echo "Extracting template image..."
+
 if [ ! -f "$1" ] || [ ! -s "$1" ]; then
-  error "Could not find image file \"$1\"." && exit 10
+  echo "Could not find image file \"$1\"." && exit 10
 fi
 
 START=$(sfdisk -l "$1" | grep -i -m 1 "EFI System" | awk '{print $2}')
 mcopy -bspmQ -i "$1@@${START}S" ::EFI "$OUT"
 
+echo "Building OpenCore image..."
+
 cp "$2" "$OUT/EFI/OC/"
 
-echo "Creating OpenCore image..."
+FILE="OpenCore.img"
+IMG="/tmp/$SIZE.img"
+NAME=$(basename "$IMG")
 
-MB=32
+MB=256
 CLUSTER=4
 START=2048
 SECTOR=512
@@ -33,17 +37,13 @@ SIZE=$(( MB*1024*1024 ))
 OFFSET=$(( START*SECTOR ))
 TOTAL=$(( SIZE-(FIRST_LBA*SECTOR) ))
 LAST_LBA=$(( TOTAL/SECTOR ))
-COUNT=$(( LAST_LBA-START-1 ))
-
-FILE="OpenCore.img"
-IMG="/tmp/$SIZE.img"
-NAME=$(basename "$IMG")
+COUNT=$(( LAST_LBA-(START-1) ))
 
 rm -f "$IMG"
 
 if ! truncate -s "$SIZE" "$IMG"; then
   rm -f "$IMG"
-  error "Could not allocate file $IMG for the OpenCore image." && exit 11
+  echo "Could not allocate file $IMG for the OpenCore image." && exit 11
 fi
 
 PART="/tmp/partition.fdisk"
