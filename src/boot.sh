@@ -13,27 +13,26 @@ SECURE="off"
 OVMF="/usr/share/OVMF"
 
 case "${BOOT_MODE,,}" in
-  full)
+  "full" )
     DEST="macos"
     BOOT_DESC=" 1920x1080"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS-1920x1080.fd"
     ;;
-  hd)
+  "hd" )
     DEST="macos_hd"
     BOOT_DESC=" 1024x768"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS-1024x768.fd"
     ;;
-  default)
+  "default" )
     BOOT_DESC=""
     DEST="macos_default"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS.fd"
     ;;
   *)
-    error "Unknown BOOT_MODE, value \"${BOOT_MODE}\" is not recognized!"
-    exit 33
+    error "Unknown BOOT_MODE, value \"${BOOT_MODE}\" is not recognized!" && exit 33
     ;;
 esac
 
