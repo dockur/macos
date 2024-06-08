@@ -138,6 +138,10 @@ kubectl apply -f kubernetes.yml
 
   If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
+* ### How do I run Windows in a container?
+
+  You can use [dockur/windows](https://github.com/dockur/windows) for that. It shares many of the same features, and even has completely automatic installation.
+
 * ### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. So under all applicable laws, this project will be considered legal.
