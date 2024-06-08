@@ -31,7 +31,7 @@ downloadImage() {
       return 1 ;;
   esac    
 
-  local msg="Downloading macOS ($version) image"
+  local msg="Downloading macOS ${version^}"
   info "$msg..." && html "$msg..."
 
   rm -rf "$TMP"
