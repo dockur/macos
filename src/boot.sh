@@ -63,7 +63,7 @@ BOOT_DRIVE_ID="OpenCore"
 BOOT_DRIVE="$STORAGE/boot.img"
 
 if [ ! -f "$BOOT_DRIVE" ] || [ ! -s "$BOOT_DRIVE" ]; then
-  msg="Extracting boot image..."
+  msg="Extracting boot image"
   info "$msg..." && html "$msg..."
   gzip -dkc /images/OpenCore.img.gz > "$BOOT_DRIVE"
 fi
