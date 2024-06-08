@@ -16,8 +16,8 @@ OSX (macOS) inside a Docker container.
 ## Features
 
  - KVM acceleration
- - Image downloader
  - Web-based viewer
+ - Automatic download
 
 ## Usage
 
