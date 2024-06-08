@@ -23,10 +23,6 @@ echo "Building OpenCore image..."
 
 cp "$2" "$OUT/EFI/OC/"
 
-FILE="OpenCore.img"
-IMG="/tmp/$SIZE.img"
-NAME=$(basename "$IMG")
-
 MB=256
 CLUSTER=4
 START=2048
@@ -39,6 +35,8 @@ TOTAL=$(( SIZE-(FIRST_LBA*SECTOR) ))
 LAST_LBA=$(( TOTAL/SECTOR ))
 COUNT=$(( LAST_LBA-(START-1) ))
 
+FILE="OpenCore.img"
+IMG="/tmp/$FILE"
 rm -f "$IMG"
 
 if ! truncate -s "$SIZE" "$IMG"; then
@@ -50,13 +48,13 @@ PART="/tmp/partition.fdisk"
 
 {       echo "label: gpt"
         echo "label-id: 1ACB1E00-3B8F-4B2A-86A4-D99ED21DCAEB"
-        echo "device: $NAME"
+        echo "device: $FILE"
         echo "unit: sectors"
         echo "first-lba: $FIRST_LBA"
         echo "last-lba: $LAST_LBA"
         echo "sector-size: $SECTOR"
         echo ""
-        echo "${NAME}1 : start=$START, size=$COUNT, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
+        echo "${FILE}1 : start=$START, size=$COUNT, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
 
 } > "$PART"
 
@@ -69,7 +67,11 @@ mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
 echo "Copying files to image..."
 
 mcopy -bspmQ "$OUT/EFI" "C:"
+rm -rf "$OUT"
 
-mv -f "$IMG" "$DST/$FILE"
+echo "Compressing image..."
+
+gzip -c "$IMG" > "$DST/$FILE.gz"
+rm -f "$IMG"
 
 echo "Finished succesfully!"
