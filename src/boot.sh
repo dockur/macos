@@ -6,9 +6,6 @@ set -Eeuo pipefail
 
 BOOT_DESC=""
 BOOT_OPTS=""
-BOOT_DRIVE_ID="OpenCoreBoot"
-BOOT_DRIVE="/images/OpenCore.img"
-
 SECURE="off"
 OVMF="/usr/share/OVMF"
 
@@ -62,6 +59,13 @@ BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$DEST.rom"
 BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 
 # OpenCoreBoot
+BOOT_DRIVE_ID="OpenCore"
+BOOT_DRIVE="$STORAGE/boot.img"
+
+if [ ! -f "$BOOT_DRIVE" ] || [ ! -s "$BOOT_DRIVE" ]; then
+  gzip -dkc /images/OpenCore.img.gz > "$BOOT_DRIVE"
+fi
+
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=$BOOT_INDEX"
 DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=raw,cache=$DISK_CACHE,aio=$DISK_IO,readonly=on,if=none"
 
