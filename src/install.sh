@@ -29,9 +29,9 @@ downloadImage() {
     *)
       error "Unknown VERSION specified, value \"${version}\" is not recognized!"
       return 1 ;;
-  esac    
+  esac
 
-  local msg="Downloading macOS ($version) image"
+  local msg="Downloading macOS ${version^}"
   info "$msg..." && html "$msg..."
 
   rm -rf "$TMP"
@@ -40,7 +40,7 @@ downloadImage() {
   /run/progress.sh "$path" "" "$msg ([P])..." &
 
   if ! /run/fetch-macOS-v2.py --action download -b "$board" -n "$file" -o "$TMP"; then
-    error "Failed to fetch macOS \"$version\" with board id \"$board\"!"
+    error "Failed to fetch macOS \"${version^}\" with board id \"$board\"!"
     fKill "progress.sh"
     return 1
   fi

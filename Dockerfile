@@ -20,8 +20,9 @@ COPY --chmod=644 ./config.plist /run
 
 ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE.iso.gz /tmp/opencore.iso.gz
 
-RUN gzip -d /tmp/opencore.iso.gz
-RUN run/build.sh /tmp/opencore.iso /run/config.plist
+RUN gzip -d /tmp/opencore.iso.gz && \
+    run/build.sh /tmp/opencore.iso /run/config.plist && \
+    rm -rf /tmp/*
 
 FROM scratch AS runner
 COPY --from=qemux/qemu-docker:5.11 / /

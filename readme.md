@@ -16,8 +16,8 @@ OSX (macOS) inside a Docker container.
 ## Features
 
  - KVM acceleration
- - Image downloader
  - Web-based viewer
+ - Automatic download
 
 ## Usage
 
@@ -61,8 +61,6 @@ kubectl apply -f kubernetes.yml
   
   - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
 
-  - Select `macOS Base System` (by pressing the enter key) to begin the installation.
-
   - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
   - Click the `Erase` button to format the disk, and give it any recognizable name you like.
@@ -71,11 +69,7 @@ kubectl apply -f kubernetes.yml
   
   - When prompted where you want to install it, select the disk you just created previously.
  
-  - There will be several reboots, select `macOS Installer` each time until it shows your own disk.
-
   - After all files are copied, select your region, language, and account settings.
-
-  - Once you see the desktop, your macOS installation is ready for use.
   
   Enjoy your brand new machine, and don't forget to star this repo!
 
@@ -144,13 +138,17 @@ kubectl apply -f kubernetes.yml
 
   If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
 
+* ### How do I run Windows in a container?
+
+  You can use [dockur/windows](https://github.com/dockur/windows) for that. It shares many of the same features, and even has completely automatic installation.
+
 * ### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. So under all applicable laws, this project will be considered legal.
 
  ## Acknowledgements
 
-Special thanks to [OSX-KVM](https://github.com/kholia/OSX-KVM), [KVM-Opencore](https://github.com/thenickdude/KVM-Opencore) and [seitenca](https://github.com/seitenca), this project would not exist without their invaluable work.
+Special thanks to [seitenca](https://github.com/seitenca), [OSX-KVM](https://github.com/kholia/OSX-KVM) and [KVM-Opencore](https://github.com/thenickdude/KVM-Opencore), this project would not exist without their invaluable work.
 
 ## Stars
 [![Stars](https://starchart.cc/dockur/macos.svg?variant=adaptive)](https://starchart.cc/dockur/macos)
