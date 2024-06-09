@@ -7,6 +7,7 @@ set -Eeuo pipefail
 TMP="$STORAGE/tmp"
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
+BASE_VERSION="$STORAGE/$PROCESS.version"
 
 downloadImage() {
 
@@ -55,7 +56,7 @@ downloadImage() {
   mv -f "$path" "$BASE_IMG"
   rm -rf "$TMP"
 
-  echo "$version" > "$STORAGE/$PROCESS.version"
+  echo "$version" > "$BASE_VERSION"
   return 0
 }
 
@@ -67,8 +68,8 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
 fi
 
 STORED_VERSION=""
-if [ -f "$STORAGE/$PROCESS.version" ]; then
-  STORED_VERSION=$(<"$STORAGE/$PROCESS.version")
+if [ -f "$BASE_VERSION" ]; then
+  STORED_VERSION=$(<"$BASE_VERSION")
 fi
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
