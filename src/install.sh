@@ -7,6 +7,7 @@ set -Eeuo pipefail
 TMP="$STORAGE/tmp"
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
+BASE_VERSION="$STORAGE/$PROCESS.version"
 
 downloadImage() {
 
@@ -32,15 +33,15 @@ downloadImage() {
   esac
 
   local msg="Downloading macOS ${version^}"
-  info "$msg..." && html "$msg..."
+  info "$msg recovery image..." && html "$msg..."
 
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
   /run/progress.sh "$path" "" "$msg ([P])..." &
 
-  if ! /run/fetch-macOS-v2.py --action download -b "$board" -n "$file" -o "$TMP"; then
-    error "Failed to fetch macOS \"${version^}\" with board id \"$board\"!"
+  if ! /run/macrecovery.py -b "$board" -n "$file" -o "$TMP" download; then
+    error "Failed to fetch macOS \"${version^}\" recovery image with board id \"$board\"!"
     fKill "progress.sh"
     return 1
   fi
@@ -52,11 +53,10 @@ downloadImage() {
     return 1
   fi
 
-  echo "$version" > "$STORAGE/$PROCESS.version"
-
-  mv "$path" "$BASE_IMG"
+  mv -f "$path" "$BASE_IMG"
   rm -rf "$TMP"
 
+  echo "$version" > "$BASE_VERSION"
   return 0
 }
 
@@ -67,10 +67,13 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   fi
 fi
 
-STORED_VERSION=$(cat "$STORAGE/$PROCESS.version")
+STORED_VERSION=""
+if [ -f "$BASE_VERSION" ]; then
+  STORED_VERSION=$(<"$BASE_VERSION")
+fi
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
-  info "Different version detected, switching base image from $STORED_VERSION to $VERSION"
+  info "Different version detected, switching base image from \"$STORED_VERSION\" to \"$VERSION\""
   if ! downloadImage "$VERSION"; then
     rm -rf "$TMP"
     exit 34

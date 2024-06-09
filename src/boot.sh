@@ -61,11 +61,24 @@ BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 # OpenCoreBoot
 BOOT_DRIVE_ID="OpenCore"
 BOOT_DRIVE="$STORAGE/boot.img"
+BOOT_VERSION="$STORAGE/boot.version"
+BOOT_FILE="/images/OpenCore.img.gz"
+BOOT_SIZE=$(stat -c%s "$BOOT_FILE")
+
+CURRENT_SIZE=""
+if [ -f "$BOOT_VERSION" ]; then
+  CURRENT_SIZE=$(<"$BOOT_VERSION")
+fi
+
+if [ "$CURRENT_SIZE" != "$BOOT_SIZE" ]; then
+  rm -f "$BOOT_DRIVE" 2>/dev/null || true
+fi
 
 if [ ! -f "$BOOT_DRIVE" ] || [ ! -s "$BOOT_DRIVE" ]; then
   msg="Extracting boot image"
   info "$msg..." && html "$msg..."
-  gzip -dkc /images/OpenCore.img.gz > "$BOOT_DRIVE"
+  gzip -dkc "$BOOT_FILE" > "$BOOT_DRIVE"
+  echo "$BOOT_SIZE" > "$BOOT_VERSION"
 fi
 
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,iothread=io2,bootindex=$BOOT_INDEX"
