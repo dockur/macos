@@ -65,7 +65,11 @@ BOOT_VERSION="$STORAGE/boot.version"
 BOOT_FILE="/images/OpenCore.img.gz"
 BOOT_SIZE=$(stat -c%s "$BOOT_FILE")
 
-CURRENT_SIZE=$(<"$BOOT_VERSION")
+CURRENT_SIZE=""
+if [ -f "$BOOT_VERSION" ]; then
+  CURRENT_SIZE=$(<"$BOOT_VERSION")
+fi
+
 if [ "$CURRENT_SIZE" != "$BOOT_SIZE" ]; then
   rm -f "$BOOT_DRIVE" 2>/dev/null || true
 fi
