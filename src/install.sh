@@ -52,11 +52,10 @@ downloadImage() {
     return 1
   fi
 
-  echo "$version" > "$STORAGE/$PROCESS.version"
-
-  mv "$path" "$BASE_IMG"
+  mv -f "$path" "$BASE_IMG"
   rm -rf "$TMP"
 
+  echo "$version" > "$STORAGE/$PROCESS.version"
   return 0
 }
 
@@ -67,10 +66,14 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   fi
 fi
 
-STORED_VERSION=$(<"$STORAGE/$PROCESS.version")
+STORED_VERSION=""
+
+if [ -f "$STORAGE/$PROCESS.version" ]; then
+  STORED_VERSION=$(<"$STORAGE/$PROCESS.version")
+fi
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
-  info "Different version detected, switching base image from $STORED_VERSION to $VERSION"
+  info "Different version detected, switching base image from \"$STORED_VERSION\" to \"$VERSION\""
   if ! downloadImage "$VERSION"; then
     rm -rf "$TMP"
     exit 34
