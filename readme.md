@@ -104,7 +104,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I change the size of the disk?
 
-  To expand the default size of 32 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
+  To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
 
   ```yaml
   environment:
@@ -115,7 +115,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I change the amount of CPU or RAM?
 
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 3 GB of RAM.
+  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -125,7 +125,7 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
-  Please note that macOS requires the CPU core count to always be a power of 2.
+  Please be aware that macOS may have issues when the configured CPU core count is not a power of two (2, 4, 8, 16, etc).
  
 * ### How do I verify if my system supports KVM?
   
