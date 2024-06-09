@@ -67,7 +67,7 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   fi
 fi
 
-STORED_VERSION=$(cat "$STORAGE/$PROCESS.version")
+STORED_VERSION=$(<"$STORAGE/$PROCESS.version")
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
   info "Different version detected, switching base image from $STORED_VERSION to $VERSION"
