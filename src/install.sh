@@ -67,7 +67,6 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
 fi
 
 STORED_VERSION=""
-
 if [ -f "$STORAGE/$PROCESS.version" ]; then
   STORED_VERSION=$(<"$STORAGE/$PROCESS.version")
 fi
