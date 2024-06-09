@@ -32,15 +32,15 @@ downloadImage() {
   esac
 
   local msg="Downloading macOS ${version^}"
-  info "$msg..." && html "$msg..."
+  info "$msg recovery image..." && html "$msg..."
 
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
   /run/progress.sh "$path" "" "$msg ([P])..." &
 
-  if ! /run/fetch-macOS-v2.py --action download -b "$board" -n "$file" -o "$TMP"; then
-    error "Failed to fetch macOS \"${version^}\" with board id \"$board\"!"
+  if ! /run/macrecovery.py --action download -b "$board" -n "$file" -o "$TMP"; then
+    error "Failed to fetch macOS \"${version^}\" recovery image with board id \"$board\"!"
     fKill "progress.sh"
     return 1
   fi
