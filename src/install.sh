@@ -39,7 +39,7 @@ downloadImage() {
 
   /run/progress.sh "$path" "" "$msg ([P])..." &
 
-  if ! /run/macrecovery.py --action download -b "$board" -n "$file" -o "$TMP"; then
+  if ! /run/macrecovery.py -b "$board" -n "$file" -o "$TMP" download; then
     error "Failed to fetch macOS \"${version^}\" recovery image with board id \"$board\"!"
     fKill "progress.sh"
     return 1
