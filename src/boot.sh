@@ -89,6 +89,7 @@ CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 
 if [[ "$CPU_VENDOR" != "GenuineIntel" ]]; then
   [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
+  DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+xsave,+xsaveopt,+rdrand,check"
 fi
 
 if [ -z "${CPU_FLAGS:-}" ]; then
