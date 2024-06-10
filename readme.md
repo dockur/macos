@@ -97,14 +97,14 @@ kubectl apply -f kubernetes.yml
 
   ```yaml
   volumes:
-    - /var/macos:/storage
+    - /var/osx:/storage
   ```
 
-  Replace the example path `/var/macos` with the desired storage folder.
+  Replace the example path `/var/osx` with the desired storage folder.
 
 * ### How do I change the size of the disk?
 
-  To expand the default size of 32 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
+  To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
 
   ```yaml
   environment:
@@ -115,7 +115,7 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I change the amount of CPU or RAM?
 
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 3 GB of RAM.
+  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -125,18 +125,56 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
-  Please note that macOS requires the CPU core count to always be a power of 2.
- 
-* ### How do I verify if my system supports KVM?
+  Please be aware that macOS may have issues when the configured CPU core count is not a power of two (2, 4, 8, 16, etc).
+
+ * ### How do I add multiple disks?
+
+  To create additional disks, modify your compose file like this:
   
-  To verify if your system supports KVM, run the following commands:
+  ```yaml
+  environment:
+    DISK2_SIZE: "32G"
+    DISK3_SIZE: "64G"
+  volumes:
+    - /home/example:/storage2
+    - /mnt/data/example:/storage3
+  ```
+
+* ### How do I pass-through a disk?
+
+  It is possible to pass-through disk devices directly by adding them to your compose file in this way:
+
+  ```yaml
+  devices:
+    - /dev/sdb:/disk1
+    - /dev/sdc:/disk2
+  ```
+
+  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as secondary drives.
+
+* ### How do I pass-through a USB device?
+
+  To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
+
+  ```yaml
+  environment:
+    ARGUMENTS: "-device usb-host,vendorid=0x1234,productid=0x1234"
+  devices:
+    - /dev/bus/usb
+  ```
+
+* ### How do I verify if my system supports KVM?
+
+  To verify that your system supports KVM, run the following commands:
 
   ```bash
   sudo apt install cpu-checker
   sudo kvm-ok
   ```
 
-  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check the virtualization settings in the BIOS.
+  If you receive an error from `kvm-ok` indicating that KVM acceleration can't be used, check whether the virtualization extensions (`Intel VT-x` or `AMD SVM`) are enabled in your BIOS. If you are running the container inside a VM instead of directly on the host, you will also need to enable nested virtualization in its settings. If you are using a cloud provider, you may be out of luck as most of them do not allow nested virtualization for their VPS's. If you are using Windows 10 or MacOS, you are also out of luck, as only Linux and Windows 11 support KVM.
+
+  If you don't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
 
 * ### How do I run Windows in a container?
 
