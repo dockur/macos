@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 # Docker environment variables
 : "${BOOT_MODE:="full"}"  # Boot mode
+: "${CPU_FEATURES:="+ssse3,+sse4.2,+popcnt,+avx,+aes,+xsave,+xsaveopt,check"}" # CPU Features
 
 BOOT_DESC=""
 BOOT_OPTS=""
@@ -85,7 +86,7 @@ DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,a
 DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=raw,cache=$DISK_CACHE,aio=$DISK_IO,readonly=on,if=none"
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
-CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
+CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb,$CPU_FEATURES"
 
 if [[ "$CPU_VENDOR" != "GenuineIntel" ]]; then
   CPU_MODEL="Haswell-noTSX"
