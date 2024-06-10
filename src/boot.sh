@@ -84,11 +84,17 @@ fi
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
 DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
 
+DEFAULT_FLAGS="vendor=GenuineIntel,-pdpe1gb"
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
-CPU_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
 
 if [[ "$CPU_VENDOR" != "GenuineIntel" ]]; then
-  CPU_MODEL="Haswell-noTSX"
+  [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
+fi
+
+if [ -z "${CPU_FLAGS:-}" ]; then
+  CPU_FLAGS="$DEFAULT_FLAGS"
+else
+  CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
 
 USB="nec-usb-xhci,id=xhci"
