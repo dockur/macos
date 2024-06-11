@@ -127,7 +127,7 @@ kubectl apply -f kubernetes.yml
 
   Please be aware that macOS may have issues when the configured CPU core count is not a power of two (2, 4, 8, 16, etc).
 
- * ### How do I add multiple disks?
+* ### How do I add multiple disks?
 
   To create additional disks, modify your compose file like this:
   
