@@ -194,7 +194,7 @@ kubectl apply -f kubernetes.yml
 
   However, by installing Apple's macOS, you must accept their end-user license agreement, which does not permit installation on non-official hardware. So only run this container on hardware sold by Apple, as any other use will be a violation of their terms and conditions.
 
- ## Acknowledgements
+ ## Acknowledgements 🙏
 
 Special thanks to [seitenca](https://github.com/seitenca), [OpenCore](https://github.com/acidanthera/OpenCorePkg), [OSX-KVM](https://github.com/kholia/OSX-KVM) and [KVM-Opencore](https://github.com/thenickdude/KVM-Opencore), this project would not exist without their invaluable work.
 
