@@ -13,13 +13,13 @@
 
 OSX (macOS) inside a Docker container.
 
-## Features
+## Features ✨
 
  - KVM acceleration
  - Web-based viewer
  - Automatic download
 
-## Usage
+## Usage  🐳
 
 Via Docker Compose:
 
@@ -53,7 +53,7 @@ Via Kubernetes:
 kubectl apply -f kubernetes.yml
 ```
 
-## FAQ
+## FAQ 💬
 
 * ### How do I use it?
 
@@ -198,10 +198,10 @@ kubectl apply -f kubernetes.yml
 
 Special thanks to [seitenca](https://github.com/seitenca), [OpenCore](https://github.com/acidanthera/OpenCorePkg), [OSX-KVM](https://github.com/kholia/OSX-KVM) and [KVM-Opencore](https://github.com/thenickdude/KVM-Opencore), this project would not exist without their invaluable work.
 
-## Stars
+## Stars 🌟
 [![Stars](https://starchart.cc/dockur/macos.svg?variant=adaptive)](https://starchart.cc/dockur/macos)
 
-## Disclaimer
+## Disclaimer ⚖️
 
 Only run this container on Apple hardware, any other use is not permitted by their EULA. The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Apple Inc.
 
