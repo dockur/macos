@@ -29,7 +29,7 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "sonoma"
+      VERSION: "ventura"
     devices:
       - /dev/kvm
     cap_add:
@@ -75,11 +75,11 @@ kubectl apply -f kubernetes.yml
 
 * ### How do I select the macOS version?
 
-  By default, macOS Sonoma will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
+  By default, macOS Ventura will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
 
   ```yaml
   environment:
-    VERSION: "sonoma"
+    VERSION: "ventura"
   ```
 
   Select from the values below:
