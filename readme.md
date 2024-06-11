@@ -203,7 +203,7 @@ Special thanks to [seitenca](https://github.com/seitenca), [OpenCore](https://gi
 
 ## Disclaimer ⚖️
 
-Only run this container on Apple hardware, any other use is not permitted by their EULA. The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Apple Inc.
+*Only run this container on Apple hardware, any other use is not permitted by their EULA. The product names, logos, brands, and other trademarks referred to within this project are the property of their respective trademark holders. This project is not affiliated, sponsored, or endorsed by Apple Inc.*
 
 [build_url]: https://github.com/dockur/macos/
 [hub_url]: https://hub.docker.com/r/dockurr/macos/
