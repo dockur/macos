@@ -62,6 +62,6 @@ VOLUME /storage
 ENV RAM_SIZE "4G"
 ENV CPU_CORES "2"
 ENV DISK_SIZE "64G"
-ENV VERSION "sonoma"
+ENV VERSION "ventura"
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]

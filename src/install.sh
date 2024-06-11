@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${VERSION:="sonoma"}"  # OSX Version
+: "${VERSION:="ventura"}"  # OSX Version
 
 TMP="$STORAGE/tmp"
 BASE_IMG_ID="InstallMedia"

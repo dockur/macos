@@ -3,7 +3,7 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "sonoma"
+      VERSION: "ventura"
     devices:
       - /dev/kvm
     cap_add:
