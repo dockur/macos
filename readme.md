@@ -126,33 +126,6 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
-  Please be aware that macOS may have issues when the configured CPU core count is not a power of two (2, 4, 8, 16, etc).
-
-* ### How do I add multiple disks?
-
-  To create additional disks, modify your compose file like this:
-  
-  ```yaml
-  environment:
-    DISK2_SIZE: "32G"
-    DISK3_SIZE: "64G"
-  volumes:
-    - /home/example:/storage2
-    - /mnt/data/example:/storage3
-  ```
-
-* ### How do I pass-through a disk?
-
-  It is possible to pass-through disk devices directly by adding them to your compose file in this way:
-
-  ```yaml
-  devices:
-    - /dev/sdb:/disk1
-    - /dev/sdc:/disk2
-  ```
-
-  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as secondary drives.
-
 * ### How do I pass-through a USB device?
 
   To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
