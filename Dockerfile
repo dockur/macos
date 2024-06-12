@@ -25,7 +25,7 @@ RUN gzip -d /tmp/opencore.iso.gz && \
     rm -rf /tmp/*
 
 FROM scratch AS runner
-COPY --from=qemux/qemu-docker:5.14 / /
+COPY --from=qemux/qemu-docker:5.15 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_OPENCORE="1.0.0"
