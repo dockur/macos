@@ -98,28 +98,23 @@ else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
 
-[ -z "${CPU_CORES:-}" ] && CPU_CORES="2"
-
-if [[ "$CPU_VENDOR" != "GenuineIntel" ]] || [[ "${KVM:-}" == [Nn]* ]]; then
-  SMP="$CPU_CORES,sockets=$CPU_CORES,dies=1,cores=1,threads=1"
-else
-  case "$CPU_CORES" in
-    "3" ) CPU_CORES="2" ;;
-    "5" ) CPU_CORES="4" ;;
-    "9" ) CPU_CORES="8" ;;
-  esac
-  case "$CPU_CORES" in
-    "1" | "2" | "4" | "8" ) SMP="$CPU_CORES,sockets=1,dies=1,cores=$CPU_CORES,threads=1" ;;
-    "6" | "7" ) SMP="$CPU_CORES,sockets=3,dies=1,cores=2,threads=1" ;;
-    "10" | "11" ) SMP="$CPU_CORES,sockets=5,dies=1,cores=2,threads=1" ;;
-    "12" | "13" ) SMP="$CPU_CORES,sockets=3,dies=1,cores=4,threads=1" ;;
-    "14" | "15" ) SMP="$CPU_CORES,sockets=7,dies=1,cores=2,threads=1" ;;
-    "16" | "32" | "64" ) SMP="$CPU_CORES,sockets=1,dies=1,cores=$CPU_CORES,threads=1" ;;
-    *)
-      error "Invalid amount of CPU_CORES, value \"${CPU_CORES}\" is not a power of 2!" && exit 35
-      ;;
-  esac
-fi
+case "$CPU_CORES" in
+  "" | "0" | "3" ) CPU_CORES="2" ;;
+  "5" ) CPU_CORES="4" ;;
+  "9" ) CPU_CORES="8" ;;
+esac
+  
+case "$CPU_CORES" in
+  "1" | "2" | "4" | "8" ) SMP="$CPU_CORES,sockets=1,dies=1,cores=$CPU_CORES,threads=1" ;;
+  "6" | "7" ) SMP="$CPU_CORES,sockets=3,dies=1,cores=2,threads=1" ;;
+  "10" | "11" ) SMP="$CPU_CORES,sockets=5,dies=1,cores=2,threads=1" ;;
+  "12" | "13" ) SMP="$CPU_CORES,sockets=3,dies=1,cores=4,threads=1" ;;
+  "14" | "15" ) SMP="$CPU_CORES,sockets=7,dies=1,cores=2,threads=1" ;;
+  "16" | "32" | "64" ) SMP="$CPU_CORES,sockets=1,dies=1,cores=$CPU_CORES,threads=1" ;;
+  *)
+    error "Invalid amount of CPU_CORES, value \"${CPU_CORES}\" is not a power of 2!" && exit 35
+    ;;
+esac
 
 USB="nec-usb-xhci,id=xhci"
 USB+=" -device usb-kbd,bus=xhci.0"
