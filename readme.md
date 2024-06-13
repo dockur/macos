@@ -56,7 +56,7 @@ kubectl apply -f kubernetes.yml
 
 ## FAQ 💬
 
-* ### How do I use it?
+### How do I use it?
 
   Very simple! These are the steps:
   
@@ -74,7 +74,7 @@ kubectl apply -f kubernetes.yml
   
   Enjoy your brand new machine, and don't forget to star this repo!
 
-* ### How do I select the macOS version?
+### How do I select the macOS version?
 
   By default, macOS Ventura will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
 
@@ -92,7 +92,7 @@ kubectl apply -f kubernetes.yml
   | `monterey`  | macOS Monterey |
   | `big-sur`   | macOS Big Sur  |
 
-* ### How do I change the storage location?
+### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
 
@@ -103,7 +103,7 @@ kubectl apply -f kubernetes.yml
 
   Replace the example path `/var/osx` with the desired storage folder.
 
-* ### How do I change the size of the disk?
+### How do I change the size of the disk?
 
   To expand the default size of 64 GB, add the `DISK_SIZE` setting to your compose file and set it to your preferred capacity:
 
@@ -112,9 +112,10 @@ kubectl apply -f kubernetes.yml
     DISK_SIZE: "256G"
   ```
   
-  This can also be used to resize the existing disk to a larger capacity without any data loss.
+> [!TIP]
+> This can also be used to resize the existing disk to a larger capacity without any data loss.
 
-* ### How do I change the amount of CPU or RAM?
+### How do I change the amount of CPU or RAM?
 
   By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
 
@@ -126,7 +127,7 @@ kubectl apply -f kubernetes.yml
     CPU_CORES: "4"
   ```
 
-* ### How do I pass-through a USB device?
+### How do I pass-through a USB device?
 
   To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
 
@@ -137,7 +138,7 @@ kubectl apply -f kubernetes.yml
     - /dev/bus/usb
   ```
 
-* ### How do I verify if my system supports KVM?
+### How do I verify if my system supports KVM?
 
   To verify that your system supports KVM, run the following commands:
 
@@ -158,11 +159,11 @@ kubectl apply -f kubernetes.yml
 
   If you didn't receive any error from `kvm-ok` at all, but the container still complains that `/dev/kvm` is missing, it might help to add `privileged: true` to your compose file (or `--privileged` to your `run` command), to rule out any permission issue.
 
-* ### How do I run Windows in a container?
+### How do I run Windows in a container?
 
   You can use [dockur/windows](https://github.com/dockur/windows) for that. It shares many of the same features, and even has completely automatic installation.
 
-* ### Is this project legal?
+### Is this project legal?
 
   Yes, this project contains only open-source code and does not distribute any copyrighted material. Neither does it try to circumvent any copyright protection measures. So under all applicable laws, this project will be considered legal.
 
