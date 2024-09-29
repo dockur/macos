@@ -20,15 +20,15 @@ downloadImage() {
     "sequoia" | "15"* )
       board="Mac-7BA5B2D9E42DDD94" ;;
     "sonoma" | "14"* )
-      board="Mac-A61BADE1FDAD7B05" ;;
+      board="Mac-827FAC58A8FDFA22" ;;
     "ventura" | "13"* )
-      board="Mac-4B682C642B45593E" ;;
+      board="Mac-7BA5B2D9E42DDD94" ;;
     "monterey" | "12"* )
-      board="Mac-B809C3757DA9BB8D" ;;
+      board="Mac-E43C1C25D4880AD6" ;;
     "bigsur" | "big-sur" | "11"* )
-      board="Mac-2BD1B31983FE1663" ;;
+      board="Mac-42FD25EABCABB274" ;;
     "catalina" | "10"* )
-      board="Mac-00BE6ED71E35EB86" ;;
+      board="Mac-CFF7D910A743CAAF" ;;
     *)
       error "Unknown VERSION specified, value \"${version}\" is not recognized!"
       return 1 ;;
