@@ -17,6 +17,8 @@ downloadImage() {
   local path="$TMP/$file.dmg"
 
   case "${version,,}" in
+    "sequoia" | "15"* )
+      board="Mac-7BA5B2D9E42DDD94" ;;
     "sonoma" | "14"* )
       board="Mac-A61BADE1FDAD7B05" ;;
     "ventura" | "13"* )
