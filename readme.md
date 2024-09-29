@@ -87,6 +87,7 @@ kubectl apply -f kubernetes.yml
   
   |   **Value** | **Version**    |
   |----|-----|
+  | `sequoia`    | macOS Sequoia   |
   | `sonoma`    | macOS Sonoma   |
   | `ventura`   | macOS Ventura  |
   | `monterey`  | macOS Monterey |
