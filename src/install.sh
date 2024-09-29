@@ -18,17 +18,17 @@ downloadImage() {
 
   case "${version,,}" in
     "sequoia" | "15"* )
-      board="Mac-7BA5B2D9E42DDD94" ;;
+      board="Mac-937A206F2EE63C01" ;;
     "sonoma" | "14"* )
       board="Mac-827FAC58A8FDFA22" ;;
     "ventura" | "13"* )
-      board="Mac-7BA5B2D9E42DDD94" ;;
+      board="Mac-4B682C642B45593E" ;;
     "monterey" | "12"* )
-      board="Mac-E43C1C25D4880AD6" ;;
+      board="Mac-B809C3757DA9BB8D" ;;
     "bigsur" | "big-sur" | "11"* )
-      board="Mac-42FD25EABCABB274" ;;
+      board="Mac-2BD1B31983FE1663" ;;
     "catalina" | "10"* )
-      board="Mac-CFF7D910A743CAAF" ;;
+      board="Mac-00BE6ED71E35EB86" ;;
     *)
       error "Unknown VERSION specified, value \"${version}\" is not recognized!"
       return 1 ;;
