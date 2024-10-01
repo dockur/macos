@@ -44,9 +44,6 @@ INFO_SIGN_HASH = 'CH'
 INFO_SIGN_SESS = 'CT'
 INFO_REQURED = [INFO_PRODUCT, INFO_IMAGE_LINK, INFO_IMAGE_HASH, INFO_IMAGE_SESS, INFO_SIGN_LINK, INFO_SIGN_HASH, INFO_SIGN_SESS]
 
-# Use -2 for better resize stability on Windows
-TERMINAL_MARGIN = 2
-
 def run_query(url, headers, post=None, raw=False):
     if post is not None:
         data = '\n'.join(entry + '=' + post[entry] for entry in post).encode()
@@ -218,23 +215,14 @@ def save_image(url, sess, filename='', directory=''):
                 totalsize = int(headers[header])
                 break
         size = 0
-        oldterminalsize = 0
         while True:
             chunk = response.read(2**20)
             if not chunk:
                 break
             fh.write(chunk)
             size += len(chunk)
-            terminalsize = max(os.get_terminal_size().columns - TERMINAL_MARGIN, 0)
-            if oldterminalsize != terminalsize:
-                print(f'\r{"":<{terminalsize}}', end='')
-                oldterminalsize = terminalsize
             if totalsize > 0:
                 progress = size / totalsize
-                barwidth = terminalsize // 3
-                print(f'\r{size / (2**20):.1f}/{totalsize / (2**20):.1f} MB ', end='')
-                if terminalsize > 55:
-                    print(f'|{"=" * int(barwidth * progress):<{barwidth}}|', end='')
                 print(f' {progress*100:.1f}% downloaded', end='')
             else:
                 # Fallback if Content-Length isn't available
@@ -250,8 +238,7 @@ def verify_image(dmgpath, cnkpath):
 
     with open(dmgpath, 'rb') as dmgf:
         for cnkcount, (cnksize, cnkhash) in enumerate(verify_chunklist(cnkpath), 1):
-            terminalsize = max(os.get_terminal_size().columns - TERMINAL_MARGIN, 0)
-            print(f'\r{f"Chunk {cnkcount} ({cnksize} bytes)":<{terminalsize}}', end='')
+            print(f'\rChunk {cnkcount} ({cnksize} bytes)', end='')
             sys.stdout.flush()
             cnk = dmgf.read(cnksize)
             if len(cnk) != cnksize:
