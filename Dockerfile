@@ -28,11 +28,8 @@ FROM scratch AS runner
 COPY --from=qemux/qemu-docker:6.02 / /
 
 ARG VERSION_ARG="0.0"
-ARG VERSION_OPENCORE="1.0.1"
 ARG VERSION_OSX_KVM="326053dd61f49375d5dfb28ee715d38b04b5cd8e"
-
 ARG REPO_OSX_KVM="https://raw.githubusercontent.com/kholia/OSX-KVM"
-ARG REPO_OPENCORE="https://raw.githubusercontent.com/acidanthera/OpenCorePkg"
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -49,7 +46,6 @@ RUN set -eu && \
 COPY --chmod=755 ./src /run/
 COPY --chmod=644 --from=builder /images /images
 
-ADD --chmod=755 $REPO_OPENCORE/$VERSION_OPENCORE/Utilities/macrecovery/macrecovery.py /run/
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS.fd \
