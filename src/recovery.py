@@ -2,8 +2,8 @@
 
 """
 Gather recovery information for Macs.
-
 Copyright (c) 2019, vit9696
+https://github.com/acidanthera/OpenCorePkg/blob/master/Utilities/macrecovery/macrecovery.py
 """
 
 import argparse
