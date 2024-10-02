@@ -81,7 +81,7 @@ if [ ! -f "$BOOT_DRIVE" ] || [ ! -s "$BOOT_DRIVE" ]; then
   echo "$BOOT_SIZE" > "$BOOT_VERSION"
 fi
 
-DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},scsi=off,bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
+DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
 DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
