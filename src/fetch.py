@@ -224,13 +224,13 @@ def save_image(url, sess, filename='', directory=''):
             size += len(chunk)
             if totalsize > 0:
                 progress = size / totalsize
-                if (progress - last) >= 0.01 or progress >= 1
+                if (progress - last) >= 0.01 or progress >= 1:
                     last = progress
                     print(f'\r{progress*100:.1f}% downloaded', end='')
             else:
                 # Fallback if Content-Length isn't available
                 progress = size / (2**20)
-                if (progress - last) >= 10
+                if (progress - last) >= 10:
                     last = progress
                     print(f'\r{progress} MB downloaded...', end='')
             sys.stdout.flush()
@@ -245,7 +245,7 @@ def verify_image(dmgpath, cnkpath):
     with open(dmgpath, 'rb') as dmgf:
         last=0
         for cnkcount, (cnksize, cnkhash) in enumerate(verify_chunklist(cnkpath), 1):
-            if (cnkcount - last) >= 10
+            if (cnkcount - last) >= 10:
                 last = cnkcount            
                 print(f'\rChunk {cnkcount} ({cnksize} bytes)', end='')
             sys.stdout.flush()
