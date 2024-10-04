@@ -224,12 +224,15 @@ def save_image(url, sess, filename='', directory=''):
             size += len(chunk)
             if totalsize > 0:
                 progress = size / totalsize
-                if (progress - last) >= 0.25:
+                if (progress - last) >= 0.01 or progress >= 1
                     last = progress
                     print(f'\r{progress*100:.1f}% downloaded', end='')
             else:
                 # Fallback if Content-Length isn't available
-                print(f'\r{size / (2**20)} MB downloaded...', end='')
+                progress = size / (2**20)
+                if (progress - last) >= 10
+                    last = progress
+                    print(f'\r{progress} MB downloaded...', end='')
             sys.stdout.flush()
         print('\nDownload complete!')
 
