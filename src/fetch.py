@@ -215,6 +215,7 @@ def save_image(url, sess, filename='', directory=''):
                 totalsize = int(headers[header])
                 break
         size = 0
+        last = 0
         while True:
             chunk = response.read(2**20)
             if not chunk:
@@ -223,7 +224,9 @@ def save_image(url, sess, filename='', directory=''):
             size += len(chunk)
             if totalsize > 0:
                 progress = size / totalsize
-                print(f'\r{progress*100:.1f}% downloaded', end='')
+                if progress - last >= 25:
+                    last = progress
+                    print(f'\r{progress*100:.1f}% downloaded', end='')
             else:
                 # Fallback if Content-Length isn't available
                 print(f'\r{size / (2**20)} MB downloaded...', end='')
