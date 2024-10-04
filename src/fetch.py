@@ -224,7 +224,7 @@ def save_image(url, sess, filename='', directory=''):
             size += len(chunk)
             if totalsize > 0:
                 progress = size / totalsize
-                if progress - last >= 25:
+                if (progress - last) >= 25:
                     last = progress
                     print(f'\r{progress*100:.1f}% downloaded', end='')
             else:
