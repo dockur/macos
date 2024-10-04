@@ -246,7 +246,7 @@ def verify_image(dmgpath, cnkpath):
         last=0
         for cnkcount, (cnksize, cnkhash) in enumerate(verify_chunklist(cnkpath), 1):
             if (cnkcount - last) >= 10:
-                last = cnkcount            
+                last = cnkcount
                 print(f'\rChunk {cnkcount} ({cnksize} bytes)', end='')
             sys.stdout.flush()
             cnk = dmgf.read(cnksize)
