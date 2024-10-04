@@ -215,6 +215,7 @@ def save_image(url, sess, filename='', directory=''):
                 totalsize = int(headers[header])
                 break
         size = 0
+        last = 0
         while True:
             chunk = response.read(2**20)
             if not chunk:
@@ -223,10 +224,15 @@ def save_image(url, sess, filename='', directory=''):
             size += len(chunk)
             if totalsize > 0:
                 progress = size / totalsize
-                print(f'\r{progress*100:.1f}% downloaded', end='')
+                if (progress - last) >= 0.01 or progress >= 1:
+                    last = progress
+                    print(f'\r{progress*100:.1f}% downloaded', end='')
             else:
                 # Fallback if Content-Length isn't available
-                print(f'\r{size / (2**20)} MB downloaded...', end='')
+                progress = size / (2**20)
+                if (progress - last) >= 10:
+                    last = progress
+                    print(f'\r{progress} MB downloaded...', end='')
             sys.stdout.flush()
         print('\nDownload complete!')
 
@@ -237,8 +243,11 @@ def verify_image(dmgpath, cnkpath):
     print('Verifying image with chunklist...')
 
     with open(dmgpath, 'rb') as dmgf:
+        last=0
         for cnkcount, (cnksize, cnkhash) in enumerate(verify_chunklist(cnkpath), 1):
-            print(f'\rChunk {cnkcount} ({cnksize} bytes)', end='')
+            if (cnkcount - last) >= 10:
+                last = cnkcount
+                print(f'\rChunk {cnkcount} ({cnksize} bytes)', end='')
             sys.stdout.flush()
             cnk = dmgf.read(cnksize)
             if len(cnk) != cnksize:

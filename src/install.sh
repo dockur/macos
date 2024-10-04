@@ -42,7 +42,7 @@ downloadImage() {
 
   /run/progress.sh "$path" "" "$msg ([P])..." &
 
-  if ! /run/recovery.py -b "$board" -n "$file" -o "$TMP" download; then
+  if ! /run/fetch.py -b "$board" -n "$file" -os latest -o "$TMP" download; then
     error "Failed to fetch macOS \"${version^}\" recovery image with board id \"$board\"!"
     fKill "progress.sh"
     return 1
