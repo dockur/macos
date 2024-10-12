@@ -98,6 +98,22 @@ else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
 
+CLOCK="/sys/devices/system/clocksource/clocksource0/current_clocksource"
+[ -f "$CLOCK" ] && CLOCK=$(<"$CLOCK")
+
+if [[ "${CLOCK,,}" == "kvm-clock" ]]; then
+  if [[ "$CPU_VENDOR" != "GenuineIntel" ]] && [[ "${CPU_CORES,,}" == "2" ]]; then
+    warn "Restricted processor to a single core because nested virtualization was detected!"
+    CPU_CORES="1"
+  else
+    warn "Nested virtualization was detected, this might cause issues running macOS!"
+  fi
+fi
+
+if [[ "${CLOCK,,}" == "hpet" ]]; then
+  warn "Your clocksource is HPET instead of TSC, this will cause issues running macOS!"
+fi
+
 case "$CPU_CORES" in
   "" | "0" | "3" ) CPU_CORES="2" ;;
   "5" ) CPU_CORES="4" ;;
