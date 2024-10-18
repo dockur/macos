@@ -85,13 +85,13 @@ kubectl apply -f kubernetes.yml
 
   Select from the values below:
   
-  |   **Value** | **Version**    |
-  |----|-----|
-  | `sequoia`    | macOS Sequoia   |
-  | `sonoma`    | macOS Sonoma   |
-  | `ventura`   | macOS Ventura  |
-  | `monterey`  | macOS Monterey |
-  | `big-sur`   | macOS Big Sur  |
+  |   **Value** | **Version**    | **Release Name** |
+  |-------------|----------------|------------------|
+  | `sequoia`   | macOS 15       | Sequoia          |
+  | `sonoma`    | macOS 14       | Sonoma           |
+  | `ventura`   | macOS 13       | Ventura          |
+  | `monterey`  | macOS 12       | Monterey         |
+  | `big-sur`   | macOS 11       | Big Sur          |
 
 ### How do I change the storage location?
 
