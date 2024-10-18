@@ -85,7 +85,7 @@ kubectl apply -f kubernetes.yml
 
   Select from the values below:
   
-  |   **Value** | **Version**    | **Release Name** |
+  |   **Value** | **Version**    | **Name** |
   |-------------|----------------|------------------|
   | `sequoia`   | macOS 15       | Sequoia          |
   | `sonoma`    | macOS 14       | Sonoma           |
