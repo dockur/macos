@@ -55,9 +55,9 @@ ADD --chmod=644 \
 EXPOSE 8006 5900
 VOLUME /storage
 
+ENV VERSION="13"
 ENV RAM_SIZE="4G"
 ENV CPU_CORES="2"
 ENV DISK_SIZE="64G"
-ENV VERSION="ventura"
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]

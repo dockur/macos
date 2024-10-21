@@ -76,22 +76,22 @@ kubectl apply -f kubernetes.yml
 
 ### How do I select the macOS version?
 
-  By default, macOS Ventura will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
+  By default, macOS 13 (Ventura) will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
 
   ```yaml
   environment:
-    VERSION: "ventura"
+    VERSION: "13"
   ```
 
   Select from the values below:
   
   |   **Value** | **Version**    | **Name** |
   |-------------|----------------|------------------|
-  | `sequoia`   | macOS 15       | Sequoia          |
-  | `sonoma`    | macOS 14       | Sonoma           |
-  | `ventura`   | macOS 13       | Ventura          |
-  | `monterey`  | macOS 12       | Monterey         |
-  | `big-sur`   | macOS 11       | Big Sur          |
+  | `15`        | macOS 15       | Sequoia          |
+  | `14`        | macOS 14       | Sonoma           |
+  | `13`        | macOS 13       | Ventura          |
+  | `12`        | macOS 12       | Monterey         |
+  | `11`        | macOS 11       | Big Sur          |
 
 ### How do I change the storage location?
 
