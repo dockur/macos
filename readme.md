@@ -30,7 +30,7 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "ventura"
+      VERSION: "13"
     devices:
       - /dev/kvm
     cap_add:
