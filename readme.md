@@ -164,9 +164,9 @@ kubectl apply -f kubernetes.yml
  
   - it could help to add `privileged: true` to your compose file (or `sudo` to your `run` command), to rule out any permission issue.
 
-### How do I run Windows in a container?
+### How do I run OSX in a container?
 
-  You can use [dockur/windows](https://github.com/dockur/windows) for that. It shares many of the same features, and even has completely automatic installation.
+  You can use [dockur/macos](https://github.com/dockur/macos) for that. It shares many of the same features, and even has completely automatic installation.
 
 ### Is this project legal?
 
