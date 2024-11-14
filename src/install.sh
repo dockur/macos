@@ -117,11 +117,11 @@ if [ "$VERSION" != "$STORED_VERSION" ]; then
   fi
 fi
 
-if !generateID; then
+if ! generateID; then
   error "Failed to generate UUID!" && exit 35
 fi
 
-if !generateAddress; then
+if ! generateAddress; then
   error "Failed to generate MAC address!" && exit 36
 fi
 
