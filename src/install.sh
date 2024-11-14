@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${VERSION:="ventura"}"  # OSX Version
+: "${VERSION:="13"}"     # OSX Version
 
 TMP="$STORAGE/tmp"
 BASE_IMG_ID="InstallMedia"
@@ -62,6 +62,21 @@ downloadImage() {
   return 0
 }
 
+generateAddress() {
+
+  local file="$STORAGE/$PROCESS.mac"
+
+  [ -n "${MAC:-}" ] && return 0
+  [ -s "$file" ] && MAC=$(<"$file")
+  [ -n "${MAC:-}" ] && return 0
+
+  # Generate Apple MAC address based on Docker container ID in hostname
+  MAC=$(echo "$HOST" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
+  echo "${MAC^^}" > "$file"
+
+  return 0
+}
+
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   if ! downloadImage "$VERSION"; then
     rm -rf "$TMP"
@@ -80,6 +95,10 @@ if [ "$VERSION" != "$STORED_VERSION" ]; then
     rm -rf "$TMP"
     exit 34
   fi
+fi
+
+if !generateAddress; then
+  error "Failed to generate MAC address!" && exit 35
 fi
 
 DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
