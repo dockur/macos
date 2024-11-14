@@ -86,7 +86,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I select the macOS version?
 
-  By default, macOS 13 (Ventura) will be installed. But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
+  By default, macOS 13 (Ventura) will be installed, as it offers the best performance.
+  
+  But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
 
   ```yaml
   environment:
