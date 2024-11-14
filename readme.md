@@ -1,4 +1,3 @@
-
 <h1 align="center">OSX<br />
 <div align="center">
 <a href="https://github.com/dockur/macos/"><img src="https://github.com/dockur/macos/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
@@ -176,3 +175,34 @@ sudo kvm-ok
 - KVM'yi desteklemediği için "Linux için Docker Desktop" kullanmıyorsunuz, bunun yerine doğrudan Docker Engine'i kullanın.
 
 - Herhangi bir izin talebini engellemek için `privileged: true` komutunu compose dosyanıza (veya `docker run` komutunuza `sudo` komutunu) eklemeniz yardımcı olabilir.
+  ### Windows'u bir kapsayıcıda nasıl çalıştırabilirim?
+
+Bunun için [dockur/windows](https://github.com/dockur/windows) kullanabilirsiniz. Birçok aynı özelliği paylaşır ve hatta tamamen otomatik yüklemeye sahiptir.
+
+### Bu proje yasal mı?
+
+Evet, bu proje yalnızca açık kaynaklı kod içerir ve telif hakkıyla korunan hiçbir materyal dağıtmaz. Ayrıca telif hakkı koruma önlemlerini atlatmaya da çalışmaz. Dolayısıyla, geçerli tüm yasalar uyarınca bu proje yasal kabul edilecektir.
+
+Ancak, Apple'ın macOS'unu yükleyerek, resmi olmayan donanımlara yüklemeye izin vermeyen son kullanıcı lisans sözleşmesini kabul etmeniz gerekir. Bu nedenle, bu kapsayıcıyı yalnızca Apple tarafından satılan donanımlarda çalıştırın, aksi takdirde hüküm ve koşullarının ihlali anlamına gelir.
+
+## Teşekkürler 🙏
+
+[seitenca](https://github.com/seitenca)'ya özel teşekkürler, bu proje onun paha biçilmez çalışmaları olmadan var olamazdı.
+
+## Yıldızlar 🌟
+[![Yıldızlar](https://starchart.cc/dockur/macos.svg?variant=adaptive)](https://starchart.cc/dockur/macos)
+
+## Feragatname ⚖️
+
+*Bu kapsayıcıyı yalnızca Apple donanımında çalıştırın, başka herhangi bir kullanım EULA'ları tarafından izin verilmez. Bu projede atıfta bulunulan ürün adları, logolar, markalar ve diğer ticari markalar ilgili ticari marka sahiplerinin mülkiyetindedir. Bu proje Apple Inc. tarafından desteklenmemekte, desteklenmemekte veya onaylanmamaktadır.*
+
+[build_url]: https://github.com/dockur/macos/
+[hub_url]: https://hub.docker.com/r/dockurr/macos/
+[tag_url]: https://hub.docker.com/r/dockurr/macos/tags
+[pkg_url]: https://github.com/dockur/macos/pkgs/container/macos
+
+[Build]: https://github.com/dockur/macos/actions/workflows/build.yml/badge.svg
+[Size]: https://img.shields.io/docker/image-size/dockurr/macos/latest?color=066da5&label=size
+[Pulls]: https://img.shields.io/docker/pulls/dockurr/macos.svg?style=flat&label=pulls&logo=docker
+[Sürüm]: https://img.shields.io/docker/v/dockurr/macos/latest?arch=amd64&sort=semver&color=066da5
+[Paket]: https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fipitio.github.io%2Fbackage%2Fdockur%2Fmacos%2Fmacos.json&query=%24.downloads&logo=github&style=flat&color=066da5&label=pulls
