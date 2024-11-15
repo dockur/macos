@@ -59,27 +59,75 @@ BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$DEST.rom"
 BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 
 # OpenCoreBoot
+IMG="/opencore.iso"
 BOOT_DRIVE_ID="OpenCore"
 BOOT_DRIVE="$STORAGE/boot.img"
-BOOT_VERSION="$STORAGE/boot.version"
-BOOT_FILE="/images/OpenCore.img.gz"
-BOOT_SIZE=$(stat -c%s "$BOOT_FILE")
 
-CURRENT_SIZE=""
-if [ -f "$BOOT_VERSION" ]; then
-  CURRENT_SIZE=$(<"$BOOT_VERSION")
+OUT="/tmp/extract"
+rm -rf "$OUT"
+mkdir -p "$OUT"
+
+msg="Building boot image"
+info "$msg..." && html "$msg..."
+
+[ ! -f "$IMG" ] && gzip -dk "$IMG.gz"
+
+if [ ! -f "$IMG" ] || [ ! -s "$IMG" ]; then
+  error "Could not find image file \"$IMG\"." && exit 10
 fi
 
-if [ "$CURRENT_SIZE" != "$BOOT_SIZE" ]; then
-  rm -f "$BOOT_DRIVE" 2>/dev/null || true
+START=$(sfdisk -l "$IMG" | grep -i -m 1 "EFI System" | awk '{print $2}')
+mcopy -bspmQ -i "$IMG@@${START}S" ::EFI "$OUT"
+
+info "Creating OpenCore image..."
+
+cp /etc/config.plist "$OUT/EFI/OC/"
+
+MB=256
+CLUSTER=4
+START=2048
+SECTOR=512
+FIRST_LBA=34
+
+SIZE=$(( MB*1024*1024 ))
+OFFSET=$(( START*SECTOR ))
+TOTAL=$(( SIZE-(FIRST_LBA*SECTOR) ))
+LAST_LBA=$(( TOTAL/SECTOR ))
+COUNT=$(( LAST_LBA-(START-1) ))
+
+FILE="OpenCore.img"
+IMG="/tmp/$FILE"
+rm -f "$IMG"
+
+if ! truncate -s "$SIZE" "$IMG"; then
+  rm -f "$IMG"
+  error "Could not allocate file $IMG for the OpenCore image." && exit 11
 fi
 
-if [ ! -f "$BOOT_DRIVE" ] || [ ! -s "$BOOT_DRIVE" ]; then
-  msg="Extracting boot image"
-  info "$msg..." && html "$msg..."
-  gzip -dkc "$BOOT_FILE" > "$BOOT_DRIVE"
-  echo "$BOOT_SIZE" > "$BOOT_VERSION"
-fi
+PART="/tmp/partition.fdisk"
+
+{       echo "label: gpt"
+        echo "label-id: 1ACB1E00-3B8F-4B2A-86A4-D99ED21DCAEB"
+        echo "device: $FILE"
+        echo "unit: sectors"
+        echo "first-lba: $FIRST_LBA"
+        echo "last-lba: $LAST_LBA"
+        echo "sector-size: $SECTOR"
+        echo ""
+        echo "${FILE}1 : start=$START, size=$COUNT, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
+
+} > "$PART"
+
+sfdisk -q "$IMG" < "$PART"
+
+echo "drive c: file=\"$IMG\" partition=0 offset=$OFFSET" > /etc/mtools.conf
+
+mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
+
+info "Copying files to image..."
+
+mcopy -bspmQ "$OUT/EFI" "C:"
+rm -rf "$OUT"
 
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
 DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
