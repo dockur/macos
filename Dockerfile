@@ -1,6 +1,8 @@
 FROM --platform=linux/amd64 debian:trixie-slim AS builder
 
+ARG VERSION_OPENCORE="1.0.2"
 ARG VERSION_KVM_OPENCORE="v21"
+ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
 ARG REPO_KVM_OPENCORE="https://github.com/thenickdude/KVM-Opencore"
 
 ARG DEBCONF_NOWARNINGS="yes"
@@ -18,14 +20,18 @@ RUN set -eu && \
 COPY --chmod=755 ./src/build.sh /run
 COPY --chmod=644 ./config.plist /run
 
+ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip /tmp/opencore.zip
 ADD $REPO_KVM_OPENCORE/releases/download/$VERSION_KVM_OPENCORE/OpenCore-$VERSION_KVM_OPENCORE.iso.gz /tmp/opencore.iso.gz
 
 RUN gzip -d /tmp/opencore.iso.gz && \
     run/build.sh /tmp/opencore.iso /run/config.plist && \
+    rm -rf /tmp/ms && mkdir /tmp/ms && \
+    unzip /tmp/opencore.zip -d /tmp/ms && \
+    cp /tmp/ms/Utilities/macserial/macserial.linux /macserial && \
     rm -rf /tmp/*
 
 FROM scratch AS runner
-COPY --from=qemux/qemu-docker:6.07 / /
+COPY --from=qemux/qemu-docker:6.08 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_OSX_KVM="326053dd61f49375d5dfb28ee715d38b04b5cd8e"
@@ -45,6 +51,7 @@ RUN set -eu && \
 
 COPY --chmod=755 ./src /run/
 COPY --chmod=644 --from=builder /images /images
+COPY --chmod=644 --from=builder /macserial /usr/local/bin/macserial
 
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
