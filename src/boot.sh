@@ -60,10 +60,8 @@ BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 
 # OpenCoreBoot
 IMG="/opencore.iso"
-BOOT_DRIVE_ID="OpenCore"
-BOOT_DRIVE="$STORAGE/boot.img"
-
 OUT="/tmp/extract"
+
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
@@ -129,8 +127,10 @@ info "Copying files to image..."
 mcopy -bspmQ "$OUT/EFI" "C:"
 rm -rf "$OUT"
 
+BOOT_DRIVE_ID="OpenCore"
+
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
-DISK_OPTS+=" -drive file=$BOOT_DRIVE,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
+DISK_OPTS+=" -drive file=$IMG,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
