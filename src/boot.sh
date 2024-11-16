@@ -2,34 +2,28 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${BOOT_MODE:="full"}"  # Boot mode
+: "${BOOT_MODE:="macos"}"  # Boot mode
 
 BOOT_DESC=""
 BOOT_OPTS=""
 SECURE="off"
 OVMF="/usr/share/OVMF"
 
-case "${BOOT_MODE,,}" in
-  "full" )
+case "${HEIGHT,,}" in
+  "1080" )
     DEST="$PROCESS"
-    BOOT_DESC=" 1920x1080"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS-1920x1080.fd"
     ;;
-  "hd" )
+  "768" )
     DEST="${PROCESS}_hd"
-    BOOT_DESC=" 1024x768"
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS-1024x768.fd"
     ;;
-  "default" )
-    BOOT_DESC=""
+  *)
     ROM="OVMF_CODE.fd"
     VARS="OVMF_VARS.fd"
-    DEST="${PROCESS}_default"
-    ;;
-  *)
-    error "Unknown BOOT_MODE, value \"${BOOT_MODE}\" is not recognized!" && exit 33
+    DEST="${PROCESS}_${HEIGHT}"
     ;;
 esac
 
