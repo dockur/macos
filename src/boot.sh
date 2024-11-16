@@ -79,7 +79,7 @@ mcopy -bspmQ -i "$IMG@@${START}S" ::EFI "$OUT"
 
 info "Creating OpenCore image..."
 
-cp /etc/config.plist "$OUT/EFI/OC/"
+cp /config.plist "$OUT/EFI/OC/"
 
 MB=256
 CLUSTER=4
@@ -99,7 +99,7 @@ rm -f "$IMG"
 
 if ! truncate -s "$SIZE" "$IMG"; then
   rm -f "$IMG"
-  error "Could not allocate file $IMG for the OpenCore image." && exit 11
+  error "Could not allocate space to create image $IMG ." && exit 11
 fi
 
 PART="/tmp/partition.fdisk"
