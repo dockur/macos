@@ -33,8 +33,8 @@ RUN set -eu && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY --chmod=755 ./src /run/
-COPY --chmod=644 ./config.plist /etc/
-COPY --chmod=755 --from=builder /macserial /usr/local/bin/macserial
+COPY --chmod=644 ./config.plist /
+COPY --chmod=755 --from=builder /macserial /usr/local/bin/
 
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
