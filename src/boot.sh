@@ -58,87 +58,93 @@ fi
 BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$DEST.rom"
 BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 
-# OpenCoreBoot
-IMG="/opencore.iso"
-OUT="/tmp/extract"
+IMG="$STORAGE/boot.img"
 
-rm -rf "$OUT"
-mkdir -p "$OUT"
+if [ ! -f "$IMG" ]; then
 
-msg="Building boot image"
-info "$msg..." && html "$msg..."
-
-[ ! -f "$IMG" ] && gzip -dk "$IMG.gz"
-
-if [ ! -f "$IMG" ] || [ ! -s "$IMG" ]; then
-  error "Could not find image file \"$IMG\"." && exit 10
-fi
-
-START=$(sfdisk -l "$IMG" | grep -i -m 1 "EFI System" | awk '{print $2}')
-mcopy -bspmQ -i "$IMG@@${START}S" ::EFI "$OUT"
-
-info "Creating OpenCore image..."
-
-ROM="${MAC//[^[:alnum:]]/}"
-ROM="${ROM,,}"
-BROM=$(echo "$ROM" | xxd -r -p | base64)
-
-CFG="$OUT/EFI/OC/config.plist"
-cp /config.plist "$CFG"
-
-sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${BROM}"'</data>|g' "$CFG"
-sed -r -i -e 's|<string>iMacPro1,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
-sed -r -i -e 's|<string>C02TM2ZBHX87</string>|<string>'"${SN}"'</string>|g' "$CFG"
-sed -r -i -e 's|<string>C02717306J9JG361M</string>|<string>'"${MLB}"'</string>|g' "$CFG"
-sed -r -i -e 's|<string>007076A6-F2A2-4461-BBE5-BAD019F8025A</string>|<string>'"${UUID}"'</string>|g' "$CFG"
-
-# Build image
-
-MB=256
-CLUSTER=4
-START=2048
-SECTOR=512
-FIRST_LBA=34
-
-SIZE=$(( MB*1024*1024 ))
-OFFSET=$(( START*SECTOR ))
-TOTAL=$(( SIZE-(FIRST_LBA*SECTOR) ))
-LAST_LBA=$(( TOTAL/SECTOR ))
-COUNT=$(( LAST_LBA-(START-1) ))
-
-FILE="OpenCore.img"
-IMG="/tmp/$FILE"
-rm -f "$IMG"
-
-if ! truncate -s "$SIZE" "$IMG"; then
+  FILE="OpenCore.img"
+  IMG="/tmp/$FILE"
   rm -f "$IMG"
-  error "Could not allocate space to create image $IMG ." && exit 11
+
+  # OpenCoreBoot
+  ISO="/opencore.iso"
+  OUT="/tmp/extract"
+
+  rm -rf "$OUT"
+  mkdir -p "$OUT"
+
+  msg="Building boot image"
+  info "$msg..." && html "$msg..."
+
+  [ ! -f "$ISO" ] && gzip -dk "$ISO.gz"
+
+  if [ ! -f "$ISO" ] || [ ! -s "$ISO" ]; then
+    error "Could not find image file \"$ISO\"." && exit 10
+  fi
+
+  START=$(sfdisk -l "$ISO" | grep -i -m 1 "EFI System" | awk '{print $2}')
+  mcopy -bspmQ -i "$ISO@@${START}S" ::EFI "$OUT"
+
+  info "Creating OpenCore image..."
+
+  CFG="$OUT/EFI/OC/config.plist"
+  cp /config.plist "$CFG"
+
+  ROM="${MAC//[^[:alnum:]]/}"
+  ROM="${ROM,,}"
+  BROM=$(echo "$ROM" | xxd -r -p | base64)
+
+  sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${BROM}"'</data>|g' "$CFG"
+  sed -r -i -e 's|<string>iMacPro1,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<string>C02TM2ZBHX87</string>|<string>'"${SN}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<string>C02717306J9JG361M</string>|<string>'"${MLB}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<string>007076A6-F2A2-4461-BBE5-BAD019F8025A</string>|<string>'"${UUID}"'</string>|g' "$CFG"
+
+  # Build image
+
+  MB=256
+  CLUSTER=4
+  START=2048
+  SECTOR=512
+  FIRST_LBA=34
+
+  SIZE=$(( MB*1024*1024 ))
+  OFFSET=$(( START*SECTOR ))
+  TOTAL=$(( SIZE-(FIRST_LBA*SECTOR) ))
+  LAST_LBA=$(( TOTAL/SECTOR ))
+  COUNT=$(( LAST_LBA-(START-1) ))
+
+  if ! truncate -s "$SIZE" "$IMG"; then
+    rm -f "$IMG"
+    error "Could not allocate space to create image $IMG ." && exit 11
+  fi
+
+  PART="/tmp/partition.fdisk"
+
+  {       echo "label: gpt"
+          echo "label-id: 1ACB1E00-3B8F-4B2A-86A4-D99ED21DCAEB"
+          echo "device: $FILE"
+          echo "unit: sectors"
+          echo "first-lba: $FIRST_LBA"
+          echo "last-lba: $LAST_LBA"
+          echo "sector-size: $SECTOR"
+          echo ""
+          echo "${FILE}1 : start=$START, size=$COUNT, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
+
+  } > "$PART"
+
+  sfdisk -q "$IMG" < "$PART"
+
+  echo "drive c: file=\"$IMG\" partition=0 offset=$OFFSET" > /etc/mtools.conf
+
+  mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
+
+  info "Copying files to image..."
+
+  mcopy -bspmQ "$OUT/EFI" "C:"
+  rm -rf "$OUT"
+
 fi
-
-PART="/tmp/partition.fdisk"
-
-{       echo "label: gpt"
-        echo "label-id: 1ACB1E00-3B8F-4B2A-86A4-D99ED21DCAEB"
-        echo "device: $FILE"
-        echo "unit: sectors"
-        echo "first-lba: $FIRST_LBA"
-        echo "last-lba: $LAST_LBA"
-        echo "sector-size: $SECTOR"
-        echo ""
-        echo "${FILE}1 : start=$START, size=$COUNT, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
-
-} > "$PART"
-
-sfdisk -q "$IMG" < "$PART"
-
-echo "drive c: file=\"$IMG\" partition=0 offset=$OFFSET" > /etc/mtools.conf
-
-mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
-
-info "Copying files to image..."
-
-mcopy -bspmQ "$OUT/EFI" "C:"
-rm -rf "$OUT"
 
 BOOT_DRIVE_ID="OpenCore"
 
@@ -197,11 +203,13 @@ USB="nec-usb-xhci,id=xhci"
 USB+=" -device usb-kbd,bus=xhci.0"
 USB+=" -global nec-usb-xhci.msi=off"
 
-info ""
-info "Model: $MODEL"
-info "Rom: $ROM"
-info "Serial: $SN"
-info "Board: $MLB"
-info ""
+if [ ! -f "$STORAGE/boot.img" ]; then
+  info ""
+  info "Model: $MODEL"
+  info "Rom: $ROM"
+  info "Serial: $SN"
+  info "Board: $MLB"
+  info ""
+fi
 
 return 0
