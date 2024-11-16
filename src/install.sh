@@ -7,8 +7,8 @@ set -Eeuo pipefail
 : "${MLB:=""}"
 : "${MAC:=""}"
 : "${UUID:=""}"
-: "${MODEL:="iMacPro1,1"}"
 : "${VERSION:="13"}"     # OSX Version
+: "${MODEL:="iMacPro1,1"}"   # Device model
 
 TMP="$STORAGE/tmp"
 BASE_IMG_ID="InstallMedia"
