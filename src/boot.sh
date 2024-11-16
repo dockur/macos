@@ -85,8 +85,6 @@ if [ ! -f "$IMG" ]; then
   START=$(sfdisk -l "$ISO" | grep -i -m 1 "EFI System" | awk '{print $2}')
   mcopy -bspmQ -i "$ISO@@${START}S" ::EFI "$OUT"
 
-  info "Creating OpenCore image..."
-
   CFG="$OUT/EFI/OC/config.plist"
   cp /config.plist "$CFG"
 
@@ -134,15 +132,19 @@ if [ ! -f "$IMG" ]; then
   } > "$PART"
 
   sfdisk -q "$IMG" < "$PART"
-
   echo "drive c: file=\"$IMG\" partition=0 offset=$OFFSET" > /etc/mtools.conf
 
   mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
-
-  info "Copying files to image..."
-
   mcopy -bspmQ "$OUT/EFI" "C:"
+
   rm -rf "$OUT"
+
+  info ""
+  info "Model: $MODEL"
+  info "Rom: $ROM"
+  info "Serial: $SN"
+  info "Board: $MLB"
+  info ""
 
 fi
 
@@ -202,14 +204,5 @@ esac
 USB="nec-usb-xhci,id=xhci"
 USB+=" -device usb-kbd,bus=xhci.0"
 USB+=" -global nec-usb-xhci.msi=off"
-
-if [ ! -f "$STORAGE/boot.img" ]; then
-  info ""
-  info "Model: $MODEL"
-  info "Rom: $ROM"
-  info "Serial: $SN"
-  info "Board: $MLB"
-  info ""
-fi
 
 return 0
