@@ -110,7 +110,7 @@ generateSerial() {
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
   # Generate unique serial numbers for machine
-  SN=$(/usr/local/bin/macserial --num 1 --model "${MODEL}")
+  SN=$(/usr/local/bin/macserial --num 1 --model "${MODEL}" 2>/dev/null)
 
   SN="${SN##*$'\n'}"
   [[ "$SN" != *" | "* ]] && error "$SN" && return 1
