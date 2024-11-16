@@ -138,8 +138,12 @@ if ! generateID; then
   error "Failed to generate UUID!" && exit 35
 fi
 
+if ! generateSerial; then
+  error "Failed to generate serialnumber!" && exit 36
+fi
+
 if ! generateAddress; then
-  error "Failed to generate MAC address!" && exit 36
+  error "Failed to generate MAC address!" && exit 37
 fi
 
 DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
