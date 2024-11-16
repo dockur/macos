@@ -102,14 +102,22 @@ generateAddress() {
 generateSerial() {
 
   local file="$STORAGE/$PROCESS.sn"
+  local file2="$STORAGE/$PROCESS.mlb"
 
-  [ -n "$SN" ] && return 0
+  [ -n "$SN" ] && [ -n "$MLB" ] && return 0
   [ -s "$file" ] && SN=$(<"$file")
-  [ -n "$SN" ] && return 0
+  [ -s "$file2" ] && MLB=$(<"$file2")
+  [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
   # Generate unique serial number for machine
-  SN=(./usr/local/bin/macserial --num 1 --model "${MODEL}")
+  SN=$(./usr/local/bin/macserial --num 1 --model "${MODEL}")
+  SN="${SN##*$'\n'}"
+  MLB=${SN#*|}
+  MLB="${MLB#"${MLB%%[![:space:]]*}"}"
+  SN="${SN%"${SN##*[![:space:]]}"}"   
+
   echo "$SN" > "$file"
+  echo "$MLB" > "$file2"
 
   return 0
 }
