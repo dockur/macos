@@ -85,11 +85,13 @@ if [ ! -f "$IMG" ]; then
   ROM="${MAC//[^[:alnum:]]/}"
   ROM="${ROM,,}"
   BROM=$(echo "$ROM" | xxd -r -p | base64)
+  RESOLUTION="${WIDTH}x${HEIGHT}@32"
 
   sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${BROM}"'</data>|g' "$CFG"
   sed -r -i -e 's|<string>iMacPro1,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>C02TM2ZBHX87</string>|<string>'"${SN}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>C02717306J9JG361M</string>|<string>'"${MLB}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<string>1920x1080@32</string>|<string>'"${RESOLUTION}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>007076A6-F2A2-4461-BBE5-BAD019F8025A</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
   # Build image
