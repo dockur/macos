@@ -135,12 +135,14 @@ if [ ! -f "$IMG" ]; then
 
   rm -rf "$OUT"
 
-  info ""
-  info "Model: $MODEL"
-  info "Rom: $ROM"
-  info "Serial: $SN"
-  info "Board: $MLB"
-  info ""
+  if [[ "$DEBUG" == [Yy1]* ]]; then
+    info ""
+    info "Model: $MODEL"
+    info "Rom: $ROM"
+    info "Serial: $SN"
+    info "Board: $MLB"
+    info ""
+  fi
 
 fi
 
