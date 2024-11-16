@@ -80,6 +80,18 @@ mcopy -bspmQ -i "$IMG@@${START}S" ::EFI "$OUT"
 info "Creating OpenCore image..."
 
 cp /config.plist "$OUT/EFI/OC/"
+			
+sed -r -i -e 's|<string>iMacPro1,1</string>|<string>'"${MODEL}"'</string>|g' "$OUT/EFI/OC/config.plist"
+sed -r -i -e 's|<string>007076A6-F2A2-4461-BBE5-BAD019F8025A</string>|<string>'"${UUID}"'</string>|g' "$OUT/EFI/OC/config.plist"
+sed -r -i -e 's|<string>C02TM2ZBHX87</string>|<string>'"${SN}"'</string>|g' "$OUT/EFI/OC/config.plist"
+sed -r -i -e 's|<string>C02717306J9JG361M</string>|<string>'"${MLB}"'</string>|g' "$OUT/EFI/OC/config.plist"
+sed -r -i -e 's|<string></string>|<string>'"${MODEL}"'</string>|g' "$OUT/EFI/OC/config.plist"
+sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${ROM}"'</data>|g' "$OUT/EFI/OC/config.plist"
+
+cat "$OUT/EFI/OC/config.plist"
+exit 55
+
+# Build image
 
 MB=256
 CLUSTER=4
