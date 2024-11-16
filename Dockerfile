@@ -1,10 +1,10 @@
-FROM --platform=$BUILDPLATFORM alpine AS builder
+FROM --platform=$BUILDPLATFORM alpine:3.20 AS builder
 
 ARG VERSION_OPENCORE="1.0.2"
 ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
 ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip /tmp/opencore.zip
 
-RUN apk --update add unzip && \
+RUN apk --update --no-cache add unzip && \
     unzip /tmp/opencore.zip -d /tmp/oc && \
     cp /tmp/oc/Utilities/macserial/macserial.linux /macserial && \
     rm -rf /tmp/* /var/tmp/* /var/cache/apk/*
