@@ -77,7 +77,8 @@ generateID() {
   [ -n "$UUID" ] && return 0
 
   UUID=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
-  echo "${UUID^^}" > "$file"
+  UUID="${UUID^^}"
+  echo "$UUID" > "$file"
 
   return 0
 }
@@ -92,11 +93,27 @@ generateAddress() {
 
   # Generate Apple MAC address based on Docker container ID in hostname
   MAC=$(echo "$HOST" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
-  echo "${MAC^^}" > "$file"
+  MAC="${MAC^^}" 
+  echo "$MAC" > "$file"
 
   return 0
 }
 
+generateSerial() {
+
+  local file="$STORAGE/$PROCESS.sn"
+
+  [ -n "$SN" ] && return 0
+  [ -s "$file" ] && SN=$(<"$file")
+  [ -n "$SN" ] && return 0
+
+  # Generate unique serial number for machine
+  SN=(./usr/local/bin/macserial --num 1 --model "${MODEL}")
+  echo "$SN" > "$file"
+
+  return 0
+}
+        
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   if ! downloadImage "$VERSION"; then
     rm -rf "$TMP"
