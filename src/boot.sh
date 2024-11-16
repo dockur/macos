@@ -79,6 +79,9 @@ mcopy -bspmQ -i "$IMG@@${START}S" ::EFI "$OUT"
 
 info "Creating OpenCore image..."
 
+ROM="${VM_NET_MAC//[^[:alnum:]]/}"
+ROM="${ROM,,}"
+    
 cp /config.plist "$OUT/EFI/OC/"
 			
 sed -r -i -e 's|<string>iMacPro1,1</string>|<string>'"${MODEL}"'</string>|g' "$OUT/EFI/OC/config.plist"
