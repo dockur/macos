@@ -81,7 +81,6 @@ info "Creating OpenCore image..."
 
 ROM="${MAC//[^[:alnum:]]/}"
 ROM="${ROM,,}"
-echo "245BA7E2435B" | xxd -r -p | base64
 BROM=$(echo "$ROM" | xxd -r -p | base64)
 
 CFG="$OUT/EFI/OC/config.plist"
