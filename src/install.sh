@@ -3,12 +3,12 @@ set -Eeuo pipefail
 
 # Docker environment variables
 
-: "${SN:=""}"         # Device serial
-: "${MLB:=""}"           # Board serial
-: "${MAC:=""}"            # MAC address
-: "${UUID:=""}"            # Unique ID
-: "${WIDTH:="1920"}"      # Horizontal
-: "${HEIGHT:="1080"}"     # Vertical
+: "${SN:=""}"                # Device serial
+: "${MLB:=""}"               # Board serial
+: "${MAC:=""}"               # MAC address
+: "${UUID:=""}"              # Unique ID
+: "${WIDTH:="1920"}"         # Horizontal
+: "${HEIGHT:="1080"}"        # Vertical
 : "${VERSION:="13"}"         # OSX Version
 : "${MODEL:="iMacPro1,1"}"   # Device model
 
