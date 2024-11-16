@@ -92,13 +92,6 @@ sed -r -i -e 's|<string>C02TM2ZBHX87</string>|<string>'"${SN}"'</string>|g' "$CF
 sed -r -i -e 's|<string>C02717306J9JG361M</string>|<string>'"${MLB}"'</string>|g' "$CFG"
 sed -r -i -e 's|<string>007076A6-F2A2-4461-BBE5-BAD019F8025A</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
-info ""
-info "Model: $MODEL"
-info "Rom: $ROM"
-info "Serial: $SN"
-info "Board: $MLB"
-info ""
-
 # Build image
 
 MB=256
@@ -203,5 +196,12 @@ esac
 USB="nec-usb-xhci,id=xhci"
 USB+=" -device usb-kbd,bus=xhci.0"
 USB+=" -global nec-usb-xhci.msi=off"
+
+info ""
+info "Model: $MODEL"
+info "Rom: $ROM"
+info "Serial: $SN"
+info "Board: $MLB"
+info ""
 
 return 0
