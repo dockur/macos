@@ -82,7 +82,7 @@ info "Creating OpenCore image..."
 ROM="${MAC//[^[:alnum:]]/}"
 ROM="${ROM,,}"
 
-CFG="$OUT/EFI/OC"
+CFG="$OUT/EFI/OC/config.plist"
 cp /config.plist "$CFG"
 
 sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${ROM}"'</data>|g' "$CFG"
