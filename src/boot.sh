@@ -81,11 +81,13 @@ info "Creating OpenCore image..."
 
 ROM="${MAC//[^[:alnum:]]/}"
 ROM="${ROM,,}"
+echo "245BA7E2435B" | xxd -r -p | base64
+BROM=$(echo "$ROM" | xxd -r -p | base64)
 
 CFG="$OUT/EFI/OC/config.plist"
 cp /config.plist "$CFG"
 
-sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${ROM}"'</data>|g' "$CFG"
+sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${BROM}"'</data>|g' "$CFG"
 sed -r -i -e 's|<string>iMacPro1,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
 sed -r -i -e 's|<string>C02TM2ZBHX87</string>|<string>'"${SN}"'</string>|g' "$CFG"
 sed -r -i -e 's|<string>C02717306J9JG361M</string>|<string>'"${MLB}"'</string>|g' "$CFG"
