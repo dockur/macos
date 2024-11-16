@@ -109,22 +109,23 @@ generateSerial() {
   [ -s "$file2" ] && MLB=$(<"$file2")
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
-  # Generate unique serial number for machine
-  SN=$(./usr/local/bin/macserial --num 1 --model "${MODEL}")
+  # Generate unique serial numbers for machine
+  SN=$(/usr/local/bin/macserial --num 1 --model "${MODEL}")
 
-  echo "$SN"
   SN="${SN##*$'\n'}"
+  [[ "$SN" != *" | "* ]] && error "$SN" && return 1
+
   MLB=${SN#*|}
   MLB="${MLB#"${MLB%%[![:space:]]*}"}"
   SN="${SN%%|*}"
-  SN="${SN%"${SN##*[![:space:]]}"}"   
+  SN="${SN%"${SN##*[![:space:]]}"}"
 
-  echo "$SN" #> "$file"
-  echo "$MLB" #> "$file2"
-  exit 55
+  echo "$SN" > "$file"
+  echo "$MLB" > "$file2"
+
   return 0
 }
-        
+
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   if ! downloadImage "$VERSION"; then
     rm -rf "$TMP"
