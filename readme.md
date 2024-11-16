@@ -74,7 +74,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
-  - Click the `Erase` button to format the disk, and give it any recognizable name you like.
+  - Click the `Erase` button to format the disk to APFS, and give it any recognizable name you like.
 
   - Close the current window and proceed the installation by clicking `Reinstall macOS`.
   
