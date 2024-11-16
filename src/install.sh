@@ -111,14 +111,17 @@ generateSerial() {
 
   # Generate unique serial number for machine
   SN=$(./usr/local/bin/macserial --num 1 --model "${MODEL}")
+
+  echo "$SN"
   SN="${SN##*$'\n'}"
   MLB=${SN#*|}
   MLB="${MLB#"${MLB%%[![:space:]]*}"}"
+  SN="${SN%%|*}"
   SN="${SN%"${SN##*[![:space:]]}"}"   
 
-  echo "$SN" > "$file"
-  echo "$MLB" > "$file2"
-
+  echo "$SN" #> "$file"
+  echo "$MLB" #> "$file2"
+  exit 55
   return 0
 }
         
