@@ -79,7 +79,7 @@ mcopy -bspmQ -i "$IMG@@${START}S" ::EFI "$OUT"
 
 info "Creating OpenCore image..."
 
-ROM="${VM_NET_MAC//[^[:alnum:]]/}"
+ROM="${MAC//[^[:alnum:]]/}"
 ROM="${ROM,,}"
     
 cp /config.plist "$OUT/EFI/OC/"
