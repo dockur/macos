@@ -1,0 +1,25 @@
+services:
+  osx:
+    image: dockurr/macos
+    container_name: macos
+    restart: unless-stopped
+    environment:
+      VERSION: "15"
+      DISK_SIZE: "256G"
+      RAM_SIZE: "4G"
+      CPU_CORES: "4"
+      # un-comment for usb pass through
+      # ARGUMENTS: "-device usb-host,vendorid=0x1234,productid=0x1234"
+    volumes:
+      - ./osx:/storage
+    devices:
+      - /dev/kvm
+      # un-comment for usb pass through
+      # - /dev/bus/usb
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8006:8006 # HTTP GUI
+      - 5900:5900/tcp # VNC
+      - 5900:5900/udp # VNC
+    stop_grace_period: 2m
