@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM alpine:3.20 AS builder
+FROM --platform=$BUILDPLATFORM alpine:3.21 AS builder
 
 ARG VERSION_OPENCORE="1.0.2"
 ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
