@@ -80,7 +80,17 @@ if [ ! -f "$IMG" ]; then
   mcopy -bspmQ -i "$ISO@@${START}S" ::EFI "$OUT"
 
   CFG="$OUT/EFI/OC/config.plist"
-  cp /config.plist "$CFG"
+
+  case "${VERSION,,}" in
+    "sequoia" | "15"* )
+      PLIST="/assets/sequoia.plist" ;;
+    * )
+      PLIST="/assets/default.plist" ;;
+  esac
+
+  [ -f "/config.plist" ] && PLIST="/config.plist"
+
+  cp "$PLIST" "$CFG"
 
   ROM="${MAC//[^[:alnum:]]/}"
   ROM="${ROM,,}"
