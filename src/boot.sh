@@ -81,13 +81,7 @@ if [ ! -f "$IMG" ]; then
 
   CFG="$OUT/EFI/OC/config.plist"
 
-  case "${VERSION,,}" in
-    "sequoia" | "15"* )
-      PLIST="/assets/sequoia.plist" ;;
-    * )
-      PLIST="/assets/default.plist" ;;
-  esac
-
+  PLIST="/assets/config.plist"
   [ -f "/config.plist" ] && PLIST="/config.plist"
 
   cp "$PLIST" "$CFG"
