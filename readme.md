@@ -40,6 +40,7 @@ services:
       - 8006:8006
       - 5900:5900/tcp
       - 5900:5900/udp
+    restart: always
     stop_grace_period: 2m
 ```
 
