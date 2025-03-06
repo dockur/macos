@@ -42,7 +42,7 @@ spec:
           - containerPort: 8006
             name: http
             protocol: TCP
-          - containerPort: 3389
+          - containerPort: 5900
             name: vnc
             protocol: TCP
         securityContext:
