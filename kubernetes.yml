@@ -10,68 +10,81 @@ spec:
     requests:
       storage: 64Gi
 ---
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: macos
   labels:
     name: macos
 spec:
-  containers:
-  - name: macos
-    image: dockurr/macos
-    env:
-    - name: VERSION
-      value: "13"
-    - name: RAM_SIZE
-      value: "4G"
-    - name: CPU_CORES
-      value: "2"
-    - name: DISK_SIZE
-      value: "64G"
-    ports:
-    - containerPort: 8006
-    - containerPort: 5900
-    - containerPort: 5900
-      protocol: UDP
-    securityContext:
-      capabilities:
-        add:
-        - NET_ADMIN
-      privileged: true
-    volumeMounts:
-    - mountPath: /storage
-      name: storage
-    - mountPath: /dev/kvm
-      name: dev-kvm
-    - mountPath: /dev/net/tun
-      name: dev-tun
-  terminationGracePeriodSeconds: 120
-  volumes:
-  - name: storage
-    persistentVolumeClaim:
-      claimName: macos-pvc
-  - hostPath:
-      path: /dev/kvm
-    name: dev-kvm
-  - hostPath:
-      path: /dev/net/tun
-      type: CharDevice
-    name: dev-tun
+  replicas: 1
+  selector:
+    matchLabels:
+      app: macos
+  template:
+    metadata:
+      labels:
+        app: macos
+    spec:
+      containers:
+      - name: macos
+        image: dockurr/macos
+        env:
+        - name: VERSION
+          value: "13"
+        - name: RAM_SIZE
+          value: "4G"
+        - name: CPU_CORES
+          value: "2"
+        - name: DISK_SIZE
+          value: "64G"
+        ports:
+          - containerPort: 8006
+            name: http
+            protocol: TCP
+          - containerPort: 5900
+            name: vnc
+            protocol: TCP
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          privileged: true
+        volumeMounts:
+        - mountPath: /storage
+          name: storage
+        - mountPath: /dev/kvm
+          name: dev-kvm
+        - mountPath: /dev/net/tun
+          name: dev-tun
+      terminationGracePeriodSeconds: 120
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: macos-pvc
+      - hostPath:
+          path: /dev/kvm
+        name: dev-kvm
+      - hostPath:
+          path: /dev/net/tun
+          type: CharDevice
+        name: dev-tun
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: macos
 spec:
+  internalTrafficPolicy: Cluster
   ports:
-  - name: tcp-8006
-    port: 8006
-  - name: tcp-5900
-    port: 5900
-  - name: udp-5900
-    port: 5900
-    protocol: UDP
+    - name: http
+      port: 8006
+      protocol: TCP
+      targetPort: 8006
+    - name: vnc
+      port: 5900
+      protocol: TCP
+      targetPort: 5900
   selector:
-    name: macos
-  type: NodePort
+    app: macos
+  type: ClusterIP
