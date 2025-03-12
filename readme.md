@@ -144,6 +144,58 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
     CPU_CORES: "4"
   ```
 
+### How do I assign an individual IP address to the container?
+
+  By default, the container uses bridge networking, which shares the IP address with the host. 
+
+  If you want to assign an individual IP address to the container, you can create a macvlan network as follows:
+
+  ```bash
+  docker network create -d macvlan \
+      --subnet=192.168.0.0/24 \
+      --gateway=192.168.0.1 \
+      --ip-range=192.168.0.100/28 \
+      -o parent=eth0 vlan
+  ```
+  
+  Be sure to modify these values to match your local subnet. 
+
+  Once you have created the network, change your compose file to look as follows:
+
+  ```yaml
+  services:
+    macos:
+      container_name: macos
+      ..<snip>..
+      networks:
+        vlan:
+          ipv4_address: 192.168.0.100
+
+  networks:
+    vlan:
+      external: true
+  ```
+ 
+  An added benefit of this approach is that you won't have to perform any port mapping anymore, since all ports will be exposed by default.
+
+> [!IMPORTANT]  
+> This IP address won't be accessible from the Docker host due to the design of macvlan, which doesn't permit communication between the two. If this is a concern, you need to create a [second macvlan](https://blog.oddbit.com/post/2018-03-12-using-docker-macvlan-networks/#host-access) as a workaround.
+
+### How can macOS acquire an IP address from my router?
+
+  After configuring the container for [macvlan](#how-do-i-assign-an-individual-ip-address-to-the-container), it is possible for macOS to become part of your home network by requesting an IP from your router, just like a real PC.
+
+  To enable this mode, in which the container and macOS will have separate IP addresses, add the following lines to your compose file:
+
+  ```yaml
+  environment:
+    DHCP: "Y"
+  devices:
+    - /dev/vhost-net
+  device_cgroup_rules:
+    - 'c *:* rwm'
+  ```
+
 ### How do I pass-through a USB device?
 
   To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
