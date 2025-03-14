@@ -166,13 +166,6 @@ if [ -z "${CPU_FLAGS:-}" ]; then
 else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
-MSRS="/sys/module/kvm/parameters/ignore_msrs"
-if [ -e "$MSRS" ]; then
-  result=$(<"$MSRS")
-  if [[ "$result" == "0" ]] || [[ "${result^^}" == "N" ]]; then
-    echo 1 | tee "$MSRS" > /dev/null 2>&1 || true
-  fi
-fi
 
 CLOCKSOURCE="tsc"
 [[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter﻿"
