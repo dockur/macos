@@ -3,10 +3,10 @@ set -Eeuo pipefail
 
 # Docker environment variables
 : "${BOOT_MODE:="macos"}"  # Boot mode
+: "${SECURE:="off"}"    # Secure boot
 
 BOOT_DESC=""
 BOOT_OPTS=""
-SECURE="off"
 OVMF="/usr/share/OVMF"
 
 case "${HEIGHT,,}" in
@@ -139,14 +139,12 @@ if [ ! -f "$IMG" ]; then
 
   rm -rf "$OUT"
 
-  if [[ "$DEBUG" == [Yy1]* ]]; then
-    info ""
-    info "Model: $MODEL"
-    info "Rom: $ROM"
-    info "Serial: $SN"
-    info "Board: $MLB"
-    info ""
-  fi
+  info ""
+  info "Model: $MODEL"
+  info "Rom: $ROM"
+  info "Serial: $SN"
+  info "Board: $MLB"
+  info ""
 
 fi
 
@@ -168,21 +166,35 @@ if [ -z "${CPU_FLAGS:-}" ]; then
 else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
-
-CLOCK="/sys/devices/system/clocksource/clocksource0/current_clocksource"
-[ -f "$CLOCK" ] && CLOCK=$(<"$CLOCK")
-
-if [[ "${CLOCK,,}" == "kvm-clock" ]]; then
-  if [[ "$CPU_VENDOR" != "GenuineIntel" ]] && [[ "${CPU_CORES,,}" == "2" ]]; then
-    warn "Restricted processor to a single core because nested virtualization was detected!"
-    CPU_CORES="1"
-  else
-    warn "Nested virtualization was detected, this might cause issues running macOS!"
+MSRS="/sys/module/kvm/parameters/ignore_msrs"
+if [ -e "$MSRS" ]; then
+  result=$(<"$MSRS")
+  if [[ "$result" == "0" ]] || [[ "${result^^}" == "N" ]]; then
+    echo 1 | tee "$MSRS" > /dev/null 2>&1 || true
   fi
 fi
 
-if [[ "${CLOCK,,}" == "hpet" ]]; then
-  warn "Your clocksource is HPET instead of TSC, this will cause issues running macOS!"
+CLOCKSOURCE="tsc"
+[[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter﻿"
+CLOCK="/sys/devices/system/clocksource/clocksource0/current_clocksource"
+
+if [ ! -f "$CLOCK" ]; then
+  warn "file \"$CLOCK\" cannot not found?"
+else
+  result=$(<"$CLOCK")
+  case "${result,,}" in
+    "${CLOCKSOURCE,,}" ) ;;
+    "kvm-clock" )
+      if [[ "$CPU_VENDOR" != "GenuineIntel" ]] && [[ "${CPU_CORES,,}" == "2" ]]; then
+        warn "Restricted processor to a single core because nested KVM virtualization was detected!"
+        CPU_CORES="1"
+      else
+        warn "Nested KVM virtualization detected, this might cause issues running macOS!"
+      fi ;;
+    "hyperv_clocksource_tsc_page" ) info "Nested Hyper-V virtualization detected, this might cause issues running macOS!" ;;
+    "hpet" ) warn "unsupported clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
+    *) warn "unexpected clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
+  esac
 fi
 
 case "$CPU_CORES" in
