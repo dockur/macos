@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 # Docker environment variables
 : "${BOOT_MODE:="macos"}"  # Boot mode
-: "${SECURE:="off"}"    # Secure boot
+: "${SECURE:="off"}"       # Secure boot
 
 BOOT_DESC=""
 BOOT_OPTS=""
@@ -202,7 +202,7 @@ case "$CPU_CORES" in
   "5" ) CPU_CORES="4" ;;
   "9" ) CPU_CORES="8" ;;
 esac
-  
+
 case "$CPU_CORES" in
   "1" | "2" | "4" | "8" ) SMP="$CPU_CORES,sockets=1,dies=1,cores=$CPU_CORES,threads=1" ;;
   "6" | "7" ) SMP="$CPU_CORES,sockets=3,dies=1,cores=2,threads=1" ;;
