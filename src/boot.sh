@@ -3,10 +3,10 @@ set -Eeuo pipefail
 
 # Docker environment variables
 : "${BOOT_MODE:="macos"}"  # Boot mode
+: "${SECURE:="off"}"       # Secure boot
 
 BOOT_DESC=""
 BOOT_OPTS=""
-SECURE="off"
 OVMF="/usr/share/OVMF"
 
 case "${HEIGHT,,}" in
@@ -139,14 +139,12 @@ if [ ! -f "$IMG" ]; then
 
   rm -rf "$OUT"
 
-  if [[ "$DEBUG" == [Yy1]* ]]; then
-    info ""
-    info "Model: $MODEL"
-    info "Rom: $ROM"
-    info "Serial: $SN"
-    info "Board: $MLB"
-    info ""
-  fi
+  info ""
+  info "Model: $MODEL"
+  info "Rom: $ROM"
+  info "Serial: $SN"
+  info "Board: $MLB"
+  info ""
 
 fi
 
@@ -169,20 +167,27 @@ else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
 
+CLOCKSOURCE="tsc"
+[[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter﻿"
 CLOCK="/sys/devices/system/clocksource/clocksource0/current_clocksource"
-[ -f "$CLOCK" ] && CLOCK=$(<"$CLOCK")
 
-if [[ "${CLOCK,,}" == "kvm-clock" ]]; then
-  if [[ "$CPU_VENDOR" != "GenuineIntel" ]] && [[ "${CPU_CORES,,}" == "2" ]]; then
-    warn "Restricted processor to a single core because nested virtualization was detected!"
-    CPU_CORES="1"
-  else
-    warn "Nested virtualization was detected, this might cause issues running macOS!"
-  fi
-fi
-
-if [[ "${CLOCK,,}" == "hpet" ]]; then
-  warn "Your clocksource is HPET instead of TSC, this will cause issues running macOS!"
+if [ ! -f "$CLOCK" ]; then
+  warn "file \"$CLOCK\" cannot not found?"
+else
+  result=$(<"$CLOCK")
+  case "${result,,}" in
+    "${CLOCKSOURCE,,}" ) ;;
+    "kvm-clock" )
+      if [[ "$CPU_VENDOR" != "GenuineIntel" ]] && [[ "${CPU_CORES,,}" == "2" ]]; then
+        warn "Restricted processor to a single core because nested KVM virtualization was detected!"
+        CPU_CORES="1"
+      else
+        warn "Nested KVM virtualization detected, this might cause issues running macOS!"
+      fi ;;
+    "hyperv_clocksource_tsc_page" ) info "Nested Hyper-V virtualization detected, this might cause issues running macOS!" ;;
+    "hpet" ) warn "unsupported clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
+    *) warn "unexpected clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
+  esac
 fi
 
 case "$CPU_CORES" in
@@ -190,7 +195,7 @@ case "$CPU_CORES" in
   "5" ) CPU_CORES="4" ;;
   "9" ) CPU_CORES="8" ;;
 esac
-  
+
 case "$CPU_CORES" in
   "1" | "2" | "4" | "8" ) SMP="$CPU_CORES,sockets=1,dies=1,cores=$CPU_CORES,threads=1" ;;
   "6" | "7" ) SMP="$CPU_CORES,sockets=3,dies=1,cores=2,threads=1" ;;
