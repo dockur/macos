@@ -52,7 +52,7 @@ function downloadImage() {
                            -A "InternetRecovery/1.0" \
                            -b "session=\"${appleSession}\"" \
                            -H "Content-Type: text/plain" \
-                           -d $'cid='"$(getRandom 16)"$'\nsn='${mlb}$'\nbid='${board}$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='${type} \
+                           -d $'cid='"$(getRandom 16)"$'\nsn='"${mlb}"$'\nbid='"${board}"$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='"${type}" \
                            https://osrecovery.apple.com/InstallationPayload/RecoveryImage | tr ' ' '\n')
 
   downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg')
