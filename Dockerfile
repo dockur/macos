@@ -26,6 +26,7 @@ RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
     xxd \
+    curl \
     fdisk \
     mtools \
     python3 && \
