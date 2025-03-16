@@ -17,12 +17,44 @@ BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
 BASE_VERSION="$STORAGE/$PROCESS.version"
 
-downloadFile() {
+function getRandom() {
+  local length="${1}"
+  local result=""
+  local chars=("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "A" "B" "C" "D" "E" "F")
 
-  local url="$1"
-  local dest="$2"
+  for ((i=0; i<length; i++)); do
+      result+="${chars[$((RANDOM % 16))]}"
+  done
+
+  echo "$result"
+  return 0
+}
+
+function downloadImage() {
+  local info=""
+  local dest="$1"
+  local board="$2"
   local version="$3"
+  local type="latest"
+  local appleSession=""
+  local downloadLink=""
+  local downloadSession=""
+  local mlb="00000000000000000"
   local msg rc total size progress
+
+  appleSession=$(curl --disable -v -H "Host: osrecovery.apple.com" \
+                           -H "Connection: close" \
+                           -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '{print $2}' | grep 1)
+  info=$(curl --disable -s -X POST -H "Host: osrecovery.apple.com" \
+                           -H "Connection: close" \
+                           -A "InternetRecovery/1.0" \
+                           -b "session=\"${appleSession}\"" \
+                           -H "Content-Type: text/plain" \
+                           -d $'cid='"$(getRandom 16)"$'\nsn='${mlb}$'\nbid='${board}$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='${type} \
+                           https://osrecovery.apple.com/InstallationPayload/RecoveryImage | tr ' ' '\n')
+
+  downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg')
+  downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg')
 
   # Check if running with interactive TTY or redirected to docker log
   if [ -t 1 ]; then
@@ -37,7 +69,7 @@ downloadFile() {
 
   /run/progress.sh "$dest" "0" "$msg ([P])..." &
 
-  { wget "$url" -O "$dest" -q --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
+  { wget "$downloadLink" -O "$dest" -q --header "Host: oscdn.apple.com" --header "Connection: close" --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}" --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
 
   fKill "progress.sh"
 
@@ -51,7 +83,7 @@ downloadFile() {
     return 0
   fi
 
-  msg="Failed to download $url"
+  msg="Failed to download $downloadLink"
   (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
   (( rc == 4 )) && error "$msg , network failure!" && return 1
   (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
@@ -60,52 +92,10 @@ downloadFile() {
   return 1
 }
 
-function getRandom() {
-  local length="${1}"
-  local result=""
-  local chars=("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "A" "B" "C" "D" "E" "F")
-
-  for ((i=0; i<length; i++)); do
-      result+="${chars[$((RANDOM % 16))]}"
-  done
-
-  echo "$result"
-  return 0
-}
-
-function getLink() {
-  local info=""
-  local board="$1"
-  local type="latest"
-  local appleSession=""
-  local downloadLink=""
-  local downloadSession=""
-  local mlb="00000000000000000"
-    
-  appleSession=$(curl --disable -v -H "Host: osrecovery.apple.com" \
-                           -H "Connection: close" \
-                           -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '{print $2}' | grep 1)
-  info=$(curl --disable -s -X POST -H "Host: osrecovery.apple.com" \
-                           -H "Connection: close" \
-                           -A "InternetRecovery/1.0" \
-                           -b "session=\"${appleSession}\"" \
-                           -H "Content-Type: text/plain" \
-                           -d $'cid='"$(getRandom 16)"$'\nsn='${mlb}$'\nbid='${board}$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='${type} \
-                           https://osrecovery.apple.com/InstallationPayload/RecoveryImage | tr ' ' '\n')
-                           
-  downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg')
-  downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg')
-    
-  echo "${downloadLink}"
-  return 0
-}
-
-downloadImage() {
+download() {
 
   local board
   local version="$1"
-  local file="BaseSystem"
-  local path="$TMP/$file.dmg"
 
   case "${version,,}" in
     "sequoia" | "15"* )
@@ -128,11 +118,17 @@ downloadImage() {
   rm -rf "$TMP"
   mkdir -p "$TMP"
 
-  if ! downloadFile "$BOOT" "$path" "$version"; then
-    rm -rf "$TMP" && exit 60
+  if [ -f "/boot.dmg" ]; then
+    cp "/boot.dmg" "$BASE_IMG"
+  else
+    local file="BaseSystem"
+    local path="$TMP/$file.dmg"
+    if ! downloadImage "$path" "$board" "$version"; then
+      rm -rf "$TMP" && exit 60
+    fi
+    mv -f "$path" "$BASE_IMG"
   fi
 
-  mv -f "$path" "$BASE_IMG"
   rm -rf "$TMP"
 
   echo "$version" > "$BASE_VERSION"
