@@ -123,10 +123,9 @@ download() {
   if [ -f "/boot.dmg" ]; then
     cp "/boot.dmg" "$BASE_IMG"
   else
-    local file="BaseSystem"
-    local path="$TMP/$file.dmg"
-    ! downloadImage "$path" "$board" "$version" && exit 60
-    mv -f "$path" "$BASE_IMG"
+    local file="/BaseSystem.dmg"
+    ! downloadImage "$file" "$board" "$version" && exit 60
+    mv -f "$file" "$BASE_IMG"
   fi
 
   echo "$version" > "$BASE_VERSION"
