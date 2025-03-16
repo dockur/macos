@@ -55,10 +55,25 @@ function downloadImage() {
   downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg')
   downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg')
 
-  if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
+  if [[ "$DEBUG" == [Yy1]* ]]; then
     [ -n "$appleSession" ] && echo "Session: $appleSession" && echo
     [ -n "$info" ] && echo "Info: $info" && echo
-    error "Failed to connect to the "
+  fi
+
+  if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
+
+    local code="0"
+    msg="Failed to connect to the Apple servers, reason: "
+  
+    curl --silent --max-time 10 --output /dev/null --fail -H "Host: osrecovery.apple.com" -H "Connection: close" -A "InternetRecovery/1.0" https://osrecovery.apple.com/ || {
+      code="$?"
+    }
+
+    case "${code,,}" in
+      "7" ) error "$msg, no internet connection available!" ;;
+      *) error "$msg, reason: $code" ;;
+    esac
+
     return 1
   fi
 
