@@ -70,7 +70,9 @@ function downloadImage() {
     }
 
     case "${code,,}" in
+      "6" ) error "$msg could not resolve host!" ;;
       "7" ) error "$msg no internet connection available!" ;;
+      "28" ) error "$msg connection timed out!" ;;
       *) error "$msg $code" ;;
     esac
 
