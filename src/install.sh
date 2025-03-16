@@ -39,7 +39,10 @@ function downloadImage() {
   local downloadLink=""
   local downloadSession=""
   local mlb="00000000000000000"
-  local msg rc total size progress
+  local rc total size progress
+
+  local msg="Downloading macOS ${version^}"
+  info "$msg recovery image..." && html "$msg..."
 
   appleSession=$(curl --disable -v -H "Host: osrecovery.apple.com" \
                            -H "Connection: close" \
@@ -85,9 +88,6 @@ function downloadImage() {
   fi
 
   rm -f "$dest"
-  msg="Downloading macOS ${version^}"
-  info "$msg recovery image..." && html "$msg..."
-
   /run/progress.sh "$dest" "0" "$msg ([P])..." &
 
   { wget "$downloadLink" -O "$dest" -q --header "Host: oscdn.apple.com" --header "Connection: close" --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}" --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
