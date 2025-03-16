@@ -12,7 +12,6 @@ set -Eeuo pipefail
 : "${VERSION:="13"}"         # OSX Version
 : "${MODEL:="iMacPro1,1"}"   # Device model
 
-TMP="$STORAGE/tmp"
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
 BASE_VERSION="$STORAGE/$PROCESS.version"
@@ -55,6 +54,12 @@ function downloadImage() {
 
   downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg')
   downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg')
+
+  if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
+    echo && echo "Session: $appleSession" & echo "Info: $info" & echo
+    error "Failed to fetch macOS \"${version^}\" recovery image with board id \"$board\"!"
+    return 1
+  fi
 
   # Check if running with interactive TTY or redirected to docker log
   if [ -t 1 ]; then
@@ -115,21 +120,14 @@ download() {
       return 1 ;;
   esac
 
-  rm -rf "$TMP"
-  mkdir -p "$TMP"
-
   if [ -f "/boot.dmg" ]; then
     cp "/boot.dmg" "$BASE_IMG"
   else
     local file="BaseSystem"
     local path="$TMP/$file.dmg"
-    if ! downloadImage "$path" "$board" "$version"; then
-      rm -rf "$TMP" && exit 60
-    fi
+    ! downloadImage "$path" "$board" "$version" && exit 60
     mv -f "$path" "$BASE_IMG"
   fi
-
-  rm -rf "$TMP"
 
   echo "$version" > "$BASE_VERSION"
   return 0
@@ -194,9 +192,7 @@ generateSerial() {
 }
 
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
-  if ! download "$VERSION"; then
-    rm -rf "$TMP" && exit 34
-  fi
+  ! download "$VERSION" && exit 34
 fi
 
 STORED_VERSION=""
@@ -206,10 +202,7 @@ fi
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
   info "Different version detected, switching base image from \"$STORED_VERSION\" to \"$VERSION\""
-  if ! download "$VERSION"; then
-    rm -rf "$TMP"
-    exit 34
-  fi
+  ! download "$VERSION" && exit 34
 fi
 
 if ! generateID; then
