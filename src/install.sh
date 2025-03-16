@@ -64,14 +64,14 @@ function downloadImage() {
 
     local code="0"
     msg="Failed to connect to the Apple servers, reason: "
-  
+
     curl --silent --max-time 10 --output /dev/null --fail -H "Host: osrecovery.apple.com" -H "Connection: close" -A "InternetRecovery/1.0" https://osrecovery.apple.com/ || {
       code="$?"
     }
 
     case "${code,,}" in
-      "7" ) error "$msg, no internet connection available!" ;;
-      *) error "$msg, reason: $code" ;;
+      "7" ) error "$msg no internet connection available!" ;;
+      *) error "$msg $code" ;;
     esac
 
     return 1
