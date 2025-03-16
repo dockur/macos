@@ -56,8 +56,9 @@ function downloadImage() {
   downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg')
 
   if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
-    echo "Session: $appleSession" && echo && echo "Info: $info" && echo
-    error "Failed to fetch macOS \"${version^}\" recovery image with board id \"$board\"!"
+    [ -n "$appleSession" ] && echo "Session: $appleSession" && echo
+    [ -n "$info" ] && echo "Info: $info" && echo
+    error "Failed to connect to the "
     return 1
   fi
 
