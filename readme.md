@@ -78,21 +78,19 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
-  - Click the `Erase` button to format the disk to APFS, and give it any recognizable name you like.
+  - Click the `Erase` button to format the disk to APFS, and give it any name you like.
 
   - Close the current window and proceed the installation by clicking `Reinstall macOS`.
   
-  - When prompted where you want to install it, select the disk you just created previously.
+  - When prompted where you want to install it, select the disk you created previously.
  
   - After all files are copied, select your region, language, and account settings.
   
   Enjoy your brand new machine, and don't forget to star this repo!
 
-### How do I select the macOS version?
+### How do I select the version of macOS?
 
-  By default, macOS 13 (Ventura) will be installed, as it offers the best performance.
-  
-  But you can add the `VERSION` environment variable to your compose file, in order to specify an alternative macOS version to be downloaded:
+  By default, macOS 13 (Ventura) will be installed, but you can add the `VERSION` environment variable in order to specify an alternative:
 
   ```yaml
   environment:
@@ -183,7 +181,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How can macOS acquire an IP address from my router?
 
-  After configuring the container for [macvlan](#how-do-i-assign-an-individual-ip-address-to-the-container), it is possible for macOS to become part of your home network by requesting an IP from your router, just like a real PC.
+  After configuring the container for [macvlan](#how-do-i-assign-an-individual-ip-address-to-the-container), it is possible for macOS to become part of your home network by requesting an IP from your router, just like your other devices.
 
   To enable this mode, in which the container and macOS will have separate IP addresses, add the following lines to your compose file:
 
