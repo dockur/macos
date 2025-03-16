@@ -194,7 +194,7 @@ generateSerial() {
 }
 
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
-  if ! downloadImage "$VERSION"; then
+  if ! download "$VERSION"; then
     rm -rf "$TMP" && exit 34
   fi
 fi
@@ -206,7 +206,7 @@ fi
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
   info "Different version detected, switching base image from \"$STORED_VERSION\" to \"$VERSION\""
-  if ! downloadImage "$VERSION"; then
+  if ! download "$VERSION"; then
     rm -rf "$TMP"
     exit 34
   fi
