@@ -205,6 +205,23 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
     - /dev/bus/usb
   ```
 
+### How do I share files with the host?
+
+  To share files with the host, add the following volume to your compose file:
+
+  ```yaml
+  volumes:
+    - ./example:/shared
+  ```
+
+  Then start macOS and execute the following command:
+  
+  ```shell
+  sudo -S mount_9p shared
+  ```
+
+  In Finder’s menu bar, click on “Go – Computer” to access this shared folder, it will show the contents of `./example`.
+  
 ### How do I verify if my system supports KVM?
 
   Only Linux and Windows 11 support KVM virtualization, macOS and Windows 10 do not unfortunately.
