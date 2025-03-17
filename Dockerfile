@@ -26,10 +26,8 @@ RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
     xxd \
-    curl \
     fdisk \
-    mtools \
-    python3 && \
+    mtools && \
     apt-get clean && \
     echo "$VERSION_ARG" > /run/version && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -47,7 +45,7 @@ ADD --chmod=644 \
 ADD $REPO_KVM_OPENCORE/releases/download/$VERSION_KVM_OPENCORE/OpenCore-$VERSION_KVM_OPENCORE.iso.gz /opencore.iso.gz
 
 VOLUME /storage
-EXPOSE 8006 5900
+EXPOSE 80 5900
 
 ENV VERSION="13"
 ENV RAM_SIZE="4G"

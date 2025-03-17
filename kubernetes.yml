@@ -76,7 +76,7 @@ spec:
     - name: http
       port: 8006
       protocol: TCP
-      targetPort: 8006
+      targetPort: 80
     - name: vnc
       port: 5900
       protocol: TCP
