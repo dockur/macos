@@ -27,8 +27,7 @@ RUN set -eu && \
     apt-get --no-install-recommends -y install \
     xxd \
     fdisk \
-    mtools \
-    python3 && \
+    mtools && \
     apt-get clean && \
     echo "$VERSION_ARG" > /run/version && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
