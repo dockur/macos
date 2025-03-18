@@ -22,7 +22,7 @@ OSX (macOS) inside a Docker container.
 
 ## Usage  🐳
 
-Via Docker Compose:
+##### Via Docker Compose:
 
 ```yaml
 services:
@@ -46,27 +46,32 @@ services:
     stop_grace_period: 2m
 ```
 
-Via Docker CLI:
+##### Via Docker CLI:
 
 ```bash
 docker run -it --rm --name macos -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/macos:/storage --stop-timeout 120 dockurr/macos
 ```
 
-Via Kubernetes:
+##### Via Kubernetes:
 
 ```shell
 kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/master/kubernetes.yml
 ```
 
+##### Via Github Codespaces:
+
+[`Click here to launch this container in the cloud!`](https://github.com/codespaces/new?skip_quickstart=true&machine=basicLinux32gb&repo=809475352&ref=master&devcontainer_path=.devcontainer.json)
+
 ## Compatibility ⚙️
 
 | **Product**  | **Platform**   | |
 |---|---|---|
-| Docker Engine | Linux| ✅ |
-| Docker Desktop | Linux | ❌ |
-| Docker Desktop | macOS | ❌ |
-| Docker Desktop | Windows 11 | ✅ |
-| Docker Desktop | Windows 10 | ❌ |
+| Docker Engine     | Linux      | ✅ |
+| Docker Desktop    | Linux      | ❌ |
+| Docker Desktop    | macOS      | ❌ |
+| Docker Desktop    | Windows 11 | ✅ |
+| Docker Desktop    | Windows 10 | ❌ |
+| Github Codespaces | Cloud      | ✅ |
 
 ## FAQ 💬
 
