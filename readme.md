@@ -37,7 +37,7 @@ services:
     cap_add:
       - NET_ADMIN
     ports:
-      - 8006:80
+      - 8006:8006
       - 5900:5900/tcp
       - 5900:5900/udp
     volumes:
@@ -49,7 +49,7 @@ services:
 Via Docker CLI:
 
 ```bash
-docker run -it --rm --name macos -p 8006:80 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/macos:/storage --stop-timeout 120 dockurr/macos
+docker run -it --rm --name macos -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v ${PWD:-.}/macos:/storage --stop-timeout 120 dockurr/macos
 ```
 
 Via Kubernetes:
