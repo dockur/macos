@@ -74,7 +74,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   Very simple! These are the steps:
   
-  - Start the container and connect to [port 8006](http://localhost:8006) using your web browser.
+  - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
 
   - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
