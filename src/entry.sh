@@ -8,6 +8,7 @@ set -Eeuo pipefail
 
 cd /run
 
+. utils.sh      # Load functions
 . reset.sh      # Initialize system
 . install.sh    # Get the OSX images
 . disk.sh       # Initialize disks
