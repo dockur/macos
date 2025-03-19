@@ -1,6 +1,6 @@
 {
   "name": "macos",
   "service": "macos",
-  "forwardPorts": ["8006"],
+  "forwardPorts": [8006],
   "dockerComposeFile": "compose.yml"
 }
