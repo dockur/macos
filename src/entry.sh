@@ -4,6 +4,7 @@ set -Eeuo pipefail
 : "${APP:="macOS"}"
 : "${VGA:="vmware"}"
 : "${DISK_TYPE:="blk"}"
+: "${PLATFORM:="x64"}"
 : "${SUPPORT:="https://github.com/dockur/macos"}"
 
 cd /run
