@@ -171,6 +171,7 @@ generateAddress() {
 
   [ -n "$MAC" ] && return 0
   [ -s "$file" ] && MAC=$(<"$file")
+  MAC="${MAC//[![:print:]]/}"
   [ -n "$MAC" ] && return 0
 
   # Generate Apple MAC address based on Docker container ID in hostname
@@ -189,6 +190,8 @@ generateSerial() {
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
   [ -s "$file" ] && SN=$(<"$file")
   [ -s "$file2" ] && MLB=$(<"$file2")
+  SN="${SN//[![:print:]]/}"
+  MLB="${MLB//[![:print:]]/}"
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
   # Generate unique serial numbers for machine
@@ -215,6 +218,7 @@ fi
 STORED_VERSION=""
 if [ -f "$BASE_VERSION" ]; then
   STORED_VERSION=$(<"$BASE_VERSION")
+  STORED_VERSION="${STORED_VERSION//[![:print:]]/}"
 fi
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then
