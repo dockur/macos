@@ -154,6 +154,7 @@ generateID() {
 
   [ -n "$UUID" ] && return 0
   [ -s "$file" ] && UUID=$(<"$file")
+  UUID="${UUID//[![:print:]]/}"
   [ -n "$UUID" ] && return 0
 
   UUID=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
