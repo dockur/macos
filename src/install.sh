@@ -154,10 +154,12 @@ generateID() {
 
   [ -n "$UUID" ] && return 0
   [ -s "$file" ] && UUID=$(<"$file")
+  UUID="${UUID//[![:print:]]/}"
   [ -n "$UUID" ] && return 0
 
   UUID=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
   UUID="${UUID^^}"
+  UUID="${UUID//[![:print:]]/}"
   echo "$UUID" > "$file"
 
   return 0
@@ -169,6 +171,7 @@ generateAddress() {
 
   [ -n "$MAC" ] && return 0
   [ -s "$file" ] && MAC=$(<"$file")
+  MAC="${MAC//[![:print:]]/}"
   [ -n "$MAC" ] && return 0
 
   # Generate Apple MAC address based on Docker container ID in hostname
@@ -187,6 +190,8 @@ generateSerial() {
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
   [ -s "$file" ] && SN=$(<"$file")
   [ -s "$file2" ] && MLB=$(<"$file2")
+  SN="${SN//[![:print:]]/}"
+  MLB="${MLB//[![:print:]]/}"
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
   # Generate unique serial numbers for machine
@@ -213,6 +218,7 @@ fi
 STORED_VERSION=""
 if [ -f "$BASE_VERSION" ]; then
   STORED_VERSION=$(<"$BASE_VERSION")
+  STORED_VERSION="${STORED_VERSION//[![:print:]]/}"
 fi
 
 if [ "$VERSION" != "$STORED_VERSION" ]; then

@@ -168,13 +168,14 @@ else
 fi
 
 CLOCKSOURCE="tsc"
-[[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter﻿"
+[[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter"
 CLOCK="/sys/devices/system/clocksource/clocksource0/current_clocksource"
 
 if [ ! -f "$CLOCK" ]; then
   warn "file \"$CLOCK\" cannot not found?"
 else
   result=$(<"$CLOCK")
+  result="${result//[![:print:]]/}"
   case "${result,,}" in
     "${CLOCKSOURCE,,}" ) ;;
     "kvm-clock" )
