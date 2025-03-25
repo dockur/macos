@@ -101,6 +101,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   | `12`        | macOS 12       | Monterey         |
   | `11`        | macOS 11       | Big Sur          |
 
+> [!NOTE]
+> Support for macOS 15 (Sequoia) is still in its infancy, and it does not allow you to sign in to your Apple Account yet. 
+
 ### How do I change the storage location?
 
   To change the storage location, include the following bind mount in your compose file:
