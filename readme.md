@@ -102,7 +102,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   | `11`        | macOS 11       | Big Sur          |
 
 > [!NOTE]
-> Support for macOS 15 (Sequoia) is still in its infancy, and it does not allow you to sign in to your Apple Account yet. 
+> Support for macOS 15 (Sequoia) is still in its infancy, as it does not allow you to sign in to your Apple Account yet. 
 
 ### How do I change the storage location?
 
