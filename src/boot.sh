@@ -167,6 +167,7 @@ else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
 
+SM_BIOS=""
 CLOCKSOURCE="tsc"
 [[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter"
 CLOCK="/sys/devices/system/clocksource/clocksource0/current_clocksource"
