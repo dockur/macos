@@ -1,6 +1,6 @@
 FROM --platform=$BUILDPLATFORM alpine:3.21 AS builder
 
-ARG VERSION_OPENCORE="1.0.3"
+ARG VERSION_OPENCORE="1.0.4"
 ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
 ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip /tmp/opencore.zip
 
