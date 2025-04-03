@@ -191,6 +191,18 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
     - 'c *:* rwm'
   ```
 
+### How do I pass-through a disk?
+
+  It is possible to pass-through disk devices or partitions directly by adding them to your compose file in this way:
+
+  ```yaml
+  devices:
+    - /dev/sdb:/disk1
+    - /dev/sdc1:/disk2
+  ```
+
+  Use `/disk1` if you want it to become your main drive, and use `/disk2` and higher to add them as secondary drives.
+  
 ### How do I pass-through a USB device?
 
   To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
