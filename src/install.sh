@@ -9,7 +9,7 @@ set -Eeuo pipefail
 : "${UUID:=""}"              # Unique ID
 : "${WIDTH:="1920"}"         # Horizontal
 : "${HEIGHT:="1080"}"        # Vertical
-: "${VERSION:="13"}"         # OSX Version
+: "${VERSION:="15"}"         # OSX Version
 : "${MODEL:="iMacPro1,1"}"   # Device model
 
 BASE_IMG_ID="InstallMedia"
