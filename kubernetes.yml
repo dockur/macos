@@ -29,6 +29,8 @@ spec:
       containers:
       - name: macos
         image: dockurr/macos
+        securityContext:
+          allowPrivilegeEscalation: false
         env:
         - name: VERSION
           value: "13"
