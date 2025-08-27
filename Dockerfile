@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM --platform=$BUILDPLATFORM alpine:3.22 AS builder
 
 ARG VERSION_OPENCORE="1.0.4"
