@@ -2,8 +2,9 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${BOOT_MODE:="macos"}"  # Boot mode
+: "${FORCE:="N"}"          # Force cores
 : "${SECURE:="off"}"       # Secure boot
+: "${BOOT_MODE:="macos"}"  # Boot mode
 
 BOOT_DESC=""
 BOOT_OPTS=""
@@ -156,7 +157,7 @@ DISK_OPTS+=" -drive file=$IMG,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
 
-if [[ "$CPU_VENDOR" != "GenuineIntel" ]] || [[ "${KVM:-}" == [Nn]* ]]; then
+if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] || [[ "${KVM:-}" == [Nn]* ]]; then
   [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
   DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
 fi
@@ -165,6 +166,11 @@ if [ -z "${CPU_FLAGS:-}" ]; then
   CPU_FLAGS="$DEFAULT_FLAGS"
 else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
+fi
+
+if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] && [[ "${CPU_CORES,,}" != "1" ]] && [[ "${FORCE:-}" == [Nn]* ]] && [[ "${KVM:-}" != [Nn]* ]]; then
+  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set FORCE=Y to disable this measure)"
+  CPU_CORES="1"
 fi
 
 SM_BIOS=""
@@ -180,8 +186,8 @@ else
   case "${result,,}" in
     "${CLOCKSOURCE,,}" ) ;;
     "kvm-clock" )
-      if [[ "$CPU_VENDOR" != "GenuineIntel" ]] && [[ "${CPU_CORES,,}" == "2" ]]; then
-        warn "Restricted processor to a single core because nested KVM virtualization was detected!"
+      if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] && [[ "${CPU_CORES,,}" != "1" ]] && [[ "${FORCE:-}" == [Nn]* ]] && [[ "${KVM:-}" != [Nn]* ]]; then
+        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set FORCE=Y to disable this measure)"
         CPU_CORES="1"
       else
         warn "Nested KVM virtualization detected, this might cause issues running macOS!"
