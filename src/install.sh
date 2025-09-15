@@ -211,6 +211,13 @@ generateSerial() {
   return 0
 }
 
+if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
+  VERSION="${VERSION:1:-1}"
+fi
+
+VERSION=`expr "$VERSION" : "^\ *\(.*[^ ]\)\ *$"`
+[ -z "$VERSION" ] && VERSION="13"
+  
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   ! download "$VERSION" && exit 34
 fi
