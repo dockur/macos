@@ -7,14 +7,13 @@ set -Eeuo pipefail
 : "${MLB:=""}"               # Board serial
 : "${MAC:=""}"               # MAC address
 : "${UUID:=""}"              # Unique ID
+: "${VERSION:=""}"           # OSX Version
 : "${WIDTH:="1920"}"         # Horizontal
 : "${HEIGHT:="1080"}"        # Vertical
-: "${VERSION:="13"}"         # OSX Version
 : "${MODEL:="iMacPro1,1"}"   # Device model
 
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
-BASE_VERSION="$STORAGE/$PROCESS.version"
 
 function getRandom() {
   local length="${1}"
@@ -117,7 +116,8 @@ download() {
 
   local board
   local version="$1"
-
+  local dest="$2"
+  
   case "${version,,}" in
     "sequoia" | "15"* )
       board="Mac-937A206F2EE63C01" ;;
@@ -136,15 +136,21 @@ download() {
       return 1 ;;
   esac
 
+  rm -f "$dest"
+
   if [ -f "/boot.dmg" ]; then
-    cp "/boot.dmg" "$BASE_IMG"
-  else
-    local file="/BaseSystem.dmg"
-    ! downloadImage "$file" "$board" "$version" && exit 60
-    mv -f "$file" "$BASE_IMG"
+    cp "/boot.dmg" "$dest"
+    return 0
   fi
 
-  echo "$version" > "$BASE_VERSION"
+  local file="$STORAGE/boot.dmg"
+    
+  if ! downloadImage "$file" "$board" "$version"; then
+    rm -f "$file"
+    exit 60
+  fi
+
+  mv -f "$file" "$dest"
   return 0
 }
 
@@ -215,22 +221,25 @@ if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
   VERSION="${VERSION:1:-1}"
 fi
 
-VERSION=`expr "$VERSION" : "^\ *\(.*[^ ]\)\ *$"`
-[ -z "$VERSION" ] && VERSION="13"
-  
+VERSION=$(expr "$VERSION" : "^\ *\(.*[^ ]\)\ *$")
+
+if [ -z "$VERSION" ]; then
+
+  VERSION="13"
+  warn "no value specified for the VERSION variable, defaulting to \"${VERSION}\"."
+
+fi
+
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
-  ! download "$VERSION" && exit 34
-fi
 
-STORED_VERSION=""
-if [ -f "$BASE_VERSION" ]; then
-  STORED_VERSION=$(<"$BASE_VERSION")
-  STORED_VERSION="${STORED_VERSION//[![:print:]]/}"
-fi
+  STORAGE="$STORAGE/${VERSION,,}"
+  mkdir -p "$STORAGE"
+  BASE_IMG="$STORAGE/base.dmg"
 
-if [ "$VERSION" != "$STORED_VERSION" ]; then
-  info "Different version detected, switching base image from \"$STORED_VERSION\" to \"$VERSION\""
-  ! download "$VERSION" && exit 34
+  if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
+    ! download "$VERSION" "$BASE_IMG" && exit 34
+  fi
+
 fi
 
 if ! generateID; then
