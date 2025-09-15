@@ -2,8 +2,9 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${BOOT_MODE:="macos"}"  # Boot mode
+: "${FORCE:="N"}"          # Force cores
 : "${SECURE:="off"}"       # Secure boot
+: "${BOOT_MODE:="macos"}"  # Boot mode
 
 BOOT_DESC=""
 BOOT_OPTS=""
@@ -167,8 +168,8 @@ else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
 
-if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] && [[ "${KVM:-}" != [Nn]* ]] && [[ "${CPU_CORES,,}" != "1" ]]; then
-  warn "Restricted processor to a single core (instead of $CPU_CORES) because an AMD CPU was detected!"
+if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] && [[ "${CPU_CORES,,}" != "1" ]] && [[ "${FORCE:-}" == [Nn]* ]] && [[ "${KVM:-}" != [Nn]* ]]; then
+  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set FORCE=Y to disable this measure)"
   CPU_CORES="1"
 fi
 
@@ -185,8 +186,8 @@ else
   case "${result,,}" in
     "${CLOCKSOURCE,,}" ) ;;
     "kvm-clock" )
-      if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] && [[ "${CPU_CORES,,}" != "1" ]]; then
-        warn "Restricted processor to a single core (instead of $CPU_CORES) because nested KVM virtualization on an AMD CPU was detected!"        
+      if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] && [[ "${CPU_CORES,,}" != "1" ]] && [[ "${FORCE:-}" == [Nn]* ]] && [[ "${KVM:-}" != [Nn]* ]]; then
+        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set FORCE=Y to disable this measure)"
         CPU_CORES="1"
       else
         warn "Nested KVM virtualization detected, this might cause issues running macOS!"
