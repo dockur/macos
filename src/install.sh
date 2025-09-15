@@ -137,6 +137,7 @@ download() {
   esac
 
   rm -f "$dest"
+  mkdir -p "$STORAGE"
 
   if [ -f "/boot.dmg" ]; then
     cp "/boot.dmg" "$dest"
@@ -233,7 +234,6 @@ fi
 if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
 
   STORAGE="$STORAGE/${VERSION,,}"
-  mkdir -p "$STORAGE"
   BASE_IMG="$STORAGE/base.dmg"
 
   if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
