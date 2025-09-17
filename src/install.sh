@@ -28,7 +28,7 @@ function getRandom() {
   return 0
 }
 
-function downloadImage() {
+function download() {
   local info=""
   local dest="$1"
   local board="$2"
@@ -112,7 +112,7 @@ function downloadImage() {
   return 1
 }
 
-download() {
+install() {
 
   local board
   local version="$1"
@@ -139,6 +139,9 @@ download() {
   rm -f "$dest"
   mkdir -p "$STORAGE"
 
+  find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
+  find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'macos.*' \) -delete
+
   if [ -f "/boot.dmg" ]; then
     cp "/boot.dmg" "$dest"
     return 0
@@ -146,7 +149,7 @@ download() {
 
   local file="$STORAGE/boot.dmg"
     
-  if ! downloadImage "$file" "$board" "$version"; then
+  if ! download "$file" "$board" "$version"; then
     rm -f "$file"
     exit 60
   fi
@@ -237,7 +240,7 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
   BASE_IMG="$STORAGE/base.dmg"
 
   if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
-    ! download "$VERSION" "$BASE_IMG" && exit 34
+    ! install "$VERSION" "$BASE_IMG" && exit 34
   fi
 
 fi
