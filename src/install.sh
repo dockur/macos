@@ -57,7 +57,7 @@ function download() {
   downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg')
   downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg')
 
-  if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
+  if [ -z "$downloadLink" || -z "$downloadSession" ]; then
 
     local code="99"
     msg="Failed to connect to the Apple servers, reason:"
@@ -201,12 +201,12 @@ generateSerial() {
   local file="$STORAGE/$PROCESS.sn"
   local file2="$STORAGE/$PROCESS.mlb"
 
-  [ -n "$SN" ] && [ -n "$MLB" ] && return 0
+  [ -n "$SN" && -n "$MLB" ] && return 0
   [ -s "$file" ] && SN=$(<"$file")
   [ -s "$file2" ] && MLB=$(<"$file2")
   SN="${SN//[![:print:]]/}"
   MLB="${MLB//[![:print:]]/}"
-  [ -n "$SN" ] && [ -n "$MLB" ] && return 0
+  [ -n "$SN" && -n "$MLB" ] && return 0
 
   # Generate unique serial numbers for machine
   SN=$(/usr/local/bin/macserial --num 1 --model "${MODEL}" 2>/dev/null)
@@ -238,12 +238,12 @@ if [ -z "$VERSION" ]; then
 
 fi
 
-if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
+if [ ! -f "$BASE_IMG" || ! -s "$BASE_IMG" ]; then
 
   STORAGE="$STORAGE/${VERSION,,}"
   BASE_IMG="$STORAGE/base.dmg"
 
-  if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
+  if [ ! -f "$BASE_IMG" || ! -s "$BASE_IMG" ]; then
     ! install "$VERSION" "$BASE_IMG" && exit 34
   fi
 
