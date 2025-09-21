@@ -40,13 +40,13 @@ BOOT_OPTS+=" -device isa-applesmc,osk=$osk"
 # OVMF
 DEST="$STORAGE/$DEST"
 
-if [ ! -s "$DEST.rom" ] || [ ! -f "$DEST.rom" ]; then
-  [ ! -s "$OVMF/$ROM" ] || [ ! -f "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
+if [ ! -s "$DEST.rom" || ! -f "$DEST.rom" ]; then
+  [ ! -s "$OVMF/$ROM" || ! -f "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
   cp "$OVMF/$ROM" "$DEST.rom"
 fi
 
-if [ ! -s "$DEST.vars" ] || [ ! -f "$DEST.vars" ]; then
-  [ ! -s "$OVMF/$VARS" ] || [ ! -f "$OVMF/$VARS" ]&& error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
+if [ ! -s "$DEST.vars" || ! -f "$DEST.vars" ]; then
+  [ ! -s "$OVMF/$VARS" || ! -f "$OVMF/$VARS" ]&& error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
   cp "$OVMF/$VARS" "$DEST.vars"
 fi
 
@@ -73,7 +73,7 @@ if [ ! -f "$IMG" ]; then
 
   [ ! -f "$ISO" ] && gzip -dk "$ISO.gz"
 
-  if [ ! -f "$ISO" ] || [ ! -s "$ISO" ]; then
+  if [ ! -f "$ISO" || ! -s "$ISO" ]; then
     error "Could not find image file \"$ISO\"." && exit 10
   fi
 
