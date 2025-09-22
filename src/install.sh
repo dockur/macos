@@ -36,7 +36,7 @@ delay() {
 
   info "${msg/X/$delay}"
 
-  for i in $(seq $delay -1 1); do
+  for i in $(seq "$delay" -1 1); do
     html "${msg/X/$i}"
     sleep 1
   done
