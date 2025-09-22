@@ -28,6 +28,21 @@ function getRandom() {
   return 0
 }
 
+delay() {
+
+  local i
+  local delay="$1"
+  local msg="Retrying failed download in X seconds..."
+
+  for i in $(seq $delay -1 1); do
+    info "${msg/X/$i}"
+    html "${msg/X/$i}"
+    sleep 1
+  done
+
+  return 0
+}
+
 function download() {
   local info=""
   local dest="$1"
@@ -150,8 +165,7 @@ install() {
   local file="$STORAGE/boot.dmg"
     
   if ! download "$file" "$board" "$version"; then
-    info "Retrying failed download in 5 seconds..."
-    sleep 5
+    delay 5
     if ! download "$file" "$board" "$version"; then
       rm -f "$file"
       exit 60
