@@ -34,8 +34,9 @@ delay() {
   local delay="$1"
   local msg="Retrying failed download in X seconds..."
 
-  for i in $(seq $delay -1 1); do
-    info "${msg/X/$i}"
+  info "${msg/X/$delay}"
+
+  for i in $(seq "$delay" -1 1); do
     html "${msg/X/$i}"
     sleep 1
   done
