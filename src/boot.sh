@@ -162,7 +162,7 @@ if [[ "$OSTYPE" =~ ^darwin ]]; then
 fi
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
-DEFAULT_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
+DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
   [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
