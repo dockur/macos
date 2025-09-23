@@ -154,22 +154,15 @@ BOOT_DRIVE_ID="OpenCore"
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
 DISK_OPTS+=" -drive file=$IMG,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
 
-[[ "${ARCH,,}" != "amd64" ]] && KVM="N"
-
-if [[ "$OSTYPE" =~ ^darwin ]]; then
-  KVM="N"
-  warn "you are using macOS which has no KVM support, this will cause a major loss of performance."
-fi
-
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
   [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
-  if [[ "${KVM:-}" != [Nn]* ]]; then
-    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
-  else
+  if [[ "${KVM:-}" == [Nn]* ]] || [[ "${ARCH,,}" != "amd64" ]] || [[ "$OSTYPE" =~ ^darwin ]]; then
     DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-xsavec,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  else
+    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
   fi
 fi
 
@@ -180,7 +173,7 @@ else
 fi
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set FORCE=Y to disable this measure)"
+  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set FORCE: \"Y\" to disable this measure)"
   CPU_CORES="1"
 fi
 
@@ -198,7 +191,7 @@ else
     "${CLOCKSOURCE,,}" ) ;;
     "kvm-clock" )
       if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set FORCE=Y to disable this measure)"
+        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set FORCE: \"Y\" to disable this measure)"
         CPU_CORES="1"
       else
         warn "Nested KVM virtualization detected, this might cause issues running macOS!"
