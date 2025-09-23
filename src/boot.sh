@@ -154,6 +154,13 @@ BOOT_DRIVE_ID="OpenCore"
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
 DISK_OPTS+=" -drive file=$IMG,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
 
+[[ "${ARCH,,}" != "amd64" ]] && KVM="N"
+
+if [[ "$OSTYPE" =~ ^darwin ]]; then
+  KVM="N"
+  warn "you are using macOS which has no KVM support, this will cause a major loss of performance."
+fi
+
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
 
