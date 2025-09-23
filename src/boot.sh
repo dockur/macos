@@ -159,7 +159,11 @@ DEFAULT_FLAGS="vendor=GenuineIntel,vmware-cpuid-freq=on,-pdpe1gb"
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
   [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
-  DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  if [[ "${KVM:-}" != [Nn]* ]]; then
+    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  else
+    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-xsavec,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  fi
 fi
 
 if [ -z "${CPU_FLAGS:-}" ]; then
