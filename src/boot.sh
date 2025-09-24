@@ -173,7 +173,7 @@ else
 fi
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set FORCE: \"Y\" to disable this measure)"
+  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set \"FORCE=Y\" to disable this measure)"
   CPU_CORES="1"
 fi
 
@@ -191,7 +191,7 @@ else
     "${CLOCKSOURCE,,}" ) ;;
     "kvm-clock" )
       if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set FORCE: \"Y\" to disable this measure)"
+        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set \"FORCE=Y\" to disable this measure)"
         CPU_CORES="1"
       else
         warn "Nested KVM virtualization detected, this might cause issues running macOS!"
