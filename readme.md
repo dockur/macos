@@ -41,7 +41,7 @@ services:
       - 5900:5900/tcp
       - 5900:5900/udp
     volumes:
-      - ./macos:/storage
+      - ./macos:/storage:rw
     restart: always
     stop_grace_period: 2m
 ```
@@ -49,7 +49,7 @@ services:
 ##### Via Docker CLI:
 
 ```bash
-docker run -it --rm --name macos -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/macos:/storage" --stop-timeout 120 dockurr/macos
+docker run -it --rm --name macos -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/macos:/storage:rw" --stop-timeout 120 dockurr/macos
 ```
 
 ##### Via Kubernetes:
@@ -110,7 +110,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   ```yaml
   volumes:
-    - ./macos:/storage
+    - ./macos:/storage:rw
   ```
 
   Replace the example path `./macos` with the desired storage folder or named volume.
@@ -220,7 +220,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   ```yaml
   volumes:
-    - ./example:/shared
+    - ./example:/shared:rw
   ```
 
   Then start macOS and execute the following command:
