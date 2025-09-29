@@ -27,8 +27,6 @@ ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
-    xxd \
-    fdisk \
     mtools && \
     apt-get clean && \
     echo "$VERSION_ARG" > /run/version && \
