@@ -43,6 +43,9 @@ DEST="$STORAGE/$DEST"
 if [ ! -s "$DEST.rom" ] || [ ! -f "$DEST.rom" ]; then
   [ ! -s "$OVMF/$ROM" ] || [ ! -f "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
   cp "$OVMF/$ROM" "$DEST.rom"
+  if [[ "${LOGO:-}" != [Nn]* ]]; then
+    /run/utk.bin "$DEST.rom" replace_ffs LogoDXE "/var/www/img/macos.ffs" save "$DEST.rom"
+  fi
 fi
 
 if [ ! -s "$DEST.vars" ] || [ ! -f "$DEST.vars" ]; then
