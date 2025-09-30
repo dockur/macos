@@ -133,7 +133,7 @@ install() {
   local board
   local version="$1"
   local dest="$2"
-  hu
+
   case "${version,,}" in
     "tahoe" | "16"* )
       board="Mac-CFF7D910A743CAAF" ;;
