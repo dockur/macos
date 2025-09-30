@@ -133,8 +133,10 @@ install() {
   local board
   local version="$1"
   local dest="$2"
-  
+
   case "${version,,}" in
+    "tahoe" | "16"* )
+      board="Mac-CFF7D910A743CAAF" ;;
     "sequoia" | "15"* )
       board="Mac-937A206F2EE63C01" ;;
     "sonoma" | "14"* )
@@ -248,7 +250,7 @@ VERSION=$(expr "$VERSION" : "^\ *\(.*[^ ]\)\ *$")
 
 if [ -z "$VERSION" ]; then
 
-  VERSION="13"
+  VERSION="14"
   warn "no value specified for the VERSION variable, defaulting to \"${VERSION}\"."
 
 fi

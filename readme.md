@@ -30,7 +30,7 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "13"
+      VERSION: "14"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -49,7 +49,7 @@ services:
 ##### Via Docker CLI:
 
 ```bash
-docker run -it --rm --name macos -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/macos:/storage" --stop-timeout 120 dockurr/macos
+docker run -it --rm --name macos -e "VERSION=14" -p 8006:8006 --device=/dev/kvm --device=/dev/net/tun --cap-add NET_ADMIN -v "${PWD:-.}/macos:/storage" --stop-timeout 120 dockurr/macos
 ```
 
 ##### Via Kubernetes:
@@ -84,11 +84,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I select the version of macOS?
 
-  By default, macOS 13 (Ventura) will be installed, but you can add the `VERSION` environment variable in order to specify an alternative:
+  By default, macOS 14 (Sonoma) will be installed, but you can add the `VERSION` environment variable in order to specify an alternative:
 
   ```yaml
   environment:
-    VERSION: "13"
+    VERSION: "14"
   ```
 
   Select from the values below:
