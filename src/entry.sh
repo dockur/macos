@@ -9,6 +9,7 @@ set -Eeuo pipefail
 
 cd /run
 
+. start.sh      # Placeholder
 . utils.sh      # Load functions
 . reset.sh      # Initialize system
 . install.sh    # Get the OSX images
