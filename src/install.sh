@@ -135,7 +135,7 @@ install() {
   local dest="$2"
 
   case "${version,,}" in
-    "tahoe" | "16"* )
+    "tahoe" | "26"* | "16"* )
       board="Mac-CFF7D910A743CAAF" ;;
     "sequoia" | "15"* )
       board="Mac-937A206F2EE63C01" ;;
