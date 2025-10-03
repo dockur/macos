@@ -10,6 +10,10 @@ BOOT_DESC=""
 BOOT_OPTS=""
 OVMF="/usr/share/OVMF"
 
+msg="Configuring boot options..."
+html "$msg"
+[[ "$DEBUG" == [Yy1]* ]] && echo "$msg"
+
 case "${HEIGHT,,}" in
   "1080" )
     DEST="$PROCESS"
