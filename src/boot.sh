@@ -10,7 +10,7 @@ BOOT_DESC=""
 BOOT_OPTS=""
 OVMF="/usr/share/OVMF"
 
-msg="Configuring boot options..."
+msg="Configuring boot..."
 html "$msg"
 [[ "$DEBUG" == [Yy1]* ]] && echo "$msg"
 
