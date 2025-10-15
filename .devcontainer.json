@@ -1,20 +1,19 @@
 {
   "name": "macOS 14",
   "service": "macos",
+  "containerEnv": {
+    "VERSION": "14"
+  },  
   "forwardPorts": [8006],  
   "portsAttributes": {
     "8006": {
       "label": "Web",
       "onAutoForward": "openBrowser"
-    },
-    "5700": { "onAutoForward": "silent" },
-    "5900": { "onAutoForward": "silent" },
-    "7100": { "onAutoForward": "silent" },    
-    "8004": { "onAutoForward": "silent" }
+    }
   },
-  "containerEnv": {
-    "VERSION": "13"
-  },  
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  }, 
   "hostRequirements": {
     "storage": "64gb"
   },  
