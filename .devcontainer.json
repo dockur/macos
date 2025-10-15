@@ -1,7 +1,6 @@
 {
   "name": "macos",
   "service": "macos",
-  "forwardPorts": [8006],  
   "portsAttributes": {
     "8006": {
       "label": "Web",
