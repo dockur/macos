@@ -88,13 +88,14 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   ```yaml
   environment:
-    VERSION: "14"
+    VERSION: "15"
   ```
 
   Select from the values below:
   
   |   **Value** | **Version**    | **Name** |
   |-------------|----------------|------------------|
+  | `26`        | macOS 26       | Tahoe             |
   | `15`        | macOS 15       | Sequoia          |
   | `14`        | macOS 14       | Sonoma           |
   | `13`        | macOS 13       | Ventura          |
@@ -102,7 +103,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   | `11`        | macOS 11       | Big Sur          |
 
 > [!NOTE]
-> Support for macOS 15 (Sequoia) is still in its infancy, as it does not allow you to sign in to your Apple Account yet. 
+> Support for macOS 15+ is still in its infancy, as it does not allow you to sign in to your Apple Account yet. 
 
 ### How do I change the storage location?
 
