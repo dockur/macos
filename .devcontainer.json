@@ -2,10 +2,13 @@
   "name": "macos",
   "service": "macos",
   "portsAttributes": {
-      "8600": {
-          "label": "Web",
-          "onAutoForward": "openBrowser"
-      }
+    "8600": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "hostRequirements": {
+    "storage": "64gb"
   },  
   "dockerComposeFile": ".github/codespaces.yml"
 }
