@@ -1,5 +1,5 @@
 {
-  "name": "macos 14",
+  "name": "macOS 14",
   "service": "macos",
   "forwardPorts": [8006],  
   "portsAttributes": {
@@ -12,6 +12,9 @@
     "7100": { "onAutoForward": "silent" },    
     "8004": { "onAutoForward": "silent" }
   },
+  "containerEnv": {
+    "VERSION": "13"
+  },  
   "hostRequirements": {
     "storage": "64gb"
   },  
