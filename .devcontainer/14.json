@@ -1,5 +1,5 @@
 {
-  "name": "macos",
+  "name": "macos 14",
   "service": "macos",
   "forwardPorts": [8006],  
   "portsAttributes": {
