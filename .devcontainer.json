@@ -3,7 +3,7 @@
   "service": "macos",
   "forwardPorts": [8006],  
   "portsAttributes": {
-    "8600": {
+    "8006": {
       "label": "Web",
       "onAutoForward": "openBrowser"
     }
