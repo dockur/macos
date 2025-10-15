@@ -2,7 +2,6 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${FORCE:="N"}"          # Force cores
 : "${SECURE:="off"}"       # Secure boot
 : "${BOOT_MODE:="macos"}"  # Boot mode
 
@@ -169,8 +168,6 @@ if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
   if [ -z "${CPU_MODEL:-}" ]; then
 
     case "${VERSION,,}" in
-      "sonoma" | "14"* )
-        CPU_MODEL="Haswell-noTSX" ;;
       "ventura" | "13"* )
         CPU_MODEL="Haswell-noTSX" ;;
       "monterey" | "12"* )
@@ -201,11 +198,6 @@ else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
 fi
 
-if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set \"FORCE=Y\" to disable this measure)"
-  CPU_CORES="1"
-fi
-
 SM_BIOS=""
 CLOCKSOURCE="tsc"
 [[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter"
@@ -217,14 +209,11 @@ else
   result=$(<"$CLOCK")
   result="${result//[![:print:]]/}"
   case "${result,,}" in
-    "${CLOCKSOURCE,,}" ) ;;
-    "kvm-clock" )
-      if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set \"FORCE=Y\" to disable this measure)"
-        CPU_CORES="1"
-      else
-        warn "Nested KVM virtualization detected, this might cause issues running macOS!"
+    "${CLOCKSOURCE,,}" ) 
+      if [[ "$CPU_VENDOR" == "GenuineIntel" && "$CPU_CORES" == "1" && "${KVM:-}" != [Nn]* ]]; then
+        CPU_CORES="2"
       fi ;;
+    "kvm-clock" ) warn "Nested KVM virtualization detected, this might cause issues running macOS!" ;;
     "hyperv_clocksource_tsc_page" ) info "Nested Hyper-V virtualization detected, this might cause issues running macOS!" ;;
     "hpet" ) warn "unsupported clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
     *) warn "unexpected clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
