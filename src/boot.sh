@@ -180,7 +180,9 @@ if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
       "catalina" | "10"* )
         CPU_MODEL="Haswell-noTSX" ;;
       *)
-        CPU_MODEL="Skylake-Client-v4" ;;
+        CPU_MODEL="Skylake-Client-v4"
+        DEFAULT_FLAGS+=",-spec-ctrl"
+        ;;
     esac
 
   fi
