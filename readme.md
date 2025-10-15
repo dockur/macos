@@ -129,7 +129,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I change the amount of CPU or RAM?
 
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
+  By default, macOS will be allowed to use a single CPU core and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -138,6 +138,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
     RAM_SIZE: "8G"
     CPU_CORES: "4"
   ```
+
+> [!IMPORTANT]  
+> If your system has an AMD processor it is not advisable to enable multiple cores (at least not until macOS is installed and running correctly). It might introduce stability and performance problems, so proceed with caution.
 
 ### How do I assign an individual IP address to the container?
 
