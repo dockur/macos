@@ -2,7 +2,10 @@
   "name": "macOS 14",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "14"
+    "VERSION": "14",
+    "RAM_SIZE": "max",
+    "DISK_SIZE": "max",
+    "CPU_CORES": "max"    
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
