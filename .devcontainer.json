@@ -3,7 +3,7 @@
   "service": "macos",
   "forwardPorts": [8006],
   "portsAttributes": {
-      "8006": {
+      "5900": {
           "label": "VNC",
           "onAutoForward": "openBrowser"
       }
