@@ -188,7 +188,7 @@ if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
   fi
 
   if [[ "${KVM:-}" == [Nn]* ]] || [[ "${ARCH,,}" != "amd64" ]] || [[ "$OSTYPE" =~ ^darwin ]]; then
-    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-spec-ctrl,-xsavec,-xsaves,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-xsavec,-xsaves,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
   else
     DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaves,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
   fi
