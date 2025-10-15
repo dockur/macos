@@ -2,5 +2,5 @@
   "name": "macos",
   "service": "macos",
   "forwardPorts": [8006],
-  "dockerComposeFile": "compose.yml"
+  "dockerComposeFile": ".github/codespaces.yml"
 }
