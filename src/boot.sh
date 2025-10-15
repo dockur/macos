@@ -165,12 +165,32 @@ CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
-  [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
-  if [[ "${KVM:-}" == [Nn]* ]] || [[ "${ARCH,,}" != "amd64" ]] || [[ "$OSTYPE" =~ ^darwin ]]; then
-    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-xsavec,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
-  else
-    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+
+  if [ -z "${CPU_MODEL:-}" ]; then
+
+    case "${VERSION,,}" in
+      "sonoma" | "14"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      "ventura" | "13"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      "monterey" | "12"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      "bigsur" | "big-sur" | "11"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      "catalina" | "10"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      *)
+        CPU_MODEL="Skylake-Client-v4" ;;
+    esac
+
   fi
+
+  if [[ "${KVM:-}" == [Nn]* ]] || [[ "${ARCH,,}" != "amd64" ]] || [[ "$OSTYPE" =~ ^darwin ]]; then
+    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-spec-ctrl,-xsavec,-xsaves,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  else
+    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaves,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  fi
+
 fi
 
 if [ -z "${CPU_FLAGS:-}" ]; then
