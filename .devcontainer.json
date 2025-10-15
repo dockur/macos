@@ -1,6 +1,21 @@
 {
-  "name": "macos",
+  "name": "macOS 14",
   "service": "macos",
-  "forwardPorts": [8006],
+  "containerEnv": {
+    "VERSION": "14"
+  },  
+  "forwardPorts": [8006],  
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  }, 
+  "hostRequirements": {
+    "storage": "64gb"
+  },  
   "dockerComposeFile": ".github/codespaces.yml"
 }
