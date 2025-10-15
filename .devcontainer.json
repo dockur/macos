@@ -1,12 +1,16 @@
 {
   "name": "macos",
   "service": "macos",
+  "forwardPorts": [8006],  
   "portsAttributes": {
     "8600": {
       "label": "Web",
       "onAutoForward": "openBrowser"
     }
-  },
+  },  
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  },  
   "hostRequirements": {
     "storage": "64gb"
   },  
