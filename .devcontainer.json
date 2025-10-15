@@ -6,10 +6,7 @@
       "label": "Web",
       "onAutoForward": "openBrowser"
     }
-  },  
-  "otherPortsAttributes": {
-    "onAutoForward": "silent"
-  },  
+  },
   "hostRequirements": {
     "storage": "64gb"
   },  
