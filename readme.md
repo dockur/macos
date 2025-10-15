@@ -140,7 +140,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
 > [!IMPORTANT]  
-> If your system has an AMD processor it is not advisable to enable multiple cores (at least not until macOS is installed and running correctly). It might introduce stability and performance problems, so proceed with caution.
+> If your system has an AMD processor it is generally not advisable to enable multiple cores (at least not until macOS is installed and running correctly). It might introduce stability and performance problems, so proceed with caution.
 
 ### How do I assign an individual IP address to the container?
 
