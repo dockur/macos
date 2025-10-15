@@ -1,4 +1,4 @@
-<h1 align="center">OSX<br />
+<h1 align="center">macOS<br />
 <div align="center">
 <a href="https://github.com/dockur/macos/"><img src="https://github.com/dockur/macos/raw/master/.github/logo.png" title="Logo" style="max-width:100%;" width="128" /></a>
 </div>
@@ -12,7 +12,7 @@
 
 </div></h1>
 
-OSX (macOS) inside a Docker container.
+MacOS inside a Docker container.
 
 ## Features ✨
 
@@ -78,8 +78,14 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   
   - When prompted where you want to install it, select the disk you created previously.
  
-  - After all files are copied, select your region, language, and account settings.
+  - After all files are copied, select your region, language, and keyboard settings.
+
+  - When the `Migration Assistant` wants to transfer data, select `Not now` (bottom left).
+
+  - On the `Apple ID` screen, select `Set Up Later` (bottom left) and then proceed using `Skip`.
   
+  - On the `Create a Computer Account` screen, fill in a username and password and `Continue`.
+ 
   Enjoy your brand new machine, and don't forget to star this repo!
 
 ### How do I select the version of macOS?
@@ -88,7 +94,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   ```yaml
   environment:
-    VERSION: "14"
+    VERSION: "15"
   ```
 
   Select from the values below:
@@ -129,7 +135,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I change the amount of CPU or RAM?
 
-  By default, the container will be allowed to use a maximum of 2 CPU cores and 4 GB of RAM.
+  By default, macOS will be allowed to use a single CPU core and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -138,6 +144,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
     RAM_SIZE: "8G"
     CPU_CORES: "4"
   ```
+
+> [!IMPORTANT]  
+> If your system has an AMD processor it is generally not advisable to enable multiple cores (at least not until macOS is installed and running correctly). It might introduce stability and performance problems, so proceed with caution.
 
 ### How do I assign an individual IP address to the container?
 
