@@ -2,7 +2,6 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${FORCE:="N"}"          # Force cores
 : "${SECURE:="off"}"       # Secure boot
 : "${BOOT_MODE:="macos"}"  # Boot mode
 
@@ -165,23 +164,38 @@ CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
-  [ -z "${CPU_MODEL:-}" ] && CPU_MODEL="Haswell-noTSX"
-  if [[ "${KVM:-}" == [Nn]* ]] || [[ "${ARCH,,}" != "amd64" ]] || [[ "$OSTYPE" =~ ^darwin ]]; then
-    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-xsavec,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
-  else
-    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+
+  if [ -z "${CPU_MODEL:-}" ]; then
+
+    case "${VERSION,,}" in
+      "ventura" | "13"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      "monterey" | "12"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      "bigsur" | "big-sur" | "11"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      "catalina" | "10"* )
+        CPU_MODEL="Haswell-noTSX" ;;
+      *)
+        CPU_MODEL="Skylake-Client-v4"
+        DEFAULT_FLAGS+=",-spec-ctrl"
+        ;;
+    esac
+
   fi
+
+  if [[ "${KVM:-}" == [Nn]* ]] || [[ "${ARCH,,}" != "amd64" ]] || [[ "$OSTYPE" =~ ^darwin ]]; then
+    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-xsavec,-xsaves,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  else
+    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaves,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  fi
+
 fi
 
 if [ -z "${CPU_FLAGS:-}" ]; then
   CPU_FLAGS="$DEFAULT_FLAGS"
 else
   CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
-fi
-
-if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-  warn "Restricted processor to a single core (instead of $CPU_CORES cores) because an AMD CPU was detected! (Set \"FORCE=Y\" to disable this measure)"
-  CPU_CORES="1"
 fi
 
 SM_BIOS=""
@@ -195,14 +209,11 @@ else
   result=$(<"$CLOCK")
   result="${result//[![:print:]]/}"
   case "${result,,}" in
-    "${CLOCKSOURCE,,}" ) ;;
-    "kvm-clock" )
-      if [[ "$CPU_VENDOR" == "AuthenticAMD" && "${CPU_CORES,,}" != "1" && "${FORCE:-}" == [Nn]* && "${KVM:-}" != [Nn]* ]]; then
-        warn "Restricted processor to a single core (instead of $CPU_CORES cores) because nested KVM virtualization on an AMD CPU was detected! (Set \"FORCE=Y\" to disable this measure)"
-        CPU_CORES="1"
-      else
-        warn "Nested KVM virtualization detected, this might cause issues running macOS!"
+    "${CLOCKSOURCE,,}" ) 
+      if [[ "$CPU_VENDOR" == "GenuineIntel" && "$CPU_CORES" == "1" && "${KVM:-}" != [Nn]* ]]; then
+        CPU_CORES="2"
       fi ;;
+    "kvm-clock" ) warn "Nested KVM virtualization detected, this might cause issues running macOS!" ;;
     "hyperv_clocksource_tsc_page" ) info "Nested Hyper-V virtualization detected, this might cause issues running macOS!" ;;
     "hpet" ) warn "unsupported clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
     *) warn "unexpected clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
