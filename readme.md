@@ -82,7 +82,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   - When the `Migration Assistant` wants to transfer data, select `Not now` (bottom left).
 
-  - On the `Create a Computer Account` screen, fill in a username and password.
+  - On the `Apple ID` screen, select `Set Up Later` (bottom left) and then proceed using `Skip`.
+  
+  - On the `Create a Computer Account` screen, fill in a username and password and `Continue`.
  
   Enjoy your brand new machine, and don't forget to star this repo!
 
