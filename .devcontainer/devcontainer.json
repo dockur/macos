@@ -20,5 +20,5 @@
   "hostRequirements": {
     "storage": "64gb"
   },  
-  "dockerComposeFile": "../codespaces.yml"
+  "dockerComposeFile": "codespaces.yml"
 }
