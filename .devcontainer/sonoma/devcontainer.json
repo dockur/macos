@@ -1,5 +1,5 @@
 {
-  "name": "macOS 14",
+  "name": "macOS 14 (Sonoma)",
   "service": "macos",
   "containerEnv": {
     "VERSION": "14",
@@ -20,5 +20,5 @@
   "hostRequirements": {
     "storage": "64gb"
   },  
-  "dockerComposeFile": ".github/codespaces.yml"
+  "dockerComposeFile": "../codespaces.yml"
 }
