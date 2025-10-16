@@ -2,10 +2,7 @@
   "name": "macOS 11 (Big Sur)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "11",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "11"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
