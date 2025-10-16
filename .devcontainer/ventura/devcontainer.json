@@ -1,5 +1,5 @@
 {
-  "name": "macOS 13 (Sonoma)",
+  "name": "macOS 13 (Ventura)",
   "service": "macos",
   "containerEnv": {
     "VERSION": "13",
