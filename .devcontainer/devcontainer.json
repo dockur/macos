@@ -2,10 +2,7 @@
   "name": "macOS 14 (Sonoma)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "14",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "14"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
