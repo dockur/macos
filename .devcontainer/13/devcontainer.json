@@ -2,10 +2,7 @@
   "name": "macOS 13 (Ventura)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "13",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "13"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
