@@ -1,0 +1,24 @@
+{
+  "name": "macOS 15 (Sequoia)",
+  "service": "macos",
+  "containerEnv": {
+    "VERSION": "15",
+    "RAM_SIZE": "max",
+    "DISK_SIZE": "max",
+    "CPU_CORES": "max"    
+  },  
+  "forwardPorts": [8006],  
+  "portsAttributes": {
+    "8006": {
+      "label": "Web",
+      "onAutoForward": "openBrowser"
+    }
+  },
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  }, 
+  "hostRequirements": {
+    "storage": "64gb"
+  },  
+  "dockerComposeFile": "../codespaces.yml"
+}

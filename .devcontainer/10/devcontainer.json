@@ -1,8 +1,8 @@
 {
-  "name": "macOS 14",
+  "name": "macOS 10 (Catalina)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "14",
+    "VERSION": "10",
     "RAM_SIZE": "max",
     "DISK_SIZE": "max",
     "CPU_CORES": "max"    
@@ -20,5 +20,5 @@
   "hostRequirements": {
     "storage": "64gb"
   },  
-  "dockerComposeFile": ".github/codespaces.yml"
+  "dockerComposeFile": "../codespaces.yml"
 }
