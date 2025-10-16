@@ -4,8 +4,9 @@ services:
     container_name: macos
     environment:
       VERSION: "14"
-      RAM_SIZE: "max"
-      DISK_SIZE: "max"
+      ALLOCATE: "Y"
+      RAM_SIZE: "half"
+      DISK_SIZE: "half"
       CPU_CORES: "max"
     devices:
       - /dev/kvm
