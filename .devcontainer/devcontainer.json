@@ -1,8 +1,8 @@
 {
-  "name": "macOS 13 (Ventura)",
+  "name": "macOS 14 (Sonoma)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "13",
+    "VERSION": "14",
     "RAM_SIZE": "max",
     "DISK_SIZE": "max",
     "CPU_CORES": "max"    
