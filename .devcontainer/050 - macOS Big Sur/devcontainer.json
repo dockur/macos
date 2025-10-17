@@ -1,11 +1,8 @@
 {
-  "name": "macOS 15 (Sequoia)",
+  "name": "macOS 11 (Big Sur)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "15",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "11"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {

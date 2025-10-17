@@ -1,11 +1,8 @@
 {
-  "name": "macOS 11 (Big Sur)",
+  "name": "macOS 10 (Catalina)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "11",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "10"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {

@@ -1,11 +1,8 @@
 {
-  "name": "macOS 13 (Ventura)",
+  "name": "macOS 12 (Monterey)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "13",
-    "RAM_SIZE": "max",
-    "DISK_SIZE": "max",
-    "CPU_CORES": "max"    
+    "VERSION": "12"
   },  
   "forwardPorts": [8006],  
   "portsAttributes": {
