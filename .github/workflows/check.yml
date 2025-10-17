@@ -18,3 +18,8 @@ jobs:
           dockerfile: Dockerfile
           ignore: DL3008,DL3018,DL3020,DL3029,DL3059 
           failure-threshold: warning
+      -
+        name: Validate JSON and YML files
+        uses: GrantBirki/json-yaml-validate@v4
+        with:
+          yaml_exclude_regex: ".*\\kubernetes\\.yml$"
