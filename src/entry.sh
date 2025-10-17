@@ -19,8 +19,8 @@ cd /run
 . network.sh    # Initialize network
 . boot.sh       # Configure boot
 . proc.sh       # Initialize processor
-. config.sh     # Configure arguments
 . memory.sh     # Check available memory
+. config.sh     # Configure arguments
 . finish.sh     # Finish initialization
 
 trap - ERR
