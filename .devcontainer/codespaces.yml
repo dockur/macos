@@ -3,7 +3,6 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "14"
       ALLOCATE: "Y"
       RAM_SIZE: "half"
       DISK_SIZE: "max"
