@@ -12,7 +12,8 @@
     }
   },
   "otherPortsAttributes": {
-    "onAutoForward": "silent"
+    "onAutoForward": "ignore"
   }, 
-  "dockerComposeFile": "codespaces.yml"
+  "dockerComposeFile": "codespaces.yml",
+  "initializeCommand": "docker system prune --all --force"
 }
