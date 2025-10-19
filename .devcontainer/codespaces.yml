@@ -1,9 +1,8 @@
 services:
   macos:
-    image: dockurr/macos
     container_name: macos
+    image: ghcr.io/dockur/macos
     environment:
-      ALLOCATE: "Y"
       RAM_SIZE: "half"
       DISK_SIZE: "max"
       CPU_CORES: "max"
