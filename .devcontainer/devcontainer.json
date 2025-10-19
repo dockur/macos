@@ -3,7 +3,8 @@
   "service": "macos",
   "containerEnv": {
     "VERSION": "14"
-  },  
+  },
+  "forwardPorts": [8006],
   "portsAttributes": {
     "8006": {
       "label": "Web",
