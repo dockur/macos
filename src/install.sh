@@ -155,7 +155,7 @@ install() {
   esac
 
   rm -f "$dest"
-  mkdir -p "$STORAGE"
+  makeDir "$STORAGE"
 
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
   find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'macos.*' \) -delete
