@@ -155,7 +155,10 @@ install() {
   esac
 
   rm -f "$dest"
-  makeDir "$STORAGE"
+
+  if ! makeDir "$STORAGE"; then
+    error "Failed to create directory \"$STORAGE\" !" && return 1
+  fi
 
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
   find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'macos.*' \) -delete
