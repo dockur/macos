@@ -51,12 +51,14 @@ if [ ! -s "$DEST.rom" ] || [ ! -f "$DEST.rom" ]; then
     /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "/var/www/img/${PROCESS,,}.ffs" save "$DEST.tmp"
   fi
   mv "$DEST.tmp" "$DEST.rom"
+  ! setOwner "$DEST.rom" && error "Failed to set the owner for \"$DEST.rom\" !"
 fi
 
 if [ ! -s "$DEST.vars" ] || [ ! -f "$DEST.vars" ]; then
   [ ! -s "$OVMF/$VARS" ] || [ ! -f "$OVMF/$VARS" ]&& error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
   cp "$OVMF/$VARS" "$DEST.tmp"
   mv "$DEST.tmp" "$DEST.vars"
+  ! setOwner "$DEST.vars" && error "Failed to set the owner for \"$DEST.vars\" !"
 fi
 
 BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$DEST.rom"
@@ -157,6 +159,8 @@ if [ ! -f "$IMG" ]; then
   info ""
 
 fi
+
+! setOwner "$IMG" && error "Failed to set the owner for \"$IMG\" !"
 
 BOOT_DRIVE_ID="OpenCore"
 
