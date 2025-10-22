@@ -155,7 +155,10 @@ install() {
   esac
 
   rm -f "$dest"
-  mkdir -p "$STORAGE"
+
+  if ! makeDir "$STORAGE"; then
+    error "Failed to create directory \"$STORAGE\" !" && return 1
+  fi
 
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
   find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'macos.*' \) -delete
@@ -191,7 +194,9 @@ generateID() {
   UUID=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
   UUID="${UUID^^}"
   UUID="${UUID//[![:print:]]/}"
+
   echo "$UUID" > "$file"
+  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   return 0
 }
@@ -208,7 +213,9 @@ generateAddress() {
   # Generate Apple MAC address based on Docker container ID in hostname
   MAC=$(echo "$HOST" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
   MAC="${MAC^^}" 
+
   echo "$MAC" > "$file"
+  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   return 0
 }
@@ -239,6 +246,9 @@ generateSerial() {
   echo "$SN" > "$file"
   echo "$MLB" > "$file2"
 
+  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
+  ! setOwner "$file2" && error "Failed to set the owner for \"$file2\" !"
+
   return 0
 }
 
@@ -262,6 +272,7 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
 
   if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
     ! install "$VERSION" "$BASE_IMG" && exit 34
+    ! setOwner "$BASE_IMG" && error "Failed to set the owner for \"$BASE_IMG\" !"
   fi
 
 fi
