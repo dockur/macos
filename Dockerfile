@@ -12,7 +12,7 @@ RUN apk --update --no-cache add unzip && \
     rm -rf /tmp/* /var/tmp/* /var/cache/apk/*
 
 FROM scratch AS runner
-COPY --from=qemux/qemu:7.27 / /
+COPY --from=qemux/qemu:7.28 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_KVM_OPENCORE="v21"
