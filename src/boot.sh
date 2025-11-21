@@ -48,7 +48,10 @@ if [ ! -s "$DEST.rom" ] || [ ! -f "$DEST.rom" ]; then
   if [[ "${LOGO:-}" == [Nn]* ]]; then
     cp "$OVMF/$ROM" "$DEST.tmp"
   else
-    /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "/var/www/img/${PROCESS,,}.ffs" save "$DEST.tmp"
+    if ! /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "/var/www/img/${PROCESS,,}.ffs" save "$DEST.tmp"; then
+      warn "failed to add custom logo to BIOS!"
+      cp "$OVMF/$ROM" "$DEST.tmp"
+    fi
   fi
   mv "$DEST.tmp" "$DEST.rom"
   ! setOwner "$DEST.rom" && error "Failed to set the owner for \"$DEST.rom\" !"
