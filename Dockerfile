@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM alpine:3.22 AS builder
+FROM --platform=$BUILDPLATFORM alpine:3.23 AS builder
 
 ARG VERSION_OPENCORE="1.0.4"
 ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
