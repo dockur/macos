@@ -2,7 +2,7 @@
 
 FROM --platform=$BUILDPLATFORM alpine:3.23 AS builder
 
-ARG VERSION_OPENCORE="1.0.4"
+ARG VERSION_OPENCORE="1.0.7"
 ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
 ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip /tmp/opencore.zip
 
@@ -12,7 +12,7 @@ RUN apk --update --no-cache add unzip && \
     rm -rf /tmp/* /var/tmp/* /var/cache/apk/*
 
 FROM scratch AS runner
-COPY --from=qemux/qemu:7.29 / /
+COPY --from=qemux/qemu:7.30 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_KVM_OPENCORE="v21"
