@@ -20,6 +20,7 @@ cd /run
 . boot.sh       # Configure boot
 . proc.sh       # Initialize processor
 . memory.sh     # Check available memory
+. balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
 . finish.sh     # Finish initialization
 
