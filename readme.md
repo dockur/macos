@@ -146,7 +146,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
 > [!IMPORTANT]  
-> On AMD systems do NOT enable multiple cores  at least until the installation has finished and you verified that everything runs smoothly. Because it might actually decrease performance or even cause crashes with certain models. If you have an Intel processor you can adjust the amount of cores immediately from the start, as it is much more compatible and does not have this issue.
+> On AMD systems do NOT enable multiple cores  at least until the installation has finished and you verified that everything runs smoothly. Because it might actually decrease performance or even crashes with certain models.
+>
+>  If you have an Intel processor you can adjust the amount of cores immediately from the start, it is much more compatible and does not have this issue.
 
 ### How do I assign an individual IP address to the container?
 
