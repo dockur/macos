@@ -146,7 +146,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
 > [!IMPORTANT]  
-> On AMD systems do NOT enable multiple cores  (or at least not until the installation has finished completely and you verified that everything runs fine and smoothly for a while). Because it may actual decrease performance or cause other issues like random crashes, depending on your AMD CPU model.
+> On AMD systems do NOT enable multiple cores  (or at least not until the installation has finished completely and you experienced it running normally for some hours). Because it may actually decrease performance instead or cause other issues like random crashes, all depending on your AMD CPU model.
 >
 >  If you have an Intel processor you can adjust the amount of cores immediately from the start, it is much more compatible with macOS.
 
