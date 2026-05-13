@@ -131,7 +131,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss.
+> This can also be used to resize the existing disk to a larger capacity without any data loss. However afterwards you will need to run the following two commands from the terminal:
+>
+> `diskutil repairDisk disk2`
+> 
+> `diskutil apfs resizeContainer disk3 0`
 
 ### How do I change the amount of CPU or RAM?
 
