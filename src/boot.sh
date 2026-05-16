@@ -43,8 +43,8 @@ BOOT_OPTS+=" -device isa-applesmc,osk=$osk"
 # OVMF
 DEST="$STORAGE/$DEST"
 
-if [ ! -s "$DEST.rom" ] || [ ! -f "$DEST.rom" ]; then
-  [ ! -s "$OVMF/$ROM" ] || [ ! -f "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
+if [ ! -s "$DEST.rom" ]; then
+  [ ! -s "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
   if [[ "${LOGO:-}" == [Nn]* ]]; then
     cp "$OVMF/$ROM" "$DEST.tmp"
   else
@@ -57,8 +57,8 @@ if [ ! -s "$DEST.rom" ] || [ ! -f "$DEST.rom" ]; then
   ! setOwner "$DEST.rom" && error "Failed to set the owner for \"$DEST.rom\" !"
 fi
 
-if [ ! -s "$DEST.vars" ] || [ ! -f "$DEST.vars" ]; then
-  [ ! -s "$OVMF/$VARS" ] || [ ! -f "$OVMF/$VARS" ]&& error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
+if [ ! -s "$DEST.vars" ]; then
+  [ ! -s "$OVMF/$VARS" ] && error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
   cp "$OVMF/$VARS" "$DEST.tmp"
   mv "$DEST.tmp" "$DEST.vars"
   ! setOwner "$DEST.vars" && error "Failed to set the owner for \"$DEST.vars\" !"
@@ -214,7 +214,7 @@ CLOCKSOURCE="tsc"
 CLOCK="/sys/devices/system/clocksource/clocksource0/current_clocksource"
 
 if [ ! -f "$CLOCK" ]; then
-  warn "file \"$CLOCK\" cannot not found?"
+  warn "file \"$CLOCK\" cannot be found?"
 else
   result=$(<"$CLOCK")
   result="${result//[![:print:]]/}"
