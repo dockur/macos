@@ -256,7 +256,8 @@ if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
   VERSION="${VERSION:1:-1}"
 fi
 
-[ -n "$VERSION" ] && VERSION=$(expr "$VERSION" : "^\ *\(.*[^ ]\)\ *$")
+VERSION="${VERSION#"${VERSION%%[! ]*}"}"
+VERSION="${VERSION%"${VERSION##*[! ]}"}"
 
 if [ -z "$VERSION" ]; then
 
