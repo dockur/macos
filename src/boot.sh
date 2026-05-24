@@ -45,10 +45,15 @@ DEST="$STORAGE/$DEST"
 
 if [ ! -s "$DEST.rom" ]; then
   [ ! -s "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
+
+  logo="/var/www/img/${PROCESS,,}.ffs"
+  [ ! -s "$logo" ] && logo="/var/www/img/qemu.ffs"
+  [ ! -s "$logo" ] && LOGO="N"
+
   if [[ "${LOGO:-}" == [Nn]* ]]; then
     cp "$OVMF/$ROM" "$DEST.tmp"
   else
-    if ! /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "/var/www/img/${PROCESS,,}.ffs" save "$DEST.tmp"; then
+    if ! /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "$logo" save "$DEST.tmp"; then
       warn "failed to add custom logo to BIOS!"
       cp "$OVMF/$ROM" "$DEST.tmp"
     fi
