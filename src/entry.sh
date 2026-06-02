@@ -30,4 +30,17 @@ trap - ERR
 version=$(qemu-system-x86_64 --version | head -n 1 | cut -d '(' -f 1 | awk '{ print $NF }')
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
-exec qemu-system-x86_64 ${ARGS:+ $ARGS}
+[[ "$SHUTDOWN" != [Yy1]* ]] && exec qemu-system-x86_64 ${ARGS:+ $ARGS}
+
+if [ ! -t 1 ] || [ ! -c /dev/tty ]; then
+  qemu-system-x86_64 ${ARGS:+ $ARGS} &
+else
+  qemu-system-x86_64 ${ARGS:+ $ARGS} </dev/tty >/dev/tty &
+fi
+
+rc=0
+wait $! || rc=$?
+[ -f "$QEMU_END" ] && exit "$rc"
+
+sleep 1 & wait $!
+finish "$rc"
