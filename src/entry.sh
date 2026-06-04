@@ -32,11 +32,7 @@ info "Booting ${APP}${BOOT_DESC} using QEMU v$version..."
 
 [[ "$SHUTDOWN" != [Yy1]* ]] && exec qemu-system-x86_64 ${ARGS:+ $ARGS}
 
-if [ ! -t 1 ] || [ ! -c /dev/tty ]; then
-  qemu-system-x86_64 ${ARGS:+ $ARGS} &
-else
-  qemu-system-x86_64 ${ARGS:+ $ARGS} </dev/tty >/dev/tty &
-fi
+qemu-system-x86_64 ${ARGS:+ $ARGS} &
 
 rc=0
 wait $! || rc=$?
