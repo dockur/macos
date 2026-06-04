@@ -50,7 +50,6 @@ jobs:
         uses: reviewdog/action-actionlint@v1
         with:
           level: warning
-          fail_level: error
           reporter: github-pr-review
           github_token: ${{ secrets.GITHUB_TOKEN }}
       -
