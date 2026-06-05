@@ -108,7 +108,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   | `11`        | macOS 11       | Big Sur          |
 
 > [!NOTE]
-> Support for macOS 15 (Sequoia) is still in its infancy, as it does not allow you to sign in to your Apple Account yet. 
+> Since macOS 15 (Sequoia) and newer you cannot sign in to an Apple Account anymore, unless you install [VMHide.kext](https://github.com/Carnations-Botanica/VMHide) first.
 
 ### How do I change the storage location?
 
