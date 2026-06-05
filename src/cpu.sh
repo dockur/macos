@@ -90,8 +90,8 @@ else
       fi ;;
     "kvm-clock" ) warn "Nested KVM virtualization detected, this might cause issues running macOS!" ;;
     "hyperv_clocksource_tsc_page" ) info "Nested Hyper-V virtualization detected, this might cause issues running macOS!" ;;
-    "hpet" ) warn "unsupported clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
-    *) warn "unexpected clock source ﻿detected﻿: '$result'. Please﻿ ﻿set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
+    "hpet" ) warn "unsupported clock source detected: '$result'. Please set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
+    *) warn "unexpected clock source detected: '$result'. Please set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!" ;;
   esac
 fi
 
