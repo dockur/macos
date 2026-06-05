@@ -5,7 +5,13 @@ CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 has_flag() {
-  grep -qw "$1" /proc/cpuinfo
+  # Match a whitespace-delimited token in /proc/cpuinfo (works for flags containing '-' and avoids substring matches)
+  awk -v f="$1" '
+    $1 == "flags" {
+      for (i = 1; i <= NF; i++) if ($i == f) exit 0
+    }
+    END { exit 1 }
+  ' /proc/cpuinfo
 }
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
