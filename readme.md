@@ -101,7 +101,6 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   
   |   **Value** | **Version**    | **Name** |
   |-------------|----------------|------------------|
-  | `26`        | macOS 26       | Tahoe          |
   | `15`        | macOS 15       | Sequoia          |
   | `14`        | macOS 14       | Sonoma           |
   | `13`        | macOS 13       | Ventura          |
