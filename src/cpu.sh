@@ -1,37 +1,62 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Docker environment variables
-: "${CPU_HOST:="N"}"
-
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
-DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
+DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,+invtsc,vmware-cpuid-freq=on,-pdpe1gb"
+
+has_flag() {
+  grep -qw "$1" /proc/cpuinfo
+}
 
 if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
+
+  # Configuration for AMD processors
 
   if [ -z "${CPU_MODEL:-}" ]; then
 
     case "${VERSION,,}" in
-      "ventura" | "13"* )
-        CPU_MODEL="Haswell-noTSX" ;;
-      "monterey" | "12"* )
-        CPU_MODEL="Haswell-noTSX" ;;
-      "bigsur" | "big-sur" | "11"* )
-        CPU_MODEL="Haswell-noTSX" ;;
-      "catalina" | "10"* )
-        CPU_MODEL="Haswell-noTSX" ;;
+      "10"* | "11"* | "12"* | "13"* | \
+      "catalina" | "bigsur" | "big-sur" | "monterey" | "ventura" )
+        CPU_MODEL="Haswell-noTSX"
+        ;;
       *)
         CPU_MODEL="Skylake-Client-v4"
-        DEFAULT_FLAGS+=",-spec-ctrl"
+        if has_flag "spec-ctrl" && [[ "${KVM:-}" != [Nn]* ]]; then
+          DEFAULT_FLAGS+=",+spec-ctrl"
+        else
+          DEFAULT_FLAGS+=",-spec-ctrl"
+        fi
         ;;
     esac
 
   fi
 
-  if [[ "${KVM:-}" == [Nn]* ]] || [[ "${ARCH,,}" != "amd64" ]] || [[ "$OSTYPE" =~ ^darwin ]]; then
-    DEFAULT_FLAGS+=",-pcid,-tsc-deadline,-invpcid,-xsavec,-xsaves,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+  if [[ "${KVM:-}" == [Nn]* ]]; then
+  
+    DEFAULT_FLAGS+=",-pcid,-invpcid,-tsc-deadline,-xsavec,-xsaves"
+
   else
-    DEFAULT_FLAGS+=",+pcid,+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsavec,+xsaves,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+
+    for flag in pcid invpcid tsc-deadline xsavec xsaves; do
+      if has_flag "$flag"; then
+        DEFAULT_FLAGS+=",+$flag"
+      else
+        DEFAULT_FLAGS+=",-$flag"
+      fi
+    done
+
+  fi
+
+  DEFAULT_FLAGS+=",+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+
+else
+
+  # Configuration for Intel processors
+  
+  if [ -z "${CPU_MODEL:-}" ]; then
+
+    CPU_MODEL="Skylake-Client-v4"
+
   fi
 
 fi
