@@ -3,8 +3,8 @@ set -Eeuo pipefail
 
 : "${APP:="macOS"}"
 : "${VGA:="vmware"}"
-: "${DISK_TYPE:="blk"}"
 : "${PLATFORM:="x64"}"
+: "${DISK_TYPE:="blk"}"
 : "${SUPPORT:="https://github.com/dockur/macos"}"
 
 cd /run
@@ -18,6 +18,7 @@ cd /run
 . display.sh    # Initialize graphics
 . network.sh    # Initialize network
 . boot.sh       # Configure boot
+. cpu.sh        # Configure CPU model
 . proc.sh       # Initialize processor
 . power.sh      # Configure shutdown
 . memory.sh     # Check available memory
