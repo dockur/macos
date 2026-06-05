@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
-DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,+invtsc,vmware-cpuid-freq=on,-pdpe1gb"
+DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 has_flag() {
   grep -qw "$1" /proc/cpuinfo
