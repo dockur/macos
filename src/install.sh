@@ -261,7 +261,7 @@ VERSION="${VERSION%"${VERSION##*[! ]}"}"
 
 if [ -z "$VERSION" ]; then
 
-  VERSION="14"
+  VERSION="26"
   warn "no value specified for the VERSION variable, defaulting to \"${VERSION}\"."
 
 fi
