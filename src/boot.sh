@@ -90,9 +90,7 @@ if [ ! -f "$IMG" ]; then
   msg="Building boot image"
   info "$msg..." && html "$msg..."
 
-  [ ! -f "$ISO" ] && gzip -dk "$ISO.gz"
-
-  if [ ! -f "$ISO" ] || [ ! -s "$ISO" ]; then
+  if [ ! -s "$ISO" ]; then
     error "Could not find image file \"$ISO\"." && exit 10
   fi
 
