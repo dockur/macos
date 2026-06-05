@@ -1,8 +1,8 @@
 {
-  "name": "macOS 26 (Tahoe)",
+  "name": "macOS 14 (Sonoma)",
   "service": "macos",
   "containerEnv": {
-    "VERSION": "26"
+    "VERSION": "14"
   },
   "forwardPorts": [8006],
   "portsAttributes": {
@@ -14,6 +14,6 @@
   "otherPortsAttributes": {
     "onAutoForward": "ignore"
   }, 
-  "dockerComposeFile": "codespaces.yml",
+  "dockerComposeFile": "../codespaces.yml",
   "initializeCommand": "docker system prune --all --force"
 }
