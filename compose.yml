@@ -3,7 +3,7 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "14"
+      VERSION: "26"
     devices:
       - /dev/kvm
       - /dev/net/tun
