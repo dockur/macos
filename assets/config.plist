@@ -160,7 +160,7 @@
 					<key>Arch</key>
 					<string>Any</string>
 					<key>Comment</key>
-					<string>macOS to hacOS</string>
+					<string>macOS</string>
 					<key>Count</key>
 					<integer>1</integer>
 					<key>Enabled</key>
@@ -910,7 +910,7 @@
 				<key>PollAppleHotKeys</key>
 				<true/>
 				<key>ShowPicker</key>
-				<true/>
+				<false/>
 				<key>TakeoffDelay</key>
 				<integer>0</integer>
 				<key>Timeout</key>
