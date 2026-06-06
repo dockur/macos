@@ -31,7 +31,7 @@ spec:
         image: dockurr/macos
         env:
         - name: VERSION
-          value: "14"
+          value: "15"
         - name: DISK_SIZE
           value: "64G"
         ports:
