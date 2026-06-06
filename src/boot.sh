@@ -90,6 +90,7 @@ if [ ! -f "$IMG" ]; then
   msg="Building boot image"
   info "$msg..." && html "$msg..."
 
+  # Extract image file
   if [ ! -s "$ISO" ]; then
     error "Could not find image file \"$ISO\"." && exit 10
   fi
@@ -98,6 +99,7 @@ if [ ! -f "$IMG" ]; then
     error "Failed to extract archive!" && exit 11
   fi
 
+  # Overwrige .plist file with our one
   CFG="$OUT/EFI_RELEASE/EFI/OC/config.plist"
 
   PLIST="/assets/config.plist"
@@ -105,6 +107,7 @@ if [ ! -f "$IMG" ]; then
 
   cp "$PLIST" "$CFG"
 
+  # Replace placeholders with machine details
   ROM="${MAC//[^[:alnum:]]/}"
   ROM="${ROM,,}"
   BROM=$(echo "$ROM" | xxd -r -p | base64)
@@ -117,11 +120,10 @@ if [ ! -f "$IMG" ]; then
   sed -r -i -e 's|<string>1920x1080@32</string>|<string>'"${RESOLUTION}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
-  # Add kext
-
+  # Add kext to disable VM detection
   kexts="$OUT/EFI_RELEASE/EFI/OC/Kexts"
-  
-  if ! 7z x /vmhide.zip -o"$kexts" > /dev/null; then
+
+  if ! 7z e -y /vmhide.zip -o"$kexts/VMHide.kext" VMHide.kext > /dev/null; then
     error "Failed to extract kext!" && exit 11
   fi
 
