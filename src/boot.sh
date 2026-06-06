@@ -102,6 +102,7 @@ if [ ! -f "$IMG" ]; then
   # Overwrite extracted OpenCore config with our own
   CFG="$(find "$OUT" -type f -path '*/EFI/OC/config.plist' -print -quit)"
   [ -z "${CFG:-}" ] && error "Could not locate extracted OpenCore config.plist under \"$OUT\"." && exit 12
+
   EFI_DIR="${CFG%/OC/config.plist}"
   PLIST="/assets/config.plist"
   [ -f "/config.plist" ] && PLIST="/config.plist"
@@ -125,7 +126,7 @@ if [ ! -f "$IMG" ]; then
   kexts="$EFI_DIR/OC/Kexts"
 
   if ! 7z x /vmh.zip -o"$OUT/kext" > /dev/null; then
-    error "Failed to extract kext!" && exit 11
+    error "Failed to extract kext archive!" && exit 11
   fi
 
   mv "$OUT/kext/VMHide.kext" "$kexts"
