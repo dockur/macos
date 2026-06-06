@@ -1376,7 +1376,7 @@
 				<key>ReloadOptionRoms</key>
 				<false/>
 				<key>RequestBootVarRouting</key>
-				<true/>
+				<false/>
 				<key>ResizeGpuBars</key>
 				<integer>-1</integer>
 				<key>ResizeUsePciRbIo</key>
