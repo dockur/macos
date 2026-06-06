@@ -123,11 +123,12 @@ if [ ! -f "$IMG" ]; then
   # Add kext to disable VM detection
   kexts="$OUT/EFI_RELEASE/EFI/OC/Kexts"
 
-  if ! 7z x /vmh.zip -o"/tmp/kext" > /dev/null; then
+  if ! 7z x /vmh.zip -o"$OUT/kext" > /dev/null; then
     error "Failed to extract kext!" && exit 11
   fi
 
-  mv /tmp/kext/VMHide.kext "$kexts"
+  mv "$OUT/kext/VMHide.kext" "$kexts"
+  rm -rf "$OUT/kext"
 
   # Build image
 
