@@ -108,7 +108,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   | `11`        | macOS 11       | Big Sur          |
 
 > [!NOTE]
-> You can also select macOS 26 (Tahoe), but it runs very slow currently.
+> You can also select macOS 26 (Tahoe), but beware that it runs very slow currently.
 
 ### How do I change the storage location?
 
