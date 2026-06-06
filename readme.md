@@ -30,7 +30,7 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "14"
+      VERSION: "15"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -90,7 +90,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I select the version of macOS?
 
-  By default, macOS 14 (Sonoma) will be installed, but you can add the `VERSION` environment variable in order to specify an alternative:
+  By default, macOS 15 (Sequoia) will be installed, but you can add the `VERSION` environment variable in order to specify an alternative:
 
   ```yaml
   environment:
