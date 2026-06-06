@@ -117,6 +117,14 @@ if [ ! -f "$IMG" ]; then
   sed -r -i -e 's|<string>1920x1080@32</string>|<string>'"${RESOLUTION}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
+  # Add kext
+
+  kexts="$OUT/EFI_RELEASE/EFI/OC/Kexts"
+  
+  if ! 7z x /vmhide.zip -o"$kexts" > /dev/null; then
+    error "Failed to extract kext!" && exit 11
+  fi
+
   # Build image
 
   MB=256
