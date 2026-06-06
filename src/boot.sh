@@ -99,9 +99,10 @@ if [ ! -f "$IMG" ]; then
     error "Failed to extract archive!" && exit 11
   fi
 
-  # Overwrige .plist file with our one
-  CFG="$OUT/EFI_RELEASE/EFI/OC/config.plist"
-
+  # Overwrite extracted OpenCore config with our own
+  CFG="$(find "$OUT" -type f -path '*/EFI/OC/config.plist' -print -quit)"
+  [ -z "${CFG:-}" ] && error "Could not locate extracted OpenCore config.plist under \"$OUT\"." && exit 12
+  EFI_DIR="${CFG%/OC/config.plist}"
   PLIST="/assets/config.plist"
   [ -f "/config.plist" ] && PLIST="/config.plist"
 
