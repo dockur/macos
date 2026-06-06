@@ -168,7 +168,7 @@ if [ ! -f "$IMG" ]; then
   echo "drive c: file=\"$IMG\" partition=0 offset=$OFFSET" > /etc/mtools.conf
 
   mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
-  mcopy -bspmQ "$OUT/EFI_RELEASE/EFI" "C:"
+  mcopy -bspmQ "$EFI_DIR" "C:"
 
   rm -rf "$OUT"
 
