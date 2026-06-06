@@ -30,7 +30,7 @@ services:
     image: dockurr/macos
     container_name: macos
     environment:
-      VERSION: "14"
+      VERSION: "15"
     devices:
       - /dev/kvm
       - /dev/net/tun
@@ -90,7 +90,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I select the version of macOS?
 
-  By default, macOS 14 (Sonoma) will be installed, but you can add the `VERSION` environment variable in order to specify an alternative:
+  By default, macOS 15 (Sequoia) will be installed, but you can add the `VERSION` environment variable in order to specify an alternative:
 
   ```yaml
   environment:
@@ -108,7 +108,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   | `11`        | macOS 11       | Big Sur          |
 
 > [!NOTE]
-> Starting with macOS 15 (Sequoia), you cannot sign in to an Apple Account unless you install [VMHide.kext](https://github.com/Carnations-Botanica/VMHide) first.
+> You can also select macOS 26 (Tahoe), but beware that it runs very slow currently.
 
 ### How do I change the storage location?
 

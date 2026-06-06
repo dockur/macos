@@ -169,7 +169,7 @@ install() {
   fi
 
   local file="$STORAGE/boot.dmg"
-    
+
   if ! download "$file" "$board" "$version"; then
     delay 5
     if ! download "$file" "$board" "$version"; then
@@ -212,7 +212,7 @@ generateAddress() {
 
   # Generate Apple MAC address based on Docker container ID in hostname
   MAC=$(echo "$HOST" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
-  MAC="${MAC^^}" 
+  MAC="${MAC^^}"
 
   echo "$MAC" > "$file"
   ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"

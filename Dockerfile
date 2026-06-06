@@ -15,10 +15,12 @@ FROM scratch AS runner
 COPY --from=qemux/qemu:7.32 / /
 
 ARG VERSION_ARG="0.0"
-ARG VERSION_KVM_OPENCORE="v21"
+ARG VERSION_VM_HIDE="2.0.0"
+ARG VERSION_KVM_OPENCORE="0.7"
 ARG VERSION_OSX_KVM="326053dd61f49375d5dfb28ee715d38b04b5cd8e"
+ARG REPO_VM_HIDE="https://github.com/Carnations-Botanica/VMHide"
+ARG REPO_KVM_OPENCORE="https://github.com/LongQT-sea/OpenCore-ISO"
 ARG REPO_OSX_KVM="https://raw.githubusercontent.com/kholia/OSX-KVM"
-ARG REPO_KVM_OPENCORE="https://github.com/thenickdude/KVM-Opencore"
 
 ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
@@ -27,6 +29,7 @@ ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 RUN set -eu && \
     apt-get update && \
     apt-get --no-install-recommends -y install \
+    7zip \
     mtools && \
     apt-get clean && \
     echo "$VERSION_ARG" > /etc/version && \
@@ -42,7 +45,8 @@ ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1024x768.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1920x1080.fd /usr/share/OVMF/
 
-ADD $REPO_KVM_OPENCORE/releases/download/$VERSION_KVM_OPENCORE/OpenCore-$VERSION_KVM_OPENCORE.iso.gz /opencore.iso.gz
+ADD $REPO_VM_HIDE/releases/download/$VERSION_VM_HIDE/VMHide-$VERSION_VM_HIDE-RELEASE.zip /vmh.zip
+ADD $REPO_KVM_OPENCORE/releases/download/v$VERSION_KVM_OPENCORE/LongQT-OpenCore-v$VERSION_KVM_OPENCORE.iso /opencore.iso
 
 VOLUME /storage
 EXPOSE 5900 8006
