@@ -105,7 +105,7 @@ if [ ! -f "$IMG" ]; then
 
   EFI_DIR="${CFG%/OC/config.plist}"
   PLIST="/assets/config.plist"
-  [ -f "/config.plist" ] && PLIST="/config.plist"
+  [ -f "/custom.plist" ] && PLIST="/custom.plist"
 
   cp "$PLIST" "$CFG"
 
