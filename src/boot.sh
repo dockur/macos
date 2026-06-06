@@ -122,7 +122,7 @@ if [ ! -f "$IMG" ]; then
   sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
   # Add kext to disable VM detection
-  kexts="$OUT/EFI_RELEASE/EFI/OC/Kexts"
+  kexts="$EFI_DIR/OC/Kexts"
 
   if ! 7z x /vmh.zip -o"$OUT/kext" > /dev/null; then
     error "Failed to extract kext!" && exit 11
