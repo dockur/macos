@@ -87,7 +87,7 @@ if [ ! -f "$IMG" ]; then
   rm -rf "$OUT"
   mkdir -p "$OUT"
 
-  msg="Building boot image"
+  msg="Building OpenCore boot image"
   info "$msg..." && html "$msg..."
 
   # Extract image file
