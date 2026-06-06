@@ -94,10 +94,11 @@ if [ ! -f "$IMG" ]; then
     error "Could not find image file \"$ISO\"." && exit 10
   fi
 
-  START=$(sfdisk -l "$ISO" | grep -i -m 1 "EFI System" | awk '{print $2}')
-  mcopy -bspmQ -i "$ISO@@${START}S" ::EFI "$OUT"
+  if ! 7z x "$ISO" -o"$OUT" > /dev/null; then
+    error "Failed to extract archive!" && exit 11
+  fi
 
-  CFG="$OUT/EFI/OC/config.plist"
+  CFG="$OUT/EFI_RELEASE/EFI/OC/config.plist"
 
   PLIST="/assets/config.plist"
   [ -f "/config.plist" ] && PLIST="/config.plist"
@@ -109,12 +110,12 @@ if [ ! -f "$IMG" ]; then
   BROM=$(echo "$ROM" | xxd -r -p | base64)
   RESOLUTION="${WIDTH}x${HEIGHT}@32"
 
-  sed -r -i -e 's|<data>m7zhIYfl</data>|<data>'"${BROM}"'</data>|g' "$CFG"
-  sed -r -i -e 's|<string>iMacPro1,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
-  sed -r -i -e 's|<string>C02TM2ZBHX87</string>|<string>'"${SN}"'</string>|g' "$CFG"
-  sed -r -i -e 's|<string>C02717306J9JG361M</string>|<string>'"${MLB}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<data>ESIzRFVm</data>|<data>'"${BROM}"'</data>|g' "$CFG"
+  sed -r -i -e 's|<string>iMac19,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<string>W00000000001</string>|<string>'"${SN}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<string>M0000000000000001</string>|<string>'"${MLB}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>1920x1080@32</string>|<string>'"${RESOLUTION}"'</string>|g' "$CFG"
-  sed -r -i -e 's|<string>007076A6-F2A2-4461-BBE5-BAD019F8025A</string>|<string>'"${UUID}"'</string>|g' "$CFG"
+  sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
   # Build image
 
@@ -153,7 +154,7 @@ if [ ! -f "$IMG" ]; then
   echo "drive c: file=\"$IMG\" partition=0 offset=$OFFSET" > /etc/mtools.conf
 
   mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
-  mcopy -bspmQ "$OUT/EFI" "C:"
+  mcopy -bspmQ "$OUT/EFI_RELEASE/EFI" "C:"
 
   rm -rf "$OUT"
 
