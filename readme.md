@@ -108,7 +108,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   | `11`        | macOS 11       | Big Sur          |
 
 > [!NOTE]
-> Starting with macOS 15 (Sequoia), you cannot sign in to an Apple Account unless you install [VMHide.kext](https://github.com/Carnations-Botanica/VMHide) first.
+> You can also select macOS 26 (Tahoe), but it runs very slow currently.
 
 ### How do I change the storage location?
 
