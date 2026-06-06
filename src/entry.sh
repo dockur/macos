@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 : "${APP:="macOS"}"
 : "${VGA:="vmware"}"
+: "${SHUTDOWN:="Y"}"
+: "${TIMEOUT:="115"}"
 : "${PLATFORM:="x64"}"
 : "${DISK_TYPE:="blk"}"
 : "${SUPPORT:="https://github.com/dockur/macos"}"
