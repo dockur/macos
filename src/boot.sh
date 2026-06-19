@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 # Docker environment variables
 : "${SECURE:="off"}"       # Secure boot
+: "${PICKER:="N"}"         # Show picker
 : "${BOOT_MODE:="macos"}"  # Boot mode
 
 BOOT_DESC=""
@@ -121,6 +122,14 @@ if [ ! -f "$IMG" ]; then
   sed -r -i -e 's|<string>M0000000000000001</string>|<string>'"${MLB}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>1920x1080@32</string>|<string>'"${RESOLUTION}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
+
+  # Show boot picker if requested
+  if [[ "$PICKER" == [Yy1]* ]]; then
+    sed -i '/<key>ShowPicker<\/key>/{n;s/<false\/>/<true\/>/}' "$CFG"
+    sed -i '/<key>HideAuxiliary<\/key>/{n;s/<true\/>/<false\/>/}' "$CFG"
+    sed -i '/<key>Timeout<\/key>/{n;s/<integer>[0-9]\+<\/integer>/<integer>10<\/integer>/}' "$CFG"
+    sed -i '/<key>PickerMode<\/key>/{n;s/<string>External<\/string>/<string>Builtin<\/string>/}' "$CFG"
+  fi
 
   # Add kext to disable VM detection
   kexts="$EFI_DIR/OC/Kexts"
