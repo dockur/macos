@@ -297,7 +297,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 Special thanks to [seitenca](https://github.com/seitenca), this project would not exist without her invaluable work.
 
 ## Stars 🌟
-[![Stars](https://starchart.cc/dockur/macos.svg?variant=adaptive)](https://starchart.cc/dockur/macos)
+[![Stargazers](https://raw.githubusercontent.com/star-stats/stars/refs/heads/data/charts/dockur-macos.svg)](https://github.com/dockur/macos/stargazers)
 
 ## Disclaimer ⚖️
 
