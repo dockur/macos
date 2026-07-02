@@ -19,7 +19,7 @@ MacOS inside a Docker container.
  - KVM acceleration
  - Web-based viewer
  - Shared host folder
- - USB passthrough
+ - USB pass through
  - Automatic download
 
 ## Usage  🐳
@@ -144,7 +144,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 > [!TIP]
 > This can also be used to resize an existing disk to a larger capacity without any data loss.
 >
-> However afterwards you will need to run the following two commands from the terminal in macOS:
+> However, afterwards you will need to run the following two commands from the terminal in macOS:
 >
 > `diskutil repairDisk disk2`
 > 
@@ -235,7 +235,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   
 ### How do I pass through a USB device?
 
-  To pass through a USB device, first look up its vendor and product ID via the `lsusb` command, then add them to your compose file like this:
+  To pass through a USB device, first look up its vendor and product IDs via the `lsusb` command, then add them to your compose file like this:
 
   ```yaml
   environment:
