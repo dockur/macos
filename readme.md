@@ -71,7 +71,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 - At least 64 GB of free disk space.
 
 > [!NOTE]
-> Docker Desktop on macOS and Windows 10 does not currently provide the required KVM support for this image.
+> Docker Desktop on macOS and Windows 10 do not currently provide the required KVM support for this image.
 
 ## FAQ 💬
 
