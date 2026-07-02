@@ -58,7 +58,7 @@ docker run -it --rm --name macos -e "VERSION=14" -p 8006:8006 --device=/dev/kvm 
 kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/master/kubernetes.yml
 ```
 
-##### Via Github Codespaces:
+##### Via GitHub Codespaces:
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/macos)
 
@@ -131,7 +131,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss.
+> This can also be used to resize an existing disk to a larger capacity without any data loss.
 >
 > However afterwards you will need to run the following two commands from the terminal in macOS:
 >
@@ -224,7 +224,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   
 ### How do I pass-through a USB device?
 
-  To pass-through a USB device, first lookup its vendor and product id via the `lsusb` command, then add them to your compose file like this:
+  To pass-through a USB device, first look up its vendor and product ID via the `lsusb` command, then add them to your compose file like this:
 
   ```yaml
   environment:
@@ -274,7 +274,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   - you enabled "nested virtualization" if you are running the container inside a virtual machine.
 
-  - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPS's.
+  - you are not using a cloud provider, as most of them do not allow nested virtualization for their VPSs.
 
   If you did not receive any error from `kvm-ok` but the container still complains about a missing KVM device, it could help to add `privileged: true` to your compose file (or `sudo` to your `docker` command) to rule out any permission issue.
 
@@ -288,7 +288,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### Is this project legal?
 
-  Yes, this project contains only open-source code and does not distribute any copyrighted material. Neither does it try to circumvent any copyright protection measures. So under all applicable laws, this project will be considered legal.
+  Yes, this project contains only open-source code and does not distribute macOS itself. Neither does it try to circumvent any copyright protection measures.
 
   However, by installing Apple's macOS, you must accept their end-user license agreement, which does not permit installation on non-official hardware. So only run this container on hardware sold by Apple, as any other use will be a violation of their terms and conditions.
 
