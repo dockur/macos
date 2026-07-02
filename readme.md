@@ -58,7 +58,7 @@ docker run -it --rm --name macos -e "VERSION=14" -p 8006:8006 --device=/dev/kvm 
 kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/master/kubernetes.yml
 ```
 
-##### Via Github Codespaces:
+##### Via GitHub Codespaces:
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/dockur/macos)
 
@@ -131,7 +131,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
   
 > [!TIP]
-> This can also be used to resize the existing disk to a larger capacity without any data loss.
+> This can also be used to resize an existing disk to a larger capacity without any data loss.
 >
 > However afterwards you will need to run the following two commands from the terminal in macOS:
 >
