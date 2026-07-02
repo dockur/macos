@@ -19,6 +19,7 @@ MacOS inside a Docker container.
  - KVM acceleration
  - Web-based viewer
  - Host file sharing
+ - USB passthrough
  - Automatic download
 
 ## Usage  🐳
