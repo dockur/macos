@@ -17,10 +17,9 @@ SN=$(strip "$SN")
 MLB=$(strip "$MLB")
 MAC=$(strip "$MAC")
 UUID=$(strip "$UUID")
-VERSION=$(strip "$VERSION")
+MODEL=$(strip "$MODEL")
 WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
-MODEL=$(strip "$MODEL")
 
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
@@ -262,9 +261,7 @@ generateSerial() {
   return 0
 }
 
-if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
-  VERSION="${VERSION:1:-1}"
-fi
+VERSION=$(strip "$VERSION")
 
 if [ -z "$VERSION" ]; then
 
