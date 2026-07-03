@@ -12,7 +12,7 @@ OVMF="/usr/share/OVMF"
 
 msg="Configuring boot..."
 html "$msg"
-[[ "$DEBUG" == [Yy1]* ]] && echo "$msg"
+enabled "$DEBUG" && echo "$msg"
 
 case "${HEIGHT,,}" in
   "1080" )
@@ -51,7 +51,7 @@ if [ ! -s "$DEST.rom" ]; then
   [ ! -s "$logo" ] && logo="/var/www/img/qemu.ffs"
   [ ! -s "$logo" ] && LOGO="N"
 
-  if [[ "${LOGO:-}" == [Nn]* ]]; then
+  if disabled "${LOGO:-}"; then
     cp "$OVMF/$ROM" "$DEST.tmp"
   else
     if ! /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "$logo" save "$DEST.tmp"; then
@@ -124,7 +124,7 @@ if [ ! -f "$IMG" ]; then
   sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
   # Show boot picker if requested
-  if [[ "$PICKER" == [Yy1]* ]]; then
+  if enabled "$PICKER"; then
     sed -i '/<key>ShowPicker<\/key>/{n;s/<false\/>/<true\/>/}' "$CFG"
     sed -i '/<key>HideAuxiliary<\/key>/{n;s/<true\/>/<false\/>/}' "$CFG"
     sed -i '/<key>Timeout<\/key>/{n;s/<integer>[0-9]\+<\/integer>/<integer>10<\/integer>/}' "$CFG"
