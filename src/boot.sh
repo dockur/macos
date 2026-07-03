@@ -6,6 +6,11 @@ set -Eeuo pipefail
 : "${PICKER:="N"}"         # Show picker
 : "${BOOT_MODE:="macos"}"  # Boot mode
 
+# Sanitize variables
+SECURE=$(strip "$SECURE")
+PICKER=$(strip "$PICKER")
+BOOT_MODE=$(strip "$BOOT_MODE")
+
 BOOT_DESC=""
 BOOT_OPTS=""
 OVMF="/usr/share/OVMF"

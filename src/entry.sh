@@ -13,6 +13,16 @@ cd /run
 
 . start.sh      # Startup hook
 . utils.sh      # Load functions
+
+# Sanitize variables
+APP=$(strip "$APP")
+VGA=$(strip "$VGA")
+SHUTDOWN=$(strip "$SHUTDOWN")
+TIMEOUT=$(strip "$TIMEOUT")
+PLATFORM=$(strip "$PLATFORM")
+DISK_TYPE=$(strip "$DISK_TYPE")
+SUPPORT=$(strip "$SUPPORT")
+
 . reset.sh      # Initialize system
 . server.sh     # Start webserver
 . install.sh    # Get the OSX images

@@ -12,6 +12,16 @@ set -Eeuo pipefail
 : "${HEIGHT:="1080"}"        # Vertical
 : "${MODEL:="iMacPro1,1"}"   # Device model
 
+# Sanitize variables
+SN=$(strip "$SN")
+MLB=$(strip "$MLB")
+MAC=$(strip "$MAC")
+UUID=$(strip "$UUID")
+VERSION=$(strip "$VERSION")
+WIDTH=$(strip "$WIDTH")
+HEIGHT=$(strip "$HEIGHT")
+MODEL=$(strip "$MODEL")
+
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
 
@@ -255,9 +265,6 @@ generateSerial() {
 if [[ "${VERSION}" == \"*\" || "${VERSION}" == \'*\' ]]; then
   VERSION="${VERSION:1:-1}"
 fi
-
-VERSION="${VERSION#"${VERSION%%[! ]*}"}"
-VERSION="${VERSION%"${VERSION##*[! ]}"}"
 
 if [ -z "$VERSION" ]; then
 
