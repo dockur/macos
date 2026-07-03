@@ -14,7 +14,7 @@ has_flag() {
   ' /proc/cpuinfo
 }
 
-if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
+if [[ "$CPU_VENDOR" == "AuthenticAMD" ]] || disabled "${KVM:-}"; then
 
   # Configuration for AMD processors
 
@@ -27,7 +27,7 @@ if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
         ;;
       *)
         CPU_MODEL="Skylake-Client-v4"
-        if has_flag "spec-ctrl" && [[ "${KVM:-}" != [Nn]* ]]; then
+        if has_flag "spec-ctrl" && ! disabled "${KVM:-}"; then
           DEFAULT_FLAGS+=",+spec-ctrl"
         else
           DEFAULT_FLAGS+=",-spec-ctrl"
@@ -37,7 +37,7 @@ if [[ "$CPU_VENDOR" == "AuthenticAMD" || "${KVM:-}" == [Nn]* ]]; then
 
   fi
 
-  if [[ "${KVM:-}" == [Nn]* ]]; then
+  if disabled "${KVM:-}"; then
   
     DEFAULT_FLAGS+=",-pcid,-invpcid,-tsc-deadline,-xsavec,-xsaves"
 
@@ -85,7 +85,7 @@ else
   result="${result//[![:print:]]/}"
   case "${result,,}" in
     "${CLOCKSOURCE,,}" ) 
-      if [[ "$CPU_VENDOR" == "GenuineIntel" && "$CPU_CORES" == "1" && "${KVM:-}" != [Nn]* ]]; then
+      if [[ "$CPU_VENDOR" == "GenuineIntel" && "$CPU_CORES" == "1" ]] && ! disabled "${KVM:-}"; then
         CPU_CORES="2"
       fi ;;
     "kvm-clock" ) warn "Nested KVM virtualization detected, this might cause issues running macOS!" ;;
