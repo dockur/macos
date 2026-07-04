@@ -6,10 +6,17 @@ ARG VERSION_OPENCORE="1.0.7"
 ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
 ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip /tmp/opencore.zip
 
-RUN apk --update --no-cache add unzip && \
-    unzip /tmp/opencore.zip -d /tmp/oc && \
-    cp /tmp/oc/Utilities/macserial/macserial.linux /macserial && \
-    rm -rf /tmp/* /var/tmp/* /var/cache/apk/*
+RUN <<EOF
+  set -eu
+
+  apk --update --no-cache add unzip
+
+  # Extract macserial
+  unzip /tmp/opencore.zip -d /tmp/oc
+  cp /tmp/oc/Utilities/macserial/macserial.linux /macserial
+
+  rm -rf /tmp/* /var/tmp/* /var/cache/apk/*
+EOF
 
 FROM scratch AS runner
 COPY --from=qemux/qemu:7.33 / /
@@ -26,14 +33,21 @@ ARG DEBCONF_NOWARNINGS="yes"
 ARG DEBIAN_FRONTEND="noninteractive"
 ARG DEBCONF_NONINTERACTIVE_SEEN="true"
 
-RUN set -eu && \
-    apt-get update && \
-    apt-get --no-install-recommends -y install \
+RUN <<EOF
+  set -eu
+
+  apt-get update
+  apt-get --no-install-recommends -y install \
     7zip \
-    mtools && \
-    apt-get clean && \
-    echo "$VERSION_ARG" > /etc/version && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    mtools
+
+  apt-get clean
+
+  # Set version file
+  echo "$VERSION_ARG" > /etc/version
+
+  rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+EOF
 
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /assets/
