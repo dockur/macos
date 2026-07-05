@@ -17,10 +17,10 @@ MacOS inside a Docker container.
 ## Features ✨
 
 - Runs macOS inside a Docker container
-- Web-based viewer for controlling the VM
 - Automatic download of the installation files
+- Web-based viewer for controlling the VM
 - Near-native performance with KVM acceleration
-- Configurable CPU, RAM, and disk size
+- Customizable CPU, memory, and storage allocation
 - USB passthrough and host folder sharing
 - Supports bridge, user-mode, macvlan, and macvtap networking
 
