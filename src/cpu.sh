@@ -9,12 +9,7 @@ has_flag() {
   # Match a whitespace-delimited token in /proc/cpuinfo
   # (works for flags containing '-' and avoids substring matches)
 
-  awk -v f="$1" '
-    $1 == "flags" {
-      for (i = 1; i <= NF; i++) if ($i == f) exit 0
-    }
-    END { exit 1 }
-  ' /proc/cpuinfo
+  grep -qw -- "$1" /proc/cpuinfo
 }
 
 needsAmdCpuProfile() {
@@ -41,6 +36,8 @@ selectAmdCpuModel() {
       fi
       ;;
   esac
+
+  return 0
 }
 
 appendAmdCpuFlags() {
@@ -72,6 +69,7 @@ configureAmdCpu() {
   selectAmdCpuModel
   appendAmdCpuFlags
 
+  return 0
 }
 
 configureIntelCpu() {
@@ -81,6 +79,7 @@ configureIntelCpu() {
     CPU_MODEL="Skylake-Client-v4"
   fi
 
+  return 0
 }
 
 composeCpuFlags() {
@@ -91,6 +90,7 @@ composeCpuFlags() {
     CPU_FLAGS="$DEFAULT_FLAGS,$CPU_FLAGS"
   fi
 
+  return 0
 }
 
 selectClocksource() {
@@ -98,6 +98,7 @@ selectClocksource() {
   CLOCKSOURCE="tsc"
   [[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter"
 
+  return 0
 }
 
 checkClocksource() {
@@ -132,6 +133,8 @@ checkClocksource() {
       warn "unexpected clock source detected: '$result'. Please set host clock source to '$CLOCKSOURCE', otherwise it will cause issues running macOS!"
       ;;
   esac
+
+  return 0
 }
 
 normalizeCpuCores() {
@@ -142,6 +145,7 @@ normalizeCpuCores() {
     "9" ) CPU_CORES="8" ;;
   esac
 
+  return 0
 }
 
 configureSmp() {
@@ -158,6 +162,7 @@ configureSmp() {
       ;;
   esac
 
+  return 0
 }
 
 configureUsb() {
@@ -166,6 +171,7 @@ configureUsb() {
   USB+=" -device usb-kbd,bus=xhci.0"
   USB+=" -global nec-usb-xhci.msi=off"
 
+  return 0
 }
 
 if needsAmdCpuProfile; then
