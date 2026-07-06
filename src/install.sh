@@ -68,16 +68,16 @@ function download() {
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
 
-  appleSession=$(curl --disable -v -H "Host: osrecovery.apple.com" \
-                       -H "Connection: close" \
-                       -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '/session=/ {print $2; exit}' || :)
+  appleSession=$(curl --disable --max-time 30 -v -H "Host: osrecovery.apple.com" \
+                      -H "Connection: close" \
+                      -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '/session=/ {print $2; exit}' || :)
 
   if [ -z "$appleSession" ]; then
     error "Failed to obtain Apple recovery session."
     return 1
   fi
 
-  info=$(curl --disable -s -X POST -H "Host: osrecovery.apple.com" \
+  info=$(curl --disable --max-time 60 -s -X POST -H "Host: osrecovery.apple.com" \
                            -H "Connection: close" \
                            -A "InternetRecovery/1.0" \
                            -b "session=\"${appleSession}\"" \
