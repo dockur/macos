@@ -61,6 +61,8 @@ appendAmdCpuFlags() {
   fi
 
   DEFAULT_FLAGS+=",+ssse3,+sse4.2,+popcnt,+avx,+avx2,+aes,+fma,+bmi1,+bmi2,+smep,+xsave,+xsaveopt,+xgetbv1,+movbe,+rdrand,check"
+
+  return 0
 }
 
 configureAmdCpu() {
