@@ -19,7 +19,7 @@ RUN <<EOF
 EOF
 
 FROM scratch AS runner
-COPY --from=qemux/qemu:7.33 / /
+COPY --from=qemux/qemu:7.34 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_VM_HIDE="2.0.0"
