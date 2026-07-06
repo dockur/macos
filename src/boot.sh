@@ -46,16 +46,29 @@ prepareOvmfRom() {
   [ ! -s "$logo" ] && logo="/var/www/img/qemu.ffs"
   [ ! -s "$logo" ] && LOGO="N"
 
+  rm -f "$DEST.tmp"
+
   if disabled "${LOGO:-}"; then
-    cp "$OVMF/$ROM" "$DEST.tmp"
+    if ! cp "$OVMF/$ROM" "$DEST.tmp"; then
+      rm -f "$DEST.tmp"
+      error "Failed to copy UEFI boot file to $DEST.tmp" && exit 44
+    fi
   else
     if ! /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "$logo" save "$DEST.tmp"; then
       warn "failed to add custom logo to BIOS!"
-      cp "$OVMF/$ROM" "$DEST.tmp"
+      rm -f "$DEST.tmp"
+
+      if ! cp "$OVMF/$ROM" "$DEST.tmp"; then
+        rm -f "$DEST.tmp"
+        error "Failed to copy UEFI boot file to $DEST.tmp" && exit 44
+      fi
     fi
   fi
 
-  mv "$DEST.tmp" "$DEST.rom"
+  if ! mv "$DEST.tmp" "$DEST.rom"; then
+    rm -f "$DEST.tmp"
+    error "Failed to move UEFI boot file to $DEST.rom" && exit 44
+  fi
   ! setOwner "$DEST.rom" && error "Failed to set the owner for \"$DEST.rom\" !"
 
   return 0
@@ -68,8 +81,17 @@ prepareOvmfVars() {
 
   [ ! -s "$OVMF/$VARS" ] && error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
 
-  cp "$OVMF/$VARS" "$DEST.tmp"
-  mv "$DEST.tmp" "$DEST.vars"
+  rm -f "$DEST.tmp"
+
+  if ! cp "$OVMF/$VARS" "$DEST.tmp"; then
+    rm -f "$DEST.tmp"
+    error "Failed to copy UEFI vars file to $DEST.tmp" && exit 45
+  fi
+
+  if ! mv "$DEST.tmp" "$DEST.vars"; then
+    rm -f "$DEST.tmp"
+    error "Failed to move UEFI vars file to $DEST.vars" && exit 45
+  fi
   ! setOwner "$DEST.vars" && error "Failed to set the owner for \"$DEST.vars\" !"
 
   return 0
