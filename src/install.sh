@@ -69,8 +69,14 @@ function download() {
   info "$msg recovery image..." && html "$msg..."
 
   appleSession=$(curl --disable -v -H "Host: osrecovery.apple.com" \
-                           -H "Connection: close" \
-                           -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '{print $2}' | grep 1)
+                       -H "Connection: close" \
+                       -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '/session=/ {print $2; exit}' || :)
+
+  if [ -z "$appleSession" ]; then
+    error "Failed to obtain Apple recovery session."
+    return 1
+  fi
+
   info=$(curl --disable -s -X POST -H "Host: osrecovery.apple.com" \
                            -H "Connection: close" \
                            -A "InternetRecovery/1.0" \
@@ -79,8 +85,8 @@ function download() {
                            -d $'cid='"$(getRandom 16)"$'\nsn='"${mlb}"$'\nbid='"${board}"$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='"${type}" \
                            https://osrecovery.apple.com/InstallationPayload/RecoveryImage | tr ' ' '\n')
 
-  downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg')
-  downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg')
+  downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg' || :)
+  downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg' || :)
 
   if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
 
