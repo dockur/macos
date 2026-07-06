@@ -179,7 +179,10 @@ install() {
   find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'macos.*' \) -delete
 
   if [ -f "/boot.dmg" ]; then
-    cp "/boot.dmg" "$dest"
+    if ! cp "/boot.dmg" "$dest"; then
+      error "Failed to copy bundled recovery image to $dest."
+      return 1
+    fi
     return 0
   fi
 
@@ -193,7 +196,11 @@ install() {
     fi
   fi
 
-  mv -f "$file" "$dest"
+  if ! mv -f "$file" "$dest"; then
+    error "Failed to move recovery image to $dest."
+    return 1
+  fi
+
   return 0
 }
 
@@ -206,11 +213,21 @@ generateID() {
   UUID="${UUID//[![:print:]]/}"
   [ -n "$UUID" ] && return 0
 
-  UUID=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random)
+  if ! UUID=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
+    return 1
+  fi
+
   UUID="${UUID^^}"
   UUID="${UUID//[![:print:]]/}"
 
-  echo "$UUID" > "$file"
+  if [ -z "$UUID" ]; then
+    return 1
+  fi
+
+  if ! echo "$UUID" > "$file"; then
+    return 1
+  fi
+
   ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   return 0
@@ -229,7 +246,10 @@ generateAddress() {
   MAC=$(echo "$HOST" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
   MAC="${MAC^^}"
 
-  echo "$MAC" > "$file"
+  if ! echo "$MAC" > "$file"; then
+    return 1
+  fi
+  
   ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
 
   return 0
@@ -258,8 +278,13 @@ generateSerial() {
   SN="${SN%%|*}"
   SN="${SN%"${SN##*[![:space:]]}"}"
 
-  echo "$SN" > "$file"
-  echo "$MLB" > "$file2"
+  if ! echo "$SN" > "$file"; then
+    return 1
+  fi
+
+  if ! echo "$MLB" > "$file2"; then
+    return 1
+  fi
 
   ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
   ! setOwner "$file2" && error "Failed to set the owner for \"$file2\" !"
