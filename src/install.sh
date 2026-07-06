@@ -242,8 +242,8 @@ generateAddress() {
   MAC="${MAC//[![:print:]]/}"
   [ -n "$MAC" ] && return 0
 
-  # Generate Apple MAC address based on Docker container ID in hostname
-  MAC=$(echo "$HOST" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
+  # Generate Apple MAC address based on UUID value
+  MAC=$(echo "$UUID" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
   MAC="${MAC^^}"
 
   if ! echo "$MAC" > "$file"; then
