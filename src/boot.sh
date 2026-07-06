@@ -239,10 +239,38 @@ printMachineDetails() {
   return 0
 }
 
-prepareOpenCoreImage() {
-  IMG="$STORAGE/boot.img"
+openCoreSignature() {
 
-  if [ -f "$IMG" ]; then
+  {
+    echo "MODEL=$MODEL"
+    echo "SN=$SN"
+    echo "MLB=$MLB"
+    echo "UUID=$UUID"
+    echo "MAC=$MAC"
+    echo "WIDTH=$WIDTH"
+    echo "HEIGHT=$HEIGHT"
+    echo "PICKER=$PICKER"
+  } | sha256sum | awk '{print $1}'
+
+  return 0
+}
+
+prepareOpenCoreImage() {
+
+  local current=""
+  local previous=""
+  local target="$STORAGE/boot.img"
+  local signature="$STORAGE/boot.sig"
+  
+  current=$(openCoreSignature)
+
+  if [ -s "$signature" ]; then
+    previous=$(<"$signature")
+    previous="${previous//[![:print:]]/}"
+  fi
+
+  if [ -s "$target" ] && [ "$previous" = "$current" ]; then
+    IMG="$target"
     return 0
   fi
 
@@ -255,6 +283,19 @@ prepareOpenCoreImage() {
   addVmHideKext
   buildOpenCoreImage
   printMachineDetails
+
+  if ! mv -f "$IMG" "$target"; then
+    rm -f "$IMG" "$signature"
+    error "Failed to move OpenCore image to $target" && exit 11
+  fi
+
+  IMG="$target"
+
+  if ! echo "$current" > "$signature"; then
+    error "Failed to write OpenCore image signature to $signature" && exit 11
+  fi
+
+  ! setOwner "$signature" && error "Failed to set the owner for \"$signature\" !"
 
   return 0
 }
