@@ -85,8 +85,8 @@ function download() {
                            -d $'cid='"$(getRandom 16)"$'\nsn='"${mlb}"$'\nbid='"${board}"$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='"${type}" \
                            https://osrecovery.apple.com/InstallationPayload/RecoveryImage | tr ' ' '\n')
 
-  downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg' || :)
-  downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg' || :)
+  downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg' | head -n 1 || :)
+  downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg' | head -n 1 || :)
 
   if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
 
