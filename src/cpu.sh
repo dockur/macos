@@ -4,16 +4,10 @@ set -Eeuo pipefail
 CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
-has_flag() {
-
-  # Match a whitespace-delimited token in /proc/cpuinfo
-  # (works for flags containing '-' and avoids substring matches)
-
-  grep -qw -- "$1" /proc/cpuinfo
-}
-
 needsAmdCpuProfile() {
+
   [[ "$CPU_VENDOR" == "AuthenticAMD" ]] || disabled "${KVM:-}"
+
 }
 
 selectAmdCpuModel() {
@@ -40,6 +34,13 @@ selectAmdCpuModel() {
   return 0
 }
 
+hasFlag() {
+
+  # Match a whitespace-delimited token in /proc/cpuinfo
+
+  grep -m1 '^flags[[:space:]]*:' /proc/cpuinfo | grep -Fqw -- "$1"
+}
+
 appendAmdCpuFlags() {
 
   local flag
@@ -51,7 +52,7 @@ appendAmdCpuFlags() {
   else
 
     for flag in pcid invpcid tsc-deadline xsavec xsaves; do
-      if has_flag "$flag"; then
+      if hasFlag "$flag"; then
         DEFAULT_FLAGS+=",+$flag"
       else
         DEFAULT_FLAGS+=",-$flag"
@@ -97,7 +98,9 @@ composeCpuFlags() {
 
 selectClocksource() {
 
+  SM_BIOS=""
   CLOCKSOURCE="tsc"
+
   [[ "${ARCH,,}" == "arm64" ]] && CLOCKSOURCE="arch_sys_counter"
 
   return 0
@@ -183,9 +186,6 @@ else
 fi
 
 composeCpuFlags
-
-SM_BIOS=""
-
 selectClocksource
 checkClocksource
 normalizeCpuCores
