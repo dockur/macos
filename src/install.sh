@@ -25,6 +25,7 @@ BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/base.dmg"
 
 function getRandom() {
+
   local length="${1}"
   local result=""
   local chars=("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "A" "B" "C" "D" "E" "F")
@@ -54,6 +55,7 @@ delay() {
 }
 
 function download() {
+
   local info=""
   local dest="$1"
   local board="$2"
