@@ -11,6 +11,7 @@ BOOT_OPTS=""
 OVMF="/usr/share/OVMF"
 
 selectOvmfFiles() {
+
   case "${HEIGHT,,}" in
     "1080" )
       DEST="$PROCESS"
@@ -34,7 +35,6 @@ selectOvmfFiles() {
 }
 
 prepareOvmfRom() {
-  local logo
 
   if [ -s "$DEST.rom" ]; then
     return 0
@@ -42,7 +42,7 @@ prepareOvmfRom() {
 
   [ ! -s "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
 
-  logo="/var/www/img/${PROCESS,,}.ffs"
+  local logo="/var/www/img/${PROCESS,,}.ffs"
   [ ! -s "$logo" ] && logo="/var/www/img/qemu.ffs"
   [ ! -s "$logo" ] && LOGO="N"
 
@@ -69,12 +69,14 @@ prepareOvmfRom() {
     rm -f "$DEST.tmp"
     error "Failed to move UEFI boot file to $DEST.rom" && exit 44
   fi
+
   ! setOwner "$DEST.rom" && error "Failed to set the owner for \"$DEST.rom\" !"
 
   return 0
 }
 
 prepareOvmfVars() {
+
   if [ -s "$DEST.vars" ]; then
     return 0
   fi
@@ -92,12 +94,14 @@ prepareOvmfVars() {
     rm -f "$DEST.tmp"
     error "Failed to move UEFI vars file to $DEST.vars" && exit 45
   fi
+
   ! setOwner "$DEST.vars" && error "Failed to set the owner for \"$DEST.vars\" !"
 
   return 0
 }
 
 addOvmfOptions() {
+
   BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$DEST.rom"
   BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 
@@ -105,6 +109,7 @@ addOvmfOptions() {
 }
 
 extractOpenCore() {
+
   # OpenCoreBoot
   ISO="/opencore.iso"
   OUT="/tmp/extract"
@@ -134,6 +139,7 @@ extractOpenCore() {
 }
 
 configureOpenCorePlist() {
+
   local brom
   local plist
   local resolution
@@ -168,10 +174,9 @@ configureOpenCorePlist() {
 }
 
 addVmHideKext() {
-  local kexts
 
   # Add kext to disable VM detection
-  kexts="$EFI_DIR/OC/Kexts"
+  local kexts="$EFI_DIR/OC/Kexts"
 
   if ! 7z x /vmh.zip -o"$OUT/kext" > /dev/null; then
     error "Failed to extract kext archive!" && exit 11
@@ -184,43 +189,49 @@ addVmHideKext() {
 }
 
 buildOpenCoreImage() {
-  # Build image
 
-  MB=256
-  CLUSTER=4
-  START=2048
-  SECTOR=512
-  FIRST_LBA=34
+  local size_mb=256
+  local cluster_size=4
+  local start_sector=2048
+  local sector_size=512
+  local first_lba=34
 
-  SIZE=$(( MB*1024*1024 ))
-  OFFSET=$(( START*SECTOR ))
-  TOTAL=$(( SIZE-(FIRST_LBA*SECTOR) ))
-  LAST_LBA=$(( TOTAL/SECTOR ))
-  COUNT=$(( LAST_LBA-(START-1) ))
+  local image_size
+  local partition_offset
+  local usable_size
+  local last_lba
+  local sector_count
+  local partition_file
 
-  if ! truncate -s "$SIZE" "$IMG"; then
+  image_size=$(( size_mb*1024*1024 ))
+  partition_offset=$(( start_sector*sector_size ))
+  usable_size=$(( image_size-(first_lba*sector_size) ))
+  last_lba=$(( usable_size/sector_size ))
+  sector_count=$(( last_lba-(start_sector-1) ))
+
+  if ! truncate -s "$image_size" "$IMG"; then
     rm -f "$IMG"
-    error "Could not allocate space to create image $IMG ." && exit 11
+    error "Could not allocate space to create image $IMG." && exit 11
   fi
 
-  PART="/tmp/partition.fdisk"
+  partition_file="/tmp/partition.fdisk"
 
-  {   echo "label: gpt"
-      echo "label-id: 1ACB1E00-3B8F-4B2A-86A4-D99ED21DCAEB"
-      echo "device: $FILE"
-      echo "unit: sectors"
-      echo "first-lba: $FIRST_LBA"
-      echo "last-lba: $LAST_LBA"
-      echo "sector-size: $SECTOR"
-      echo ""
-      echo "${FILE}1 : start=$START, size=$COUNT, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
+  {
+    echo "label: gpt"
+    echo "label-id: 1ACB1E00-3B8F-4B2A-86A4-D99ED21DCAEB"
+    echo "device: $FILE"
+    echo "unit: sectors"
+    echo "first-lba: $first_lba"
+    echo "last-lba: $last_lba"
+    echo "sector-size: $sector_size"
+    echo ""
+    echo "${FILE}1 : start=$start_sector, size=$sector_count, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
+  } > "$partition_file"
 
-  } > "$PART"
+  sfdisk -q "$IMG" < "$partition_file"
+  echo "drive c: file=\"$IMG\" partition=0 offset=$partition_offset" > /etc/mtools.conf
 
-  sfdisk -q "$IMG" < "$PART"
-  echo "drive c: file=\"$IMG\" partition=0 offset=$OFFSET" > /etc/mtools.conf
-
-  mformat -F -M "$SECTOR" -c "$CLUSTER" -T "$COUNT" -v "EFI" "C:"
+  mformat -F -M "$sector_size" -c "$cluster_size" -T "$sector_count" -v "EFI" "C:"
   mcopy -bspmQ "$EFI_DIR" "C:"
 
   rm -rf "$OUT"
@@ -229,6 +240,7 @@ buildOpenCoreImage() {
 }
 
 printMachineDetails() {
+
   info ""
   info "Model: $MODEL"
   info "Rom: $ROM"
