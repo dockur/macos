@@ -10,6 +10,13 @@ needsAmdCpuProfile() {
 
 }
 
+hasFlag() {
+
+  # Match a whitespace-delimited token in /proc/cpuinfo
+  grep -m1 '^flags[[:space:]]*:' /proc/cpuinfo | grep -Fqw -- "$1"
+
+}
+
 selectAmdCpuModel() {
 
   if [ -n "${CPU_MODEL:-}" ]; then
@@ -23,7 +30,7 @@ selectAmdCpuModel() {
       ;;
     *)
       CPU_MODEL="Skylake-Client-v4"
-      if has_flag "spec-ctrl" && ! disabled "${KVM:-}"; then
+      if hasFlag "spec-ctrl" && ! disabled "${KVM:-}"; then
         DEFAULT_FLAGS+=",+spec-ctrl"
       else
         DEFAULT_FLAGS+=",-spec-ctrl"
@@ -32,13 +39,6 @@ selectAmdCpuModel() {
   esac
 
   return 0
-}
-
-hasFlag() {
-
-  # Match a whitespace-delimited token in /proc/cpuinfo
-
-  grep -m1 '^flags[[:space:]]*:' /proc/cpuinfo | grep -Fqw -- "$1"
 }
 
 appendAmdCpuFlags() {
@@ -186,9 +186,12 @@ else
 fi
 
 composeCpuFlags
+
 selectClocksource
 checkClocksource
+
 normalizeCpuCores
+
 configureSmp
 configureUsb
 
