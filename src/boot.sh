@@ -273,7 +273,7 @@ prepareOpenCoreImage() {
   local previous=""
   local target="$STORAGE/boot.img"
   local signature="$STORAGE/boot.sig"
-  
+
   current=$(openCoreSignature)
 
   if [ -s "$signature" ]; then
@@ -284,6 +284,10 @@ prepareOpenCoreImage() {
   if [ -s "$target" ] && [ "$previous" = "$current" ]; then
     IMG="$target"
     return 0
+  fi
+
+  if [ -s "$target" ]; then
+    info "Rebuilding OpenCore boot image due to configuration changes..."
   fi
 
   FILE="OpenCore.img"
