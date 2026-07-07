@@ -117,7 +117,7 @@ extractOpenCore() {
   rm -rf "$OUT"
   mkdir -p "$OUT"
 
-  msg="Building OpenCore boot image"
+  msg="Extracting OpenCore boot image"
   info "$msg..." && html "$msg..."
 
   # Extract image file
@@ -288,6 +288,9 @@ prepareOpenCoreImage() {
 
   if [ -s "$target" ]; then
     info "Rebuilding OpenCore boot image due to configuration changes..."
+  else
+    msg="Building OpenCore boot image"
+    info "$msg..." && html "$msg..."
   fi
 
   FILE="OpenCore.img"
@@ -298,11 +301,22 @@ prepareOpenCoreImage() {
   configureOpenCorePlist
   addVmHideKext
   buildOpenCoreImage
+
+  if [ ! -s "$IMG" ]; then
+    rm -f "$IMG" "$signature"
+    error "OpenCore image was not created or is empty!" && exit 11
+  fi
+
   printMachineDetails
 
   if ! mv -f "$IMG" "$target"; then
     rm -f "$IMG" "$signature"
     error "Failed to move OpenCore image to $target" && exit 11
+  fi
+
+  if [ ! -s "$target" ]; then
+    rm -f "$target" "$signature"
+    error "OpenCore image is missing after moving to $target" && exit 11
   fi
 
   IMG="$target"
