@@ -152,6 +152,14 @@ checkOpenCoreFiles() {
     error "Missing OpenCore config.plist!" && exit 12
   fi
 
+  if [ ! -d "$EFI_DIR/OC/Drivers" ]; then
+    error "Missing OpenCore Drivers directory!" && exit 12
+  fi
+
+  if [ ! -d "$EFI_DIR/OC/Kexts" ]; then
+    error "Missing OpenCore Kexts directory!" && exit 12
+  fi
+
   return 0
 }
 
@@ -192,6 +200,21 @@ configureOpenCorePlist() {
 
 checkOpenCoreConfig() {
 
+  if [ ! -s "$CFG" ]; then
+    error "OpenCore config.plist is missing or empty!" && exit 12
+  fi
+
+  if ! python3 - "$CFG" <<'EOF'
+import plistlib
+import sys
+
+with open(sys.argv[1], "rb") as f:
+    plistlib.load(f)
+EOF
+  then
+    error "OpenCore config.plist is not valid XML/plist syntax!" && exit 12
+  fi
+
   if grep -qE 'W00000000001|M0000000000000001|00000000-0000-0000-0000-000000000000|ESIzRFVm' "$CFG"; then
     error "OpenCore config still contains unreplaced placeholders!" && exit 12
   fi
@@ -210,6 +233,19 @@ addVmHideKext() {
 
   mv "$OUT/kext/VMHide.kext" "$kexts"
   rm -rf "$OUT/kext"
+
+  return 0
+}
+
+checkVmHideKext() {
+
+  if [ ! -d "$EFI_DIR/OC/Kexts/VMHide.kext" ]; then
+    error "Failed to add VMHide.kext to OpenCore image!" && exit 12
+  fi
+
+  if [ ! -s "$EFI_DIR/OC/Kexts/VMHide.kext/Contents/Info.plist" ]; then
+    error "VMHide.kext is missing Contents/Info.plist!" && exit 12
+  fi
 
   return 0
 }
@@ -338,6 +374,7 @@ prepareOpenCoreImage() {
   configureOpenCorePlist
   checkOpenCoreConfig
   addVmHideKext
+  checkVmHideKext
   checkOpenCoreFiles
   buildOpenCoreImage
   checkOpenCoreImage
