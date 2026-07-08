@@ -22,7 +22,7 @@ MacOS inside a Docker container.
 - Near-native performance with KVM acceleration
 - Customizable CPU, memory, and storage allocation
 - USB passthrough and host folder sharing
-- Supports bridge, user-mode, macvlan, and macvtap networking
+- Supports NAT, user-mode, macvlan, and macvtap networking
 
 ## Usage  🐳
 
