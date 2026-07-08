@@ -193,6 +193,7 @@ configureOpenCorePlist() {
     sed -i '/<key>HideAuxiliary<\/key>/{n;s|<true/>|<false/>|}' "$CFG"
     sed -i '/<key>Timeout<\/key>/{n;s|<integer>[0-9]\+</integer>|<integer>60</integer>|}' "$CFG"
     sed -i '/<key>PickerMode<\/key>/{n;s|<string>[^<]*</string>|<string>External</string>|}' "$CFG"
+    sed -i '/<key>PointerSupport<\/key>/{n;s|<false/>|<true/>|}' "$CFG"
   fi
 
   return 0
