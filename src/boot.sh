@@ -138,6 +138,31 @@ extractOpenCore() {
   return 0
 }
 
+checkOpenCoreFiles() {
+
+  if [ ! -s "$EFI_DIR/BOOT/BOOTx64.efi" ]; then
+    error "Missing OpenCore BOOTx64.efi!" && exit 12
+  fi
+
+  if [ ! -s "$EFI_DIR/OC/OpenCore.efi" ]; then
+    error "Missing OpenCore.efi!" && exit 12
+  fi
+
+  if [ ! -s "$EFI_DIR/OC/config.plist" ]; then
+    error "Missing OpenCore config.plist!" && exit 12
+  fi
+
+  if [ ! -d "$EFI_DIR/OC/Drivers" ]; then
+    error "Missing OpenCore Drivers directory!" && exit 12
+  fi
+
+  if [ ! -d "$EFI_DIR/OC/Kexts" ]; then
+    error "Missing OpenCore Kexts directory!" && exit 12
+  fi
+
+  return 0
+}
+
 configureOpenCorePlist() {
 
   local brom
@@ -164,10 +189,83 @@ configureOpenCorePlist() {
 
   # Show boot picker if requested
   if enabled "$PICKER"; then
-    sed -i '/<key>ShowPicker<\/key>/{n;s/<false\/>/<true\/>/}' "$CFG"
-    sed -i '/<key>HideAuxiliary<\/key>/{n;s/<true\/>/<false\/>/}' "$CFG"
-    sed -i '/<key>Timeout<\/key>/{n;s/<integer>[0-9]\+<\/integer>/<integer>10<\/integer>/}' "$CFG"
-    sed -i '/<key>PickerMode<\/key>/{n;s/<string>External<\/string>/<string>Builtin<\/string>/}' "$CFG"
+    sed -i '/<key>ShowPicker<\/key>/{n;s|<false/>|<true/>|}' "$CFG"
+    sed -i '/<key>HideAuxiliary<\/key>/{n;s|<true/>|<false/>|}' "$CFG"
+    sed -i '/<key>Timeout<\/key>/{n;s|<integer>[0-9]\+</integer>|<integer>60</integer>|}' "$CFG"
+    sed -i '/<key>PickerMode<\/key>/{n;s|<string>[^<]*</string>|<string>Builtin</string>|}' "$CFG"
+  fi
+
+  return 0
+}
+
+checkGeneratedIdentity() {
+
+  if [[ ! "$SN" =~ ^[A-Z0-9]{11,12}$ ]]; then
+    error "Generated serial has unexpected format: $SN" && exit 12
+  fi
+
+  if [[ ! "$MLB" =~ ^[A-Z0-9]{13,17}$ ]]; then
+    error "Generated board serial has unexpected format: $MLB" && exit 12
+  fi
+
+  if [[ ! "$UUID" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]]; then
+    error "Generated UUID has unexpected format: $UUID" && exit 12
+  fi
+
+  if [[ ! "$ROM" =~ ^[0-9a-f]{12}$ ]]; then
+    error "Generated ROM has unexpected format: $ROM" && exit 12
+  fi
+
+  return 0
+}
+
+checkOpenCoreConfig() {
+
+  if [ ! -s "$CFG" ]; then
+    error "OpenCore config.plist is missing or empty!" && exit 12
+  fi
+
+  info "Validating OpenCore config..."
+
+  if ! python3 - "$CFG" "$MODEL" "$SN" "$MLB" "$UUID" "$ROM" <<'EOF'
+import plistlib
+import sys
+
+path, model, serial, board, uuid, rom = sys.argv[1:]
+
+with open(path, "rb") as f:
+    data = plistlib.load(f)
+
+try:
+    generic = data["PlatformInfo"]["Generic"]
+except KeyError as e:
+    print(f"Missing PlatformInfo/Generic key: {e}", file=sys.stderr)
+    sys.exit(1)
+
+checks = {
+    "SystemProductName": model,
+    "SystemSerialNumber": serial,
+    "MLB": board,
+    "SystemUUID": uuid,
+}
+
+for key, expected in checks.items():
+    actual = generic.get(key)
+    if actual != expected:
+        print(f"{key} is {actual!r}, expected {expected!r}", file=sys.stderr)
+        sys.exit(1)
+
+actual_rom = generic.get("ROM")
+if not isinstance(actual_rom, bytes):
+    print("ROM is not plist data", file=sys.stderr)
+    sys.exit(1)
+
+if actual_rom.hex().lower() != rom.lower():
+    print(f"ROM is {actual_rom.hex()}, expected {rom}", file=sys.stderr)
+    sys.exit(1)
+EOF
+  then
+    error "OpenCore config.plist does not contain the generated machine identity!" && exit 12
   fi
 
   return 0
@@ -203,6 +301,9 @@ buildOpenCoreImage() {
   local sector_count
   local partition_file
 
+  msg="Creating OpenCore boot disk"
+  info "$msg..." && html "$msg..."
+
   image_size=$(( size_mb*1024*1024 ))
   partition_offset=$(( start_sector*sector_size ))
   usable_size=$(( image_size-(first_lba*sector_size) ))
@@ -232,9 +333,23 @@ buildOpenCoreImage() {
   echo "drive c: file=\"$IMG\" partition=0 offset=$partition_offset" > /etc/mtools.conf
 
   mformat -F -M "$sector_size" -c "$cluster_size" -T "$sector_count" -v "EFI" "C:"
+
+  msg="Copying OpenCore files to boot disk"
+  info "$msg..." && html "$msg..."
+
   mcopy -bspmQ "$EFI_DIR" "C:"
 
   rm -rf "$OUT"
+
+  return 0
+}
+
+checkOpenCoreImage() {
+
+  if [ ! -s "$IMG" ]; then
+    rm -f "$IMG"
+    error "OpenCore image was not created or is empty!" && exit 11
+  fi
 
   return 0
 }
@@ -287,27 +402,30 @@ prepareOpenCoreImage() {
   fi
 
   if [ -s "$target" ]; then
-    info "Rebuilding OpenCore boot image due to configuration changes..."
+    msg="Rebuilding OpenCore boot image due to configuration changes..."
   else
     msg="Building OpenCore boot image"
-    info "$msg..." && html "$msg..."
   fi
+
+  info "$msg..." && html "$msg..."
 
   FILE="OpenCore.img"
   IMG="/tmp/$FILE"
   rm -f "$IMG"
 
   extractOpenCore
+  checkOpenCoreFiles
   configureOpenCorePlist
+  checkGeneratedIdentity
+  checkOpenCoreConfig
   addVmHideKext
+  checkOpenCoreFiles
   buildOpenCoreImage
-
-  if [ ! -s "$IMG" ]; then
-    rm -f "$IMG" "$signature"
-    error "OpenCore image was not created or is empty!" && exit 11
-  fi
-
+  checkOpenCoreImage
   printMachineDetails
+
+  msg="Saving OpenCore boot image"
+  info "$msg..." && html "$msg..."
 
   if ! mv -f "$IMG" "$target"; then
     rm -f "$IMG" "$signature"
