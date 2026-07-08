@@ -54,6 +54,70 @@ delay() {
   return 0
 }
 
+checkDownloadSize() {
+
+  local file="$1"
+  local url="$2"
+  local token="$3"
+  local expected=""
+  local actual=""
+
+  if ! expected=$(curl --disable -fsSI \
+      -H "Host: oscdn.apple.com" \
+      -H "Connection: close" \
+      -A "InternetRecovery/1.0" \
+      -H "Cookie: AssetToken=${token}" \
+      "$url" \
+      | awk 'tolower($1) == "content-length:" {gsub("\r","",$2); print $2; exit}'); then
+    warn "Could not verify recovery image size."
+    return 0
+  fi
+
+  if [ -z "$expected" ]; then
+    warn "Could not determine expected recovery image size."
+    return 0
+  fi
+
+  actual=$(stat -c%s "$file")
+
+  if [ "$actual" -ne "$expected" ]; then
+    error "Downloaded recovery image is incomplete: got $(formatBytes "$actual"), expected $(formatBytes "$expected")."
+    return 1
+  fi
+
+  return 0
+}
+
+checkDmgImage() {
+
+  local file="$1"
+  local size
+
+  if [ ! -s "$file" ]; then
+    error "Downloaded recovery image is missing or empty!"
+    return 1
+  fi
+
+  size=$(stat -c%s "$file")
+
+  if [ "$size" -lt 100000000 ]; then
+    error "Downloaded recovery image is too small: $(formatBytes "$size")"
+    return 1
+  fi
+
+  if ! qemu-img info "$file" >/dev/null; then
+    error "Downloaded recovery image is not a valid disk image!"
+    return 1
+  fi
+
+  if ! qemu-img check "$file" >/dev/null; then
+    error "Downloaded recovery image failed integrity check!"
+    return 1
+  fi
+
+  return 0
+}
+
 function download() {
 
   local info=""
@@ -65,7 +129,7 @@ function download() {
   local downloadLink=""
   local downloadSession=""
   local mlb="00000000000000000"
-  local rc total size progress
+  local rc progress
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -127,11 +191,17 @@ function download() {
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$dest" ]; then
-    total=$(stat -c%s "$dest")
-    size=$(formatBytes "$total")
-    if [ "$total" -lt 100000 ]; then
-      error "Invalid recovery image, file is only $size ?" && return 1
+
+    if ! checkDownloadSize "$dest" "$downloadLink" "$downloadSession"; then
+      rm -f "$dest"
+      return 1
     fi
+
+    if ! checkDmgImage "$dest"; then
+      rm -f "$dest"
+      return 1
+    fi
+
     html "Download finished successfully..."
     return 0
   fi
@@ -185,6 +255,12 @@ install() {
       error "Failed to copy bundled recovery image to $dest."
       return 1
     fi
+
+    if ! checkDmgImage "$dest"; then
+      rm -f "$dest"
+      return 1
+    fi
+
     return 0
   fi
 
