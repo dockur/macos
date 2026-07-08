@@ -262,7 +262,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
   In Finder’s menu bar, click on “Go – Computer” to access this shared folder, it will show the contents of `./example`.
-  
+
+### Are these all available options?
+
+No. For a complete overview of all supported settings, see the [environment variables](docs/environment.md) page.
+
 ### How do I verify if my system supports KVM?
 
   First check if your software is compatible using this chart:
