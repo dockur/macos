@@ -2,23 +2,25 @@
 
 This page lists all the environment variables that can be used to configure the container.
 
-## 💿 Image
+## 🍎 macOS
 
 | Variable | Default | Description |
 |---|---|---|
-| `BOOT` | `alpine` | Image to boot, for example `alpine`, `ubuntu`, `debian`, or a direct URL to an ISO/image file. |
+| `VERSION` | `14` | macOS version to install, for example `14` or `sonoma`. |
+| `MODEL` | `iMacPro1,1` | Mac model identifier used for OpenCore. |
+| `SN` |  | Mac serial number. Generated automatically when unset. |
+| `MLB` |  | Mac board serial number. Generated automatically when unset. |
+| `UUID` |  | Mac system UUID. Generated automatically when unset. |
 
 ## 🧠 CPU and Memory
 
 | Variable | Default | Description |
 |---|---|---|
-| `CPU_CORES` | `2` | Number of CPU cores assigned to the VM. Can also be set to `max` or `half`. |
-| `CPU_MODEL` | `host` | QEMU CPU model to use. |
+| `CPU_CORES` | `1` | Number of CPU cores assigned to the VM. Can also be set to `max` or `half`. |
+| `CPU_MODEL` | `Skylake-Client-v4` | QEMU CPU model to use. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. Set to `N` to disable. |
-| `VMX` | `N` | Exposes Intel VMX virtualization extensions to the guest. |
-| `HV` | `Y` | Enables Hyper-V enlightenments for Windows. |
-| `RAM_SIZE` | `2G` | Amount of RAM assigned to the VM, for example `2G`, `4G`, `max`, or `half`. |
+| `RAM_SIZE` | `4G` | Amount of RAM assigned to the VM, for example `4G`, `8G`, `max`, or `half`. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting the VM. |
 
 ## ⚙️ System
@@ -26,24 +28,19 @@ This page lists all the environment variables that can be used to configure the 
 | Variable | Default | Description |
 |---|---|---|
 | `MACHINE` | `q35` | QEMU machine type. |
-| `UUID` |  | QEMU VM UUID. |
 | `HPET` | `off` | Enables or disables the QEMU HPET timer. |
 | `VMPORT` | `off` | Enables or disables the QEMU VMware port. |
-| `SM_BIOS` |  | Additional SMBIOS arguments passed to QEMU. |
 | `ARGUMENTS` |  | Additional raw QEMU arguments appended to the generated command line. |
 
 ## 🚀 Boot
 
 | Variable | Default | Description |
 |---|---|---|
-| `BOOT_MODE` | `uefi` | Boot mode, for example `uefi`, `secure` or `legacy`. |
-| `BOOT_INDEX` | `9` | Boot priority index for the boot media. |
-| `BIOS` |  | Custom BIOS/firmware file. Setting this enables custom boot mode. |
-| `TPM` | `N` | Enables TPM support. |
-| `SMM` | `N` | Enables SMM/secure-machine support. |
+| `PICKER` | `N` | Shows the OpenCore boot picker. |
+| `SECURE` | `off` | QEMU secure boot flag. |
 | `LOGO` | `Y` | Enables the custom boot logo. |
-| `CLEAR` | `N` | Clears the firmware/NVRAM variables on the next boot. |
-| `USB` | `qemu-xhci,id=xhci,p2=7,p3=7` | QEMU USB controller setting. Set to a `no*` value to disable. |
+| `BOOT_INDEX` | `9` | Boot priority index for the OpenCore boot media. |
+| `USB` | `nec-usb-xhci,id=xhci -device usb-kbd,bus=xhci.0 -global nec-usb-xhci.msi=off` | QEMU USB controller setting. Set to a `no*` value to disable. |
 
 ## 💾 Storage
 
@@ -51,7 +48,7 @@ This page lists all the environment variables that can be used to configure the 
 |---|---|---|
 | `DISK_SIZE` | `64G` | Size of the main data disk. |
 | `DISK_FMT` | `raw` | Disk image format, usually `raw` or `qcow2`. |
-| `DISK_TYPE` | `scsi` | Disk controller/device type, such as `sata`, `scsi`, `nvme`, or `blk`. |
+| `DISK_TYPE` | `blk` | Disk controller/device type, such as `sata`, `scsi`, `nvme`, or `blk`. |
 | `DISK_CACHE` | `none` | QEMU disk cache mode, for example `none` or `writeback`. |
 | `DISK_IO` | `native` | QEMU disk I/O mode, for example `native`, `threads`, or `io_uring`. |
 | `DISK_DISCARD` | `unmap` | Enables TRIM/unmap support for the data disk. |
@@ -67,8 +64,8 @@ This page lists all the environment variables that can be used to configure the 
 | `NETWORK` | `Y` | Network mode. Common values are `Y` for NAT, `passt`, `slirp`, or `N` to disable networking. |
 | `DHCP` | `N` | Enables DHCP/macvtap mode so the VM receives an address from the external LAN. |
 | `IP` |  | Guest IP address override. |
-| `MAC` |  | Guest network adapter MAC address. |
-| `HOST` | `QEMU` | Hostname assigned to the VM. |
+| `MAC` |  | Guest network adapter MAC address. Generated automatically when unset. |
+| `HOST` | `macOS` | Hostname assigned to the VM. |
 | `DEV` | `eth0` | Host/container network interface to use. |
 | `MTU` |  | Network MTU to use for the guest interface. |
 | `MASK` | `255.255.255.0` | IPv4 netmask. |
@@ -87,8 +84,10 @@ This page lists all the environment variables that can be used to configure the 
 
 | Variable | Default | Description |
 |---|---|---|
+| `WIDTH` | `1920` | Display width configured for macOS/OpenCore. |
+| `HEIGHT` | `1080` | Display height configured for macOS/OpenCore. |
 | `DISPLAY` | `web` | Display backend. Common values are `web`, `vnc`, `disabled`, or `none`. |
-| `VGA` | `virtio` | QEMU video adapter model. |
+| `VGA` | `vmware` | QEMU video adapter model. |
 | `GPU` | `N` | Enables Intel iGPU acceleration. Experimental. |
 | `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
 
@@ -124,7 +123,7 @@ This page lists all the environment variables that can be used to configure the 
 | Variable | Default | Description |
 |---|---|---|
 | `SHUTDOWN` | `Y` | Enables graceful ACPI shutdown. |
-| `TIMEOUT` | `13` | Timeout used while waiting for the VM to shut down. |
+| `TIMEOUT` | `115` | Timeout used while waiting for the VM to shut down. |
 
 ## 🐞 Debugging
 
