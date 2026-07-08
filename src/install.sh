@@ -112,13 +112,6 @@ checkDmgImage() {
     return 1
   fi
 
-  info "Verifying recovery image integrity..."
-
-  if ! 7z t "$file" >/dev/null; then
-    error "Downloaded recovery image failed integrity test!"
-    return 1
-  fi
-
   return 0
 }
 
@@ -195,8 +188,6 @@ function download() {
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$dest" ]; then
-
-    html "Verifying recovery image integrity..."
 
     if ! checkDownloadSize "$dest" "$downloadLink" "$downloadSession"; then
       rm -f "$dest"
