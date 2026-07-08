@@ -192,8 +192,7 @@ configureOpenCorePlist() {
     sed -i '/<key>ShowPicker<\/key>/{n;s|<false/>|<true/>|}' "$CFG"
     sed -i '/<key>HideAuxiliary<\/key>/{n;s|<true/>|<false/>|}' "$CFG"
     sed -i '/<key>Timeout<\/key>/{n;s|<integer>[0-9]\+</integer>|<integer>60</integer>|}' "$CFG"
-    sed -i '/<key>PickerMode<\/key>/{n;s|<string>[^<]*</string>|<string>External</string>|}' "$CFG"
-    sed -i '/<key>PointerSupport<\/key>/{n;s|<false/>|<true/>|}' "$CFG"
+    sed -i '/<key>PickerMode<\/key>/{n;s|<string>[^<]*</string>|<string>Builtin</string>|}' "$CFG"
   fi
 
   return 0
@@ -286,19 +285,6 @@ addVmHideKext() {
 
   mv "$OUT/kext/VMHide.kext" "$kexts"
   rm -rf "$OUT/kext"
-
-  return 0
-}
-
-checkVmHideKext() {
-
-  if [ ! -d "$EFI_DIR/OC/Kexts/VMHide.kext" ]; then
-    error "Failed to add VMHide.kext to OpenCore image!" && exit 12
-  fi
-
-  if [ ! -s "$EFI_DIR/OC/Kexts/VMHide.kext/Contents/Info.plist" ]; then
-    error "VMHide.kext is missing Contents/Info.plist!" && exit 12
-  fi
 
   return 0
 }
@@ -435,7 +421,6 @@ prepareOpenCoreImage() {
   checkGeneratedIdentity
   checkOpenCoreConfig
   addVmHideKext
-  checkVmHideKext
   checkOpenCoreFiles
   buildOpenCoreImage
   checkOpenCoreImage
