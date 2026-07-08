@@ -174,7 +174,6 @@ configureUsb() {
 
   USB="nec-usb-xhci,id=xhci"
   USB+=" -device usb-kbd,bus=xhci.0"
-  USB+=" -device usb-mouse,bus=xhci.0"
   USB+=" -global nec-usb-xhci.msi=off"
 
   return 0
