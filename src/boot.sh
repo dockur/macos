@@ -189,10 +189,10 @@ configureOpenCorePlist() {
 
   # Show boot picker if requested
   if enabled "$PICKER"; then
-    sed -i '/<key>ShowPicker<\/key>/{n;s/<false\/>/<true\/>/}' "$CFG"
-    sed -i '/<key>HideAuxiliary<\/key>/{n;s/<true\/>/<false\/>/}' "$CFG"
-    sed -i '/<key>Timeout<\/key>/{n;s/<integer>[0-9]\+<\/integer>/<integer>10<\/integer>/}' "$CFG"
-    sed -i '/<key>PickerMode<\/key>/{n;s/<string>External<\/string>/<string>Builtin<\/string>/}' "$CFG"
+    sed -i '/<key>ShowPicker<\/key>/{n;s|<false/>|<true/>|}' "$CFG"
+    sed -i '/<key>HideAuxiliary<\/key>/{n;s|<true/>|<false/>|}' "$CFG"
+    sed -i '/<key>Timeout<\/key>/{n;s|<integer>[0-9]\+</integer>|<integer>60</integer>|}' "$CFG"
+    sed -i '/<key>PickerMode<\/key>/{n;s|<string>[^<]*</string>|<string>External</string>|}' "$CFG"
   fi
 
   return 0
