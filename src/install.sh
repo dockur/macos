@@ -92,6 +92,7 @@ checkDmgImage() {
 
   local file="$1"
   local size
+  local output=""
 
   if [ ! -s "$file" ]; then
     error "Downloaded recovery image is missing or empty!"
@@ -110,7 +111,12 @@ checkDmgImage() {
     return 1
   fi
 
-  if ! qemu-img check "$file" >/dev/null; then
+  if ! output=$(qemu-img check "$file" 2>&1); then
+    if [[ "$output" == *"does not support checks"* ]]; then
+      return 0
+    fi
+
+    echo "$output"
     error "Downloaded recovery image failed integrity check!"
     return 1
   fi
