@@ -276,9 +276,6 @@ addVmHideKext() {
   # Add kext to disable VM detection
   local kexts="$EFI_DIR/OC/Kexts"
 
-  msg="Adding VMHide kext"
-  info "$msg..." && html "$msg..."
-
   if ! 7z x /vmh.zip -o"$OUT/kext" > /dev/null; then
     error "Failed to extract kext archive!" && exit 11
   fi
@@ -405,11 +402,12 @@ prepareOpenCoreImage() {
   fi
 
   if [ -s "$target" ]; then
-    info "Rebuilding OpenCore boot image due to configuration changes..."
+    msg="Rebuilding OpenCore boot image due to configuration changes..."
   else
     msg="Building OpenCore boot image"
-    info "$msg..." && html "$msg..."
   fi
+
+  info "$msg..." && html "$msg..."
 
   FILE="OpenCore.img"
   IMG="/tmp/$FILE"
