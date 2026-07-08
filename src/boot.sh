@@ -198,6 +198,27 @@ configureOpenCorePlist() {
   return 0
 }
 
+checkGeneratedIdentity() {
+
+  if [[ ! "$SN" =~ ^[A-Z0-9]{11,12}$ ]]; then
+    error "Generated serial has unexpected format: $SN" && exit 12
+  fi
+
+  if [[ ! "$MLB" =~ ^[A-Z0-9]{13,17}$ ]]; then
+    error "Generated board serial has unexpected format: $MLB" && exit 12
+  fi
+
+  if [[ ! "$UUID" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]]; then
+    error "Generated UUID has unexpected format: $UUID" && exit 12
+  fi
+
+  if [[ ! "$ROM" =~ ^[0-9a-f]{12}$ ]]; then
+    error "Generated ROM has unexpected format: $ROM" && exit 12
+  fi
+
+  return 0
+}
+
 checkOpenCoreConfig() {
 
   if [ ! -s "$CFG" ]; then
@@ -410,6 +431,7 @@ prepareOpenCoreImage() {
   extractOpenCore
   checkOpenCoreFiles
   configureOpenCorePlist
+  checkGeneratedIdentity
   checkOpenCoreConfig
   addVmHideKext
   checkVmHideKext
