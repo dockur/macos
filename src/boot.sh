@@ -138,6 +138,23 @@ extractOpenCore() {
   return 0
 }
 
+checkOpenCoreFiles() {
+
+  if [ ! -s "$EFI_DIR/BOOT/BOOTx64.efi" ]; then
+    error "Missing OpenCore BOOTx64.efi!" && exit 12
+  fi
+
+  if [ ! -s "$EFI_DIR/OC/OpenCore.efi" ]; then
+    error "Missing OpenCore.efi!" && exit 12
+  fi
+
+  if [ ! -s "$EFI_DIR/OC/config.plist" ]; then
+    error "Missing OpenCore config.plist!" && exit 12
+  fi
+
+  return 0
+}
+
 configureOpenCorePlist() {
 
   local brom
@@ -168,6 +185,15 @@ configureOpenCorePlist() {
     sed -i '/<key>HideAuxiliary<\/key>/{n;s/<true\/>/<false\/>/}' "$CFG"
     sed -i '/<key>Timeout<\/key>/{n;s/<integer>[0-9]\+<\/integer>/<integer>10<\/integer>/}' "$CFG"
     sed -i '/<key>PickerMode<\/key>/{n;s/<string>External<\/string>/<string>Builtin<\/string>/}' "$CFG"
+  fi
+
+  return 0
+}
+
+checkOpenCoreConfig() {
+
+  if grep -qE 'W00000000001|M0000000000000001|00000000-0000-0000-0000-000000000000|ESIzRFVm' "$CFG"; then
+    error "OpenCore config still contains unreplaced placeholders!" && exit 12
   fi
 
   return 0
@@ -239,6 +265,16 @@ buildOpenCoreImage() {
   return 0
 }
 
+checkOpenCoreImage() {
+
+  if [ ! -s "$IMG" ]; then
+    rm -f "$IMG"
+    error "OpenCore image was not created or is empty!" && exit 11
+  fi
+
+  return 0
+}
+
 printMachineDetails() {
 
   info ""
@@ -298,15 +334,13 @@ prepareOpenCoreImage() {
   rm -f "$IMG"
 
   extractOpenCore
+  checkOpenCoreFiles
   configureOpenCorePlist
+  checkOpenCoreConfig
   addVmHideKext
+  checkOpenCoreFiles
   buildOpenCoreImage
-
-  if [ ! -s "$IMG" ]; then
-    rm -f "$IMG" "$signature"
-    error "OpenCore image was not created or is empty!" && exit 11
-  fi
-
+  checkOpenCoreImage
   printMachineDetails
 
   if ! mv -f "$IMG" "$target"; then
