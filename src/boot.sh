@@ -204,19 +204,45 @@ checkOpenCoreConfig() {
     error "OpenCore config.plist is missing or empty!" && exit 12
   fi
 
-  if ! python3 - "$CFG" <<'EOF'
+  if ! python3 - "$CFG" "$MODEL" "$SN" "$MLB" "$UUID" "$ROM" <<'EOF'
 import plistlib
 import sys
 
-with open(sys.argv[1], "rb") as f:
-    plistlib.load(f)
+path, model, serial, board, uuid, rom = sys.argv[1:]
+
+with open(path, "rb") as f:
+    data = plistlib.load(f)
+
+try:
+    generic = data["PlatformInfo"]["Generic"]
+except KeyError as e:
+    print(f"Missing PlatformInfo/Generic key: {e}", file=sys.stderr)
+    sys.exit(1)
+
+checks = {
+    "SystemProductName": model,
+    "SystemSerialNumber": serial,
+    "MLB": board,
+    "SystemUUID": uuid,
+}
+
+for key, expected in checks.items():
+    actual = generic.get(key)
+    if actual != expected:
+        print(f"{key} is {actual!r}, expected {expected!r}", file=sys.stderr)
+        sys.exit(1)
+
+actual_rom = generic.get("ROM")
+if not isinstance(actual_rom, bytes):
+    print("ROM is not plist data", file=sys.stderr)
+    sys.exit(1)
+
+if actual_rom.hex().lower() != rom.lower():
+    print(f"ROM is {actual_rom.hex()}, expected {rom}", file=sys.stderr)
+    sys.exit(1)
 EOF
   then
-    error "OpenCore config.plist is not valid XML/plist syntax!" && exit 12
-  fi
-
-  if grep -qE 'W00000000001|M0000000000000001|00000000-0000-0000-0000-000000000000|ESIzRFVm' "$CFG"; then
-    error "OpenCore config still contains unreplaced placeholders!" && exit 12
+    error "OpenCore config.plist does not contain the generated machine identity!" && exit 12
   fi
 
   return 0
