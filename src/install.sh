@@ -196,6 +196,8 @@ function download() {
 
   if (( rc == 0 )) && [ -f "$dest" ]; then
 
+    html "Verifying recovery image integrity..."
+
     if ! checkDownloadSize "$dest" "$downloadLink" "$downloadSession"; then
       rm -f "$dest"
       return 1
