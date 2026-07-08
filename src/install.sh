@@ -105,10 +105,14 @@ checkDmgImage() {
     return 1
   fi
 
+  info "Checking recovery image format..."
+
   if ! qemu-img info "$file" >/dev/null; then
     error "Downloaded recovery image is not a valid disk image!"
     return 1
   fi
+
+  info "Verifying recovery image integrity..."
 
   if ! 7z t "$file" >/dev/null; then
     error "Downloaded recovery image failed integrity test!"
