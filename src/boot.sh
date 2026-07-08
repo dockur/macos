@@ -204,6 +204,8 @@ checkOpenCoreConfig() {
     error "OpenCore config.plist is missing or empty!" && exit 12
   fi
 
+  info "Validating OpenCore config..."
+
   if ! python3 - "$CFG" "$MODEL" "$SN" "$MLB" "$UUID" "$ROM" <<'EOF'
 import plistlib
 import sys
@@ -253,6 +255,9 @@ addVmHideKext() {
   # Add kext to disable VM detection
   local kexts="$EFI_DIR/OC/Kexts"
 
+  msg="Adding VMHide kext"
+  info "$msg..." && html "$msg..."
+
   if ! 7z x /vmh.zip -o"$OUT/kext" > /dev/null; then
     error "Failed to extract kext archive!" && exit 11
   fi
@@ -291,6 +296,9 @@ buildOpenCoreImage() {
   local sector_count
   local partition_file
 
+  msg="Creating OpenCore boot disk"
+  info "$msg..." && html "$msg..."
+
   image_size=$(( size_mb*1024*1024 ))
   partition_offset=$(( start_sector*sector_size ))
   usable_size=$(( image_size-(first_lba*sector_size) ))
@@ -320,6 +328,10 @@ buildOpenCoreImage() {
   echo "drive c: file=\"$IMG\" partition=0 offset=$partition_offset" > /etc/mtools.conf
 
   mformat -F -M "$sector_size" -c "$cluster_size" -T "$sector_count" -v "EFI" "C:"
+
+  msg="Copying OpenCore files to boot disk"
+  info "$msg..." && html "$msg..."
+
   mcopy -bspmQ "$EFI_DIR" "C:"
 
   rm -rf "$OUT"
@@ -405,6 +417,9 @@ prepareOpenCoreImage() {
   buildOpenCoreImage
   checkOpenCoreImage
   printMachineDetails
+
+  msg="Saving OpenCore boot image"
+  info "$msg..." && html "$msg..."
 
   if ! mv -f "$IMG" "$target"; then
     rm -f "$IMG" "$signature"
