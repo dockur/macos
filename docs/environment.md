@@ -17,7 +17,7 @@ This page lists all the environment variables that can be used to configure the 
 | Variable | Default | Description |
 |---|---|---|
 | `CPU_CORES` | `1` | Number of CPU cores assigned to the VM. Can also be set to `max` or `half`. |
-| `CPU_MODEL` | `Skylake-Client-v4` | QEMU CPU model to use. |
+| `CPU_MODEL` |  | QEMU CPU model to use. Automatically selected for Intel/AMD when unset. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. Set to `N` to disable. |
 | `RAM_SIZE` | `4G` | Amount of RAM assigned to the VM, for example `4G`, `8G`, `max`, or `half`. |
