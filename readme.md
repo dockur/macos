@@ -167,9 +167,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
 > [!IMPORTANT]  
-> On AMD systems do NOT enable multiple cores  (or at least not until the installation has finished completely and you experienced it running normally for some hours). Because it may actually decrease performance instead or cause other issues like random crashes, all depending on your AMD CPU model.
+> On AMD systems, avoid assigning multiple CPU cores or more than 8 GB of RAM initially. Depending on the specific AMD CPU model, multiple cores may reduce performance or cause instability, while more than 8 GB of RAM may cause the installation to freeze at the country selection step. Increase the RAM only after installation, and the core count only after macOS has been running reliably for several hours.
 >
->  If you have an Intel processor you can adjust the amount of cores immediately from the start, it is much more compatible with macOS.
+> Intel processors offer much better macOS compatibility, so multiple cores and more RAM can be assigned from the start without causing these issues.
 
 ### How do I assign an individual IP address to the container?
 
