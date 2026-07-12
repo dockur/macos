@@ -387,14 +387,11 @@ prepareOpenCoreImage() {
   local current=""
   local previous=""
   local target="$STORAGE/boot.img"
-  local signature="$STORAGE/boot.sig"
+  local signature
 
+  signature=$(stateFile "sig" "boot") || exit 11
   current=$(openCoreSignature)
-
-  if [ -s "$signature" ]; then
-    previous=$(<"$signature")
-    previous="${previous//[![:print:]]/}"
-  fi
+  previous=$(readState "sig" "boot") || exit 11
 
   if [ -s "$target" ] && [ "$previous" = "$current" ]; then
     IMG="$target"
@@ -439,11 +436,9 @@ prepareOpenCoreImage() {
 
   IMG="$target"
 
-  if ! echo "$current" > "$signature"; then
+  if ! writeState "sig" "$current" "boot"; then
     error "Failed to write OpenCore image signature to $signature" && exit 11
   fi
-
-  ! setOwner "$signature" && error "Failed to set the owner for \"$signature\" !"
 
   return 0
 }
