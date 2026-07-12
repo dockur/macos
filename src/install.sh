@@ -184,7 +184,6 @@ function download() {
   /run/progress.sh "$dest" "0" "$msg ([P])..." &
 
   { wget "$downloadLink" -O "$dest" -q --header "Host: oscdn.apple.com" --header "Connection: close" --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}" --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
-
   fKill "progress.sh"
 
   if (( rc == 0 )) && [ -f "$dest" ]; then
@@ -281,65 +280,42 @@ install() {
 
 generateID() {
 
-  local file="$STORAGE/$PROCESS.id"
+  restoreState UUID "id" || return 1
 
   [ -n "$UUID" ] && return 0
-  [ -s "$file" ] && UUID=$(<"$file")
-  UUID="${UUID//[![:print:]]/}"
-  [ -n "$UUID" ] && return 0
 
-  if ! UUID=$(cat /proc/sys/kernel/random/uuid 2> /dev/null || uuidgen --random); then
+  if ! UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen --random); then
     return 1
   fi
 
   UUID="${UUID^^}"
   UUID="${UUID//[![:print:]]/}"
 
-  if [ -z "$UUID" ]; then
-    return 1
-  fi
+  [ -z "$UUID" ] && return 1
 
-  if ! echo "$UUID" > "$file"; then
-    return 1
-  fi
-
-  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
-
-  return 0
+  writeState "id" "$UUID"
+  return $?
 }
 
 generateAddress() {
 
-  local file="$STORAGE/$PROCESS.mac"
+  restoreState MAC "mac" || return 1
 
-  [ -n "$MAC" ] && return 0
-  [ -s "$file" ] && MAC=$(<"$file")
-  MAC="${MAC//[![:print:]]/}"
   [ -n "$MAC" ] && return 0
 
   # Generate Apple MAC address based on UUID value
   MAC=$(echo "$UUID" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
   MAC="${MAC^^}"
 
-  if ! echo "$MAC" > "$file"; then
-    return 1
-  fi
-  
-  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
-
-  return 0
+  writeState "mac" "$MAC"
+  return $?
 }
 
 generateSerial() {
 
-  local file="$STORAGE/$PROCESS.sn"
-  local file2="$STORAGE/$PROCESS.mlb"
+  restoreState SN "sn" || return 1
+  restoreState MLB "mlb" || return 1
 
-  [ -n "$SN" ] && [ -n "$MLB" ] && return 0
-  [ -s "$file" ] && SN=$(<"$file")
-  [ -s "$file2" ] && MLB=$(<"$file2")
-  SN="${SN//[![:print:]]/}"
-  MLB="${MLB//[![:print:]]/}"
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
   # Generate unique serial numbers for machine
@@ -353,16 +329,8 @@ generateSerial() {
   SN="${SN%%|*}"
   SN="${SN%"${SN##*[![:space:]]}"}"
 
-  if ! echo "$SN" > "$file"; then
-    return 1
-  fi
-
-  if ! echo "$MLB" > "$file2"; then
-    return 1
-  fi
-
-  ! setOwner "$file" && error "Failed to set the owner for \"$file\" !"
-  ! setOwner "$file2" && error "Failed to set the owner for \"$file2\" !"
+  writeState "sn" "$SN" || return 1
+  writeState "mlb" "$MLB" || return 1
 
   return 0
 }
