@@ -284,17 +284,16 @@ generateID() {
 
   [ -n "$UUID" ] && return 0
 
-  if ! UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen --random); then
-    return 1
-  fi
+  UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen --random) || return 1
 
   UUID="${UUID^^}"
   UUID="${UUID//[![:print:]]/}"
 
   [ -z "$UUID" ] && return 1
 
-  writeState "id" "$UUID"
-  return $?
+  writeState "id" "$UUID" || return 1
+
+  return 0
 }
 
 generateAddress() {
@@ -307,8 +306,9 @@ generateAddress() {
   MAC=$(echo "$UUID" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
   MAC="${MAC^^}"
 
-  writeState "mac" "$MAC"
-  return $?
+  writeState "mac" "$MAC" || return 1
+
+  return 0
 }
 
 generateSerial() {
