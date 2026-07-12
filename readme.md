@@ -21,6 +21,7 @@ MacOS inside a Docker container.
 - Web-based viewer for controlling the VM
 - Near-native performance with KVM acceleration
 - Customizable CPU, memory, and storage allocation
+- Dynamic memory allocation with memory ballooning
 - USB passthrough and host folder sharing
 - Supports NAT, user-mode, macvlan, and macvtap networking
 
