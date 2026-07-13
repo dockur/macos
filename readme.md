@@ -71,6 +71,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 - Docker or Podman on a Linux host with KVM support.
 - Docker Desktop or Podman (Desktop) on Windows 11 with nested virtualization enabled.
+- An AVX2-capable processor, such as Intel Haswell (4th-generation Core) or AMD Zen (Ryzen 1000 series) or newer.
 - At least 4 GB of available RAM.
 - At least 64 GB of free disk space.
 
