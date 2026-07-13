@@ -251,14 +251,14 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I enable audio?
 
-  Audio is disabled by default. To stream the guest's audio to the browser, add the following environment variable:
+  Audio is disabled by default. To stream it to the browser, add the following environment variable:
 
   ```yaml
   environment:
     AUDIO: "Y"
   ```
 
-  Then enable **Audio** under **Settings → Advanced** in the web viewer. Audio is only sent while enabled, so it uses no extra bandwidth otherwise.
+  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
 
 ### How do I share files with the host?
 
