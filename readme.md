@@ -174,6 +174,34 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 >
 > Intel processors offer much better macOS compatibility, so multiple cores and more RAM can be assigned from the start without causing these issues.
 
+### How do I enable audio?
+
+  Audio is disabled by default. To stream it to the browser, add the following environment variable:
+
+  ```yaml
+  environment:
+    AUDIO: "Y"
+  ```
+
+  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
+
+### How do I share files with the host?
+
+  To share files with the host, add the following volume to your compose file:
+
+  ```yaml
+  volumes:
+    - ./example:/shared
+  ```
+
+  Then start macOS and execute the following command:
+  
+  ```shell
+  sudo -S mount_9p shared
+  ```
+
+  In Finder’s menu bar, click on “Go – Computer” to access this shared folder, it will show the contents of `./example`.
+
 ### How do I assign an individual IP address to the container?
 
   By default, the container uses bridge networking, which shares the IP address with the host. 
@@ -249,33 +277,11 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
     - /dev/bus/usb
   ```
 
-### How do I enable audio?
+### How do I enable dynamic memory allocation?
 
-  Audio is disabled by default. To stream it to the browser, add the following environment variable:
+  By default, the VM is allocated the full amount of RAM configured via `RAM_SIZE` for its entire lifetime.
 
-  ```yaml
-  environment:
-    AUDIO: "Y"
-  ```
-
-  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
-
-### How do I share files with the host?
-
-  To share files with the host, add the following volume to your compose file:
-
-  ```yaml
-  volumes:
-    - ./example:/shared
-  ```
-
-  Then start macOS and execute the following command:
-  
-  ```shell
-  sudo -S mount_9p shared
-  ```
-
-  In Finder’s menu bar, click on “Go – Computer” to access this shared folder, it will show the contents of `./example`.
+  However, you can enable [memory ballooning](https://github.com/qemus/qemu/docs/ballooning.md) if you want the container to dynamically reclaim unused guest RAM based on host memory pressure.
 
 ### Are these all available options?
 
