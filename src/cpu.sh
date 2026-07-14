@@ -17,6 +17,15 @@ hasFlag() {
 
 }
 
+checkCpuFeatures() {
+
+  if ! hasFlag "avx2"; then
+    warn "This processor does not support AVX2. macOS versions newer than 13 require an Intel Haswell, AMD Zen, or newer processor."
+  fi
+
+  return 0
+}
+
 selectAmdCpuModel() {
 
   if [ -n "${CPU_MODEL:-}" ]; then
@@ -178,6 +187,8 @@ configureUsb() {
 
   return 0
 }
+
+checkCpuFeatures
 
 if needsAmdCpuProfile; then
   configureAmdCpu
