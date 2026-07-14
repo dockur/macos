@@ -101,7 +101,7 @@ This page lists all the environment variables that can be used to configure the 
 | `WSS_PORT` | `5700` | WebSocket port used by noVNC. |
 | `WSD_PORT` | `8004` | Internal websocketd port. |
 | `AUDIO` | `N` | Streams guest audio to the web viewer. |
-| `SOUND` | `intel-hda` | QEMU audio device used for browser audio. |
+| `SOUND` | `usb-audio` | QEMU audio device used for browser audio. |
 | `AUX_PORT` | `8003` | Internal WebSocket port used for browser audio. |
 | `PROTECT` | `N` | Enables password protection for the web interface. |
 
