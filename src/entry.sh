@@ -19,6 +19,7 @@ cd /run
 . install.sh    # Get the OSX images
 . disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
+. audio.sh      # Initialize audio
 . network.sh    # Initialize network
 . boot.sh       # Configure boot
 . cpu.sh        # Configure CPU model
