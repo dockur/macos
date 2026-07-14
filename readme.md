@@ -249,17 +249,6 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
     - /dev/bus/usb
   ```
 
-### How do I enable audio?
-
-  Audio is disabled by default. To stream it to the browser, add the following environment variable:
-
-  ```yaml
-  environment:
-    AUDIO: "Y"
-  ```
-
-  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
-
 ### How do I share files with the host?
 
   To share files with the host, add the following volume to your compose file:
@@ -276,6 +265,17 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
   In Finder’s menu bar, click on “Go – Computer” to access this shared folder, it will show the contents of `./example`.
+
+### How do I enable audio?
+
+  Audio is disabled by default. To stream it to the browser, add the following environment variable:
+
+  ```yaml
+  environment:
+    AUDIO: "Y"
+  ```
+
+  Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
 
 ### Are these all available options?
 
