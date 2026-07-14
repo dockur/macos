@@ -22,7 +22,7 @@ An empty default means the variable is unset and its value is determined automat
 | `CPU_MODEL` |  | QEMU CPU model. Selected automatically for Intel or AMD hosts when unset. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. |
-| `RAM_SIZE` | `4G` | Amount of RAM assigned to the VM, such as `8G`, `half`, or `max`. |
+| `RAM_SIZE` | `4G` | Amount of RAM assigned to macOS, such as `8G`, `half`, or `max`. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting macOS. |
 
 ## 💾 Storage
@@ -45,8 +45,8 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `NETWORK` |  | Network mode, such as `nat`, `passt`, `slirp`, or `N` to disable networking. |
-| `DHCP` | `N` | Enables macvtap networking so the VM receives an address from the external LAN through DHCP. |
-| `HOST` | `macOS` | Hostname assigned to the guest. |
+| `DHCP` | `N` | Enables macvtap networking so macOS receives an address from the external LAN through DHCP. |
+| `HOST` | `macOS` | Hostname assigned to macOS. |
 | `IP` |  | Overrides the automatically selected guest IPv4 address. |
 | `MAC` |  | Guest network adapter MAC address. Generated automatically when unset. |
 | `ADAPTER` | `virtio-net-pci` | QEMU network adapter model. |
