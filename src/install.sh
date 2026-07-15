@@ -126,7 +126,7 @@ function download() {
   local downloadLink=""
   local downloadSession=""
   local mlb="00000000000000000"
-  local rc progress
+  local rc=0 reason="" log progress
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -181,10 +181,28 @@ function download() {
   fi
 
   rm -f "$dest"
+  log=$(mktemp)
+
   /run/progress.sh "$dest" "0" "$msg ([P])..." &
 
-  { wget "$downloadLink" -O "$dest" -q --header "Host: oscdn.apple.com" --header "Connection: close" --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}" --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
+  {
+    LC_ALL=C wget "$downloadLink" -O "$dest" --no-verbose --timeout=30 \
+      --no-http-keep-alive --show-progress "$progress" --output-file="$log" \
+      --header "Host: oscdn.apple.com" --header "Connection: close" \
+      --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}"
+    rc=$?
+  } || :
+  
   fKill "progress.sh"
+
+  if (( rc != 0 )); then
+    reason=$(sed -n \
+      -e 's/^wget: //p' \
+      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
+      "$log" | tail -n 1)
+  fi
+
+  rm -f "$log"
 
   if (( rc == 0 )) && [ -f "$dest" ]; then
 
@@ -203,11 +221,15 @@ function download() {
   fi
 
   msg="Failed to download $downloadLink"
-  (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
-  (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
 
-  error "$msg , reason: $rc"
+  if (( rc == 3 )); then
+    error "$msg because the file could not be written (disk full?)."
+  elif [ -n "$reason" ]; then
+    error "$msg: ${reason%.}."
+  else
+    error "$msg with exit status $rc."
+  fi
+
   return 1
 }
 
