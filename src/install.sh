@@ -389,7 +389,7 @@ if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
 
   if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
     ! install "$VERSION" "$BASE_IMG" && exit 34
-    ! setOwner "$BASE_IMG" && error "Failed to set the owner for \"$BASE_IMG\" !"
+    ! setOwner "$BASE_IMG" && warn "failed to set the owner for \"$BASE_IMG\" !"
   fi
 
 fi
