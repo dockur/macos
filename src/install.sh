@@ -126,7 +126,8 @@ function download() {
   local downloadLink=""
   local downloadSession=""
   local mlb="00000000000000000"
-  local rc progress
+  local reason="" response=""
+  local rc=0 code log progress
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -140,35 +141,50 @@ function download() {
     return 1
   fi
 
-  info=$(curl --disable --max-time 60 -s -X POST -H "Host: osrecovery.apple.com" \
-                           -H "Connection: close" \
-                           -A "InternetRecovery/1.0" \
-                           -b "session=\"${appleSession}\"" \
-                           -H "Content-Type: text/plain" \
-                           -d $'cid='"$(getRandom 16)"$'\nsn='"${mlb}"$'\nbid='"${board}"$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='"${type}" \
-                           https://osrecovery.apple.com/InstallationPayload/RecoveryImage | tr ' ' '\n')
+  log=$(mktemp)
+  response=$(mktemp)
+
+  if curl --disable --max-time 60 --silent --show-error --fail-with-body \
+      --request POST \
+      --header "Host: osrecovery.apple.com" \
+      --header "Connection: close" \
+      --user-agent "InternetRecovery/1.0" \
+      --cookie "session=\"${appleSession}\"" \
+      --header "Content-Type: text/plain" \
+      --data $'cid='"$(getRandom 16)"$'\nsn='"${mlb}"$'\nbid='"${board}"$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='"${type}" \
+      --output "$response" \
+      https://osrecovery.apple.com/InstallationPayload/RecoveryImage \
+      2>"$log"; then
+    code=0
+  else
+    code=$?
+  fi
+
+  info=$(tr ' ' '\n' < "$response")
+  reason=$(sed -En 's/^curl: \([0-9]+\) //p' "$log" | tail -n 1)
+
+  rm -f "$response" "$log"
+
+  if (( code != 0 )); then
+
+    msg="Failed to connect to the Apple servers"
+
+    if [ -n "$reason" ]; then
+      error "$msg: ${reason%.}."
+    else
+      error "$msg with exit status $code."
+    fi
+
+    return 1
+  fi
 
   downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg' | head -n 1 || :)
   downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg' | head -n 1 || :)
 
   if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
 
-    local code="99"
-    msg="Failed to connect to the Apple servers, reason:"
-
-    curl --silent --max-time 10 --output /dev/null --fail -H "Host: osrecovery.apple.com" -H "Connection: close" -A "InternetRecovery/1.0" https://osrecovery.apple.com/ || {
-      code="$?"
-    }
-
-    case "${code,,}" in
-      "6" ) error "$msg could not resolve host!" ;;
-      "7" ) error "$msg no internet connection available!" ;;
-      "28" ) error "$msg connection timed out!" ;;
-      "99" )
-        [ -n "$info" ] && echo "$info" && echo
-        error "$msg unknown error" ;;
-      *) error "$msg $code" ;;
-    esac
+    [ -n "$info" ] && echo "$info" && echo
+    error "The Apple servers returned an unexpected response."
 
     return 1
   fi
@@ -181,10 +197,28 @@ function download() {
   fi
 
   rm -f "$dest"
+  log=$(mktemp)
+
   /run/progress.sh "$dest" "0" "$msg ([P])..." &
 
-  { wget "$downloadLink" -O "$dest" -q --header "Host: oscdn.apple.com" --header "Connection: close" --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}" --timeout=30 --no-http-keep-alive --show-progress "$progress"; rc=$?; } || :
+  {
+    LC_ALL=C wget "$downloadLink" -O "$dest" --no-verbose --timeout=30 \
+      --no-http-keep-alive --show-progress "$progress" --output-file="$log" \
+      --header "Host: oscdn.apple.com" --header "Connection: close" \
+      --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}"
+    rc=$?
+  } || :
+  
   fKill "progress.sh"
+
+  if (( rc != 0 )); then
+    reason=$(sed -n \
+      -e 's/^wget: //p' \
+      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
+      "$log" | tail -n 1)
+  fi
+
+  rm -f "$log"
 
   if (( rc == 0 )) && [ -f "$dest" ]; then
 
@@ -203,11 +237,15 @@ function download() {
   fi
 
   msg="Failed to download $downloadLink"
-  (( rc == 3 )) && error "$msg , cannot write file (disk full?)" && return 1
-  (( rc == 4 )) && error "$msg , network failure!" && return 1
-  (( rc == 8 )) && error "$msg , server issued an error response!" && return 1
 
-  error "$msg , reason: $rc"
+  if (( rc == 3 )); then
+    error "$msg because the file could not be written (disk full?)."
+  elif [ -n "$reason" ]; then
+    error "$msg: ${reason%.}."
+  else
+    error "$msg with exit status $rc."
+  fi
+
   return 1
 }
 
