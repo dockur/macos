@@ -232,7 +232,6 @@ function download() {
       return 1
     fi
 
-    html "Download finished successfully..."
     return 0
   fi
 
