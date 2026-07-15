@@ -57,21 +57,8 @@ delay() {
 checkDownloadSize() {
 
   local file="$1"
-  local url="$2"
-  local token="$3"
-  local expected=""
+  local expected="$2"
   local actual=""
-
-  if ! expected=$(curl --disable -fsSI \
-      -H "Host: oscdn.apple.com" \
-      -H "Connection: close" \
-      -A "InternetRecovery/1.0" \
-      -H "Cookie: AssetToken=${token}" \
-      "$url" \
-      | awk 'tolower($1) == "content-length:" {gsub("\r","",$2); print $2; exit}'); then
-    warn "Could not verify recovery image size."
-    return 0
-  fi
 
   if [ -z "$expected" ]; then
     warn "Could not determine expected recovery image size."
@@ -88,33 +75,6 @@ checkDownloadSize() {
   return 0
 }
 
-checkDmgImage() {
-
-  local file="$1"
-  local size
-
-  if [ ! -s "$file" ]; then
-    error "Downloaded recovery image is missing or empty!"
-    return 1
-  fi
-
-  size=$(stat -c%s "$file")
-
-  if [ "$size" -lt 100000000 ]; then
-    error "Downloaded recovery image is too small: $(formatBytes "$size")"
-    return 1
-  fi
-
-  info "Checking recovery image format..."
-
-  if ! qemu-img info "$file" >/dev/null; then
-    error "Downloaded recovery image is not a valid disk image!"
-    return 1
-  fi
-
-  return 0
-}
-
 function download() {
 
   local info=""
@@ -125,9 +85,12 @@ function download() {
   local appleSession=""
   local downloadLink=""
   local downloadSession=""
+  local expected=""
   local mlb="00000000000000000"
   local reason="" response=""
-  local rc=0 code log progress
+  local rc=0 code log
+  local progress=()
+  local dotbytes=10485760
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -189,26 +152,37 @@ function download() {
     return 1
   fi
 
+  expected=$(curl --disable -fsSI \
+    -H "Host: oscdn.apple.com" \
+    -H "Connection: close" \
+    -A "InternetRecovery/1.0" \
+    -H "Cookie: AssetToken=${downloadSession}" \
+    "$downloadLink" \
+    | awk 'tolower($1) == "content-length:" {gsub("\r","",$2); print $2; exit}' || :)
+
   # Check if running with interactive TTY or redirected to docker log
   if [ -t 1 ]; then
-    progress="--progress=bar:noscroll"
+    progress=( --progress=bar:noscroll )
   else
-    progress="--progress=dot:giga"
+    if [[ "$expected" =~ ^[0-9]+$ ]] && (( expected > 0 )); then
+      dotbytes=$(( (expected + 199) / 200 ))
+    fi
+    progress=( --progress=dot --execute "dotbytes=$dotbytes" )
   fi
 
   rm -f "$dest"
   log=$(mktemp)
 
-  /run/progress.sh "$dest" "0" "$msg ([P])..." &
+  /run/progress.sh "$dest" "${expected:-0}" "$msg ([P])..." &
 
   {
     LC_ALL=C wget "$downloadLink" -O "$dest" --no-verbose --timeout=30 \
-      --no-http-keep-alive --show-progress "$progress" --output-file="$log" \
+      --no-http-keep-alive --show-progress "${progress[@]}" --output-file="$log" \
       --header "Host: oscdn.apple.com" --header "Connection: close" \
       --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}"
     rc=$?
   } || :
-  
+
   fKill "progress.sh"
 
   if (( rc != 0 )); then
@@ -222,7 +196,7 @@ function download() {
 
   if (( rc == 0 )) && [ -f "$dest" ]; then
 
-    if ! checkDownloadSize "$dest" "$downloadLink" "$downloadSession"; then
+    if ! checkDownloadSize "$dest" "$expected"; then
       rm -f "$dest"
       return 1
     fi
@@ -246,6 +220,33 @@ function download() {
   fi
 
   return 1
+}
+
+checkDmgImage() {
+
+  local file="$1"
+  local size
+
+  if [ ! -s "$file" ]; then
+    error "Downloaded recovery image is missing or empty!"
+    return 1
+  fi
+
+  size=$(stat -c%s "$file")
+
+  if [ "$size" -lt 100000000 ]; then
+    error "Downloaded recovery image is too small: $(formatBytes "$size")"
+    return 1
+  fi
+
+  info "Checking recovery image format..."
+
+  if ! qemu-img info "$file" >/dev/null; then
+    error "Downloaded recovery image is not a valid disk image!"
+    return 1
+  fi
+
+  return 0
 }
 
 install() {
