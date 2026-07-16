@@ -282,7 +282,6 @@ install() {
   fi
 
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
-  find "$STORAGE" -maxdepth 1 -type f \( -iname 'data.*' -or -iname 'macos.*' \) -delete
 
   if [ -f "/boot.dmg" ]; then
     if ! cp "/boot.dmg" "$dest"; then
@@ -382,16 +381,16 @@ if [ -z "$VERSION" ]; then
 
 fi
 
-if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
-
+# Keep the current storage location when a primary disk already exists.
+if [ ! -s "$BASE_IMG" ] && ! hasDisk; then
   STORAGE="$STORAGE/${VERSION,,}"
   BASE_IMG="$STORAGE/base.dmg"
+fi
 
-  if [ ! -f "$BASE_IMG" ] || [ ! -s "$BASE_IMG" ]; then
-    ! install "$VERSION" "$BASE_IMG" && exit 34
-    ! setOwner "$BASE_IMG" && warn "failed to set the owner for \"$BASE_IMG\" !"
-  fi
-
+# Recovery media is required only while the primary disk is absent or blank.
+if [ ! -s "$BASE_IMG" ] && ! hasData; then
+  ! install "$VERSION" "$BASE_IMG" && exit 34
+  ! setOwner "$BASE_IMG" && warn "failed to set the owner for \"$BASE_IMG\" !"
 fi
 
 if ! generateID; then
@@ -406,7 +405,11 @@ if ! generateAddress; then
   error "Failed to generate MAC address!" && exit 37
 fi
 
-DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
-DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"
+DISK_OPTS=""
+
+if [ -s "$BASE_IMG" ]; then
+  DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
+  DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"
+fi
 
 return 0
