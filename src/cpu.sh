@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-CPU_VENDOR=$(lscpu | awk '/Vendor ID/{print $3}')
 DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 needsAmdCpuProfile() {
@@ -123,7 +122,7 @@ checkClocksource() {
 
   case "${result,,}" in
     "${CLOCKSOURCE,,}" )
-      if [[ "$CPU_VENDOR" == "GenuineIntel" && "$CPU_CORES" == "1" ]] && ! disabled "${KVM:-}"; then
+      if ! needsAmdCpuProfile && [[ "$CPU_CORES" == "1" ]]; then
         CPU_CORES="2"
       fi
       ;;
