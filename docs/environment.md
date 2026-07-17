@@ -21,6 +21,7 @@ An empty default means the variable is unset and its value is determined automat
 | `CPU_CORES` | `1` | Number of virtual CPU cores, such as `4`, `half`, or `max`. |
 | `CPU_MODEL` |  | QEMU CPU model. Selected automatically for Intel or AMD hosts when unset. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
+| `SMP` |  | Custom CPU topology. Determined from `CPU_CORES` when unset. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. |
 | `RAM_SIZE` | `4G` | Amount of RAM assigned to macOS, such as `8G`, `half`, or `max`. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting macOS. |
@@ -103,6 +104,7 @@ An empty default means the variable is unset and its value is determined automat
 | `SECURE` | `off` | QEMU Secure Boot flag. |
 | `LOGO` | `Y` | Enables the custom boot logo. |
 | `BOOT_INDEX` | `9` | Boot priority index for the OpenCore boot media. |
+| `MEDIA_TYPE` |  | Device type used for installation media. |
 | `USB` | `nec-usb-xhci,id=xhci` | QEMU USB controller configuration. |
 
 ## 🎈 Memory Ballooning
