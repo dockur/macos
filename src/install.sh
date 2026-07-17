@@ -90,7 +90,7 @@ function download() {
   local reason="" response=""
   local rc=0 code log
   local progress=()
-  local dotbytes=10485760
+  local output=""
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -160,24 +160,21 @@ function download() {
     "$downloadLink" \
     | awk 'tolower($1) == "content-length:" {gsub("\r","",$2); print $2; exit}' || :)
 
-  # Check if running with interactive TTY or redirected to docker log
+  # Use Wget's progress bar in a terminal and progress.sh in container logs.
   if [ -t 1 ]; then
-    progress=( --progress=bar:noscroll )
+    progress=( --show-progress --progress=bar:noscroll )
   else
-    if [[ "$expected" =~ ^[0-9]+$ ]] && (( expected > 0 )); then
-      dotbytes=$(( (expected + 199) / 200 ))
-    fi
-    progress=( --progress=dot --execute "dotbytes=$dotbytes" )
+    output="log"
   fi
 
   rm -f "$dest"
   log=$(mktemp)
 
-  /run/progress.sh "$dest" "${expected:-0}" "$msg ([P])..." &
+  /run/progress.sh "$dest" "${expected:-0}" "$msg ([P])..." "$output" &
 
   {
     LC_ALL=C wget "$downloadLink" -O "$dest" --no-verbose --timeout=30 \
-      --no-http-keep-alive --show-progress "${progress[@]}" --output-file="$log" \
+      --no-http-keep-alive "${progress[@]}" --output-file="$log" \
       --header "Host: oscdn.apple.com" --header "Connection: close" \
       --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}"
     rc=$?
