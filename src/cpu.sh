@@ -6,7 +6,7 @@ DEFAULT_FLAGS="vendor=GenuineIntel,vmx=off,vmware-cpuid-freq=on,-pdpe1gb"
 
 needsAmdCpuProfile() {
 
-  [[ "$CPU_VENDOR" == "AuthenticAMD" ]] || disabled "${KVM:-}"
+  isAmdCpu || disabled "${KVM:-}"
 
 }
 
