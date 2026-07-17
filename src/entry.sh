@@ -36,6 +36,10 @@ cmd=(qemu-system-x86_64)
 version=$("${cmd[@]}" --version | awk 'NR==1 { print $4 }')
 info "Booting ${APP}${BOOT_DESC} using QEMU v$version..." && echo
 
+if ! enabled "$SHUTDOWN"; then
+  exec "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1
+fi
+
 pipe="$QEMU_DIR/qemu.pipe"
 rm -f "$pipe" && mkfifo "$pipe"
 
@@ -49,10 +53,6 @@ sed -u \
   <"$pipe" &
 
 output=$!
-
-if ! enabled "$SHUTDOWN"; then
-  exec "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1
-fi
 
 "${cmd[@]}" ${ARGS:+ $ARGS} >"$pipe" 2>&1 &
 
