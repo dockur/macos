@@ -4,7 +4,7 @@ set -Eeuo pipefail
 : "${APP:="macOS"}"
 : "${VGA:="vmware"}"
 : "${SHUTDOWN:="Y"}"
-: "${TIMEOUT:="115"}"
+: "${TIMEOUT:="105"}"
 : "${PLATFORM:="x64"}"
 : "${DISK_TYPE:="blk"}"
 : "${SOUND:="usb-audio"}"
