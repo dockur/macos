@@ -13,6 +13,7 @@ An empty default means the variable is unset and its value is determined automat
 | `SN` |  | Mac serial number. Generated automatically when unset. |
 | `MLB` |  | Mac board serial number. Generated automatically when unset. |
 | `UUID` |  | Mac system UUID. Generated automatically when unset. |
+| `CONNECTIONS` | `4` | Number of connections used for recovery image download. |
 
 ## 🧠 CPU and Memory
 
