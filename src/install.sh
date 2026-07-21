@@ -49,9 +49,12 @@ checkDownloadSize() {
     return 0
   fi
 
-  actual=$(stat -c%s "$file")
+  if ! actual=$(stat -c%s -- "$file" 2>/dev/null); then
+    error "Failed to determine downloaded recovery image size."
+    return 1
+  fi
 
-  if [ "$actual" -ne "$expected" ]; then
+  if (( actual != expected )); then
     error "Downloaded recovery image is incomplete: got $(formatBytes "$actual"), expected $(formatBytes "$expected")."
     return 1
   fi
@@ -73,6 +76,7 @@ function download() {
   local code log expected=""
   local mlb="00000000000000000"
   local reason="" response=""
+  local rc=0
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -146,7 +150,7 @@ function download() {
   # resume a partial download created with an older session.
   rm -f -- "$dest" "$dest.aria2"
 
-  if ! downloadToFile \
+  if downloadToFile \
       "$downloadLink" \
       "$dest" \
       "$msg" \
@@ -157,9 +161,14 @@ function download() {
       --header "Connection: close" \
       --user-agent "InternetRecovery/1.0" \
       --header "Cookie: AssetToken=${downloadSession}"; then
+    rc=0
+  else
+    rc=$?
+  fi
 
+  if (( rc != 0 )); then
     rm -f -- "$dest" "$dest.aria2"
-    return 1
+    return "$rc"
   fi
 
   if ! checkDownloadSize "$dest" "$expected"; then
@@ -207,6 +216,7 @@ install() {
   local board
   local version="$1"
   local dest="$2"
+  local rc=0
 
   case "${version,,}" in
     "tahoe" | "26"* | "16"* )
@@ -253,7 +263,19 @@ install() {
   local file="$STORAGE/boot.dmg"
 
   # Try a multi-connection download first.
-  if ! download "$file" "$board" "$version" "${CONNECTIONS:-1}"; then
+  if download "$file" "$board" "$version" "${CONNECTIONS:-1}"; then
+    rc=0
+  else
+    rc=$?
+  fi
+
+  if (( rc != 0 )); then
+
+    if (( rc == 2 )); then
+      rm -f -- "$file" "$file.aria2"
+      exit 60
+    fi
+
     delay 5
 
     # Obtain a fresh Apple session and retry with single-connection Wget.
@@ -261,6 +283,7 @@ install() {
       rm -f -- "$file" "$file.aria2"
       exit 60
     fi
+
   fi
 
   if ! mv -f "$file" "$dest"; then
@@ -278,7 +301,6 @@ generateID() {
   [ -n "$UUID" ] && return 0
 
   UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen --random) || return 1
-
   UUID="${UUID^^}"
   UUID="${UUID//[![:print:]]/}"
 
