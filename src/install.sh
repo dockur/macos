@@ -81,16 +81,14 @@ function download() {
   local dest="$1"
   local board="$2"
   local version="$3"
+  local connections="${4:-1}"
   local type="latest"
   local appleSession=""
   local downloadLink=""
   local downloadSession=""
-  local expected=""
+  local code log expected=""
   local mlb="00000000000000000"
   local reason="" response=""
-  local rc=0 code log
-  local progress=()
-  local output=""
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -160,63 +158,37 @@ function download() {
     "$downloadLink" \
     | awk 'tolower($1) == "content-length:" {gsub("\r","",$2); print $2; exit}' || :)
 
-  # Use Wget's progress bar in a terminal and progress.sh in container logs.
-  if [ -t 1 ]; then
-    progress=( --show-progress --progress=bar:noscroll )
-  else
-    output="log"
+  # Each attempt uses a newly issued Apple download session, so do not
+  # resume a partial download created with an older session.
+  rm -f -- "$dest" "$dest.aria2"
+
+  if ! downloadToFile \
+      "$downloadLink" \
+      "$dest" \
+      "$msg" \
+      "${expected:-0}" \
+      "$connections" \
+      "N" \
+      --header "Host: oscdn.apple.com" \
+      --header "Connection: close" \
+      --user-agent "InternetRecovery/1.0" \
+      --header "Cookie: AssetToken=${downloadSession}"; then
+
+    rm -f -- "$dest" "$dest.aria2"
+    return 1
   fi
 
-  rm -f "$dest"
-  log=$(mktemp)
-
-  /run/progress.sh "$dest" "${expected:-0}" "$msg ([P])..." "$output" &
-
-  {
-    LC_ALL=C wget "$downloadLink" -O "$dest" --no-verbose --timeout=30 \
-      --no-http-keep-alive "${progress[@]}" --output-file="$log" \
-      --header "Host: oscdn.apple.com" --header "Connection: close" \
-      --header "User-Agent: InternetRecovery/1.0" --header "Cookie: AssetToken=${downloadSession}"
-    rc=$?
-  } || :
-
-  fKill "progress.sh"
-
-  if (( rc != 0 )); then
-    reason=$(sed -n \
-      -e 's/^wget: //p' \
-      -e 's/^[0-9-]\{10\} [0-9:]\{8\} ERROR //p' \
-      "$log" | tail -n 1)
+  if ! checkDownloadSize "$dest" "$expected"; then
+    rm -f -- "$dest" "$dest.aria2"
+    return 1
   fi
 
-  rm -f "$log"
-
-  if (( rc == 0 )) && [ -f "$dest" ]; then
-
-    if ! checkDownloadSize "$dest" "$expected"; then
-      rm -f "$dest"
-      return 1
-    fi
-
-    if ! checkDmgImage "$dest"; then
-      rm -f "$dest"
-      return 1
-    fi
-
-    return 0
+  if ! checkDmgImage "$dest"; then
+    rm -f -- "$dest" "$dest.aria2"
+    return 1
   fi
 
-  msg="Failed to download $downloadLink"
-
-  if (( rc == 3 )); then
-    error "$msg because the file could not be written (disk full?)."
-  elif [ -n "$reason" ]; then
-    error "$msg: ${reason%.}."
-  else
-    error "$msg with exit status $rc."
-  fi
-
-  return 1
+  return 0
 }
 
 checkDmgImage() {
@@ -296,10 +268,13 @@ install() {
 
   local file="$STORAGE/boot.dmg"
 
-  if ! download "$file" "$board" "$version"; then
+  # Try a multi-connection download first.
+  if ! download "$file" "$board" "$version" "${CONNECTIONS:-1}"; then
     delay 5
-    if ! download "$file" "$board" "$version"; then
-      rm -f "$file"
+
+    # Obtain a fresh Apple session and retry with single-connection Wget.
+    if ! download "$file" "$board" "$version" "1"; then
+      rm -f -- "$file" "$file.aria2"
       exit 60
     fi
   fi
