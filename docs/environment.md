@@ -47,7 +47,7 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `NETWORK` |  | Network mode, such as `nat`, `user`, or `N` to disable networking. |
-| `DHCP` | `N` | Enables macvtap networking so Windows receives a DHCP address. |
+| `DHCP` | `N` | Enables macvtap networking so macOS receives a DHCP address. |
 | `HOST` |  | Optional macOS computer name and advertised network hostname. |
 | `IP` |  | Overrides the automatically selected guest IPv4 address. |
 | `MAC` |  | Guest network adapter MAC address. Generated automatically when unset. |
