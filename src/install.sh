@@ -42,7 +42,7 @@ checkDownloadSize() {
 
   local file="$1"
   local expected="$2"
-  local actual=""
+  local actual
 
   if [ -z "$expected" ]; then
     warn "Could not determine expected recovery image size."
@@ -64,19 +64,18 @@ checkDownloadSize() {
 
 function download() {
 
-  local info=""
+  local info
   local dest="$1"
   local board="$2"
   local version="$3"
   local connections="${4:-1}"
   local type="latest"
-  local appleSession=""
-  local downloadLink=""
-  local downloadSession=""
-  local code log expected=""
+  local appleSession
+  local downloadLink
+  local downloadSession
+  local log expected
   local mlb="00000000000000000"
-  local reason="" response=""
-  local rc=0
+  local reason response
 
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
@@ -104,9 +103,9 @@ function download() {
       --output "$response" \
       https://osrecovery.apple.com/InstallationPayload/RecoveryImage \
       2>"$log"; then
-    code=0
+    local code=0
   else
-    code=$?
+    local code=$?
   fi
 
   info=$(tr ' ' '\n' < "$response")
@@ -161,9 +160,9 @@ function download() {
       --header "Connection: close" \
       --user-agent "InternetRecovery/1.0" \
       --header "Cookie: AssetToken=${downloadSession}"; then
-    rc=0
+    local rc=0
   else
-    rc=$?
+    local rc=$?
   fi
 
   if (( rc != 0 )); then
@@ -213,26 +212,24 @@ checkDmgImage() {
 
 install() {
 
-  local board
   local version="$1"
   local dest="$2"
-  local rc=0
 
   case "${version,,}" in
     "tahoe" | "26"* | "16"* )
-      board="Mac-CFF7D910A743CAAF" ;;
+      local board="Mac-CFF7D910A743CAAF" ;;
     "sequoia" | "15"* )
-      board="Mac-937A206F2EE63C01" ;;
+      local board="Mac-937A206F2EE63C01" ;;
     "sonoma" | "14"* )
-      board="Mac-827FAC58A8FDFA22" ;;
+      local board="Mac-827FAC58A8FDFA22" ;;
     "ventura" | "13"* )
-      board="Mac-4B682C642B45593E" ;;
+      local board="Mac-4B682C642B45593E" ;;
     "monterey" | "12"* )
-      board="Mac-B809C3757DA9BB8D" ;;
+      local board="Mac-B809C3757DA9BB8D" ;;
     "bigsur" | "big-sur" | "11"* )
-      board="Mac-2BD1B31983FE1663" ;;
+      local board="Mac-2BD1B31983FE1663" ;;
     "catalina" | "10"* )
-      board="Mac-00BE6ED71E35EB86" ;;
+      local board="Mac-00BE6ED71E35EB86" ;;
     *)
       error "Unknown VERSION specified, value \"${version}\" is not recognized!"
       return 1 ;;
@@ -264,9 +261,9 @@ install() {
 
   # Try a multi-connection download first.
   if download "$file" "$board" "$version" "${CONNECTIONS:-1}"; then
-    rc=0
+    local rc=0
   else
-    rc=$?
+    local rc=$?
   fi
 
   if (( rc != 0 )); then

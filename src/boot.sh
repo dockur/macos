@@ -171,9 +171,7 @@ checkOpenCoreFiles() {
 
 configureOpenCorePlist() {
 
-  local brom
-  local plist
-  local resolution
+  local brom plist
 
   PLIST="/assets/config.plist"
   [ -f "/custom.plist" ] && PLIST="/custom.plist"
@@ -184,7 +182,7 @@ configureOpenCorePlist() {
   ROM="${MAC//[^[:alnum:]]/}"
   ROM="${ROM,,}"
   brom=$(echo "$ROM" | xxd -r -p | base64)
-  resolution="${WIDTH}x${HEIGHT}@32"
+  local resolution="${WIDTH}x${HEIGHT}@32"
 
   sed -r -i -e 's|<data>ESIzRFVm</data>|<data>'"${brom}"'</data>|g' "$CFG"
   sed -r -i -e 's|<string>iMac19,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
@@ -300,28 +298,21 @@ buildOpenCoreImage() {
   local sector_size=512
   local first_lba=34
 
-  local image_size
-  local partition_offset
-  local usable_size
-  local last_lba
-  local sector_count
-  local partition_file
-
   msg="Creating OpenCore boot disk"
   info "$msg..." && html "$msg..."
 
-  image_size=$(( size_mb*1024*1024 ))
-  partition_offset=$(( start_sector*sector_size ))
-  usable_size=$(( image_size-(first_lba*sector_size) ))
-  last_lba=$(( usable_size/sector_size ))
-  sector_count=$(( last_lba-(start_sector-1) ))
+  local image_size=$(( size_mb*1024*1024 ))
+  local partition_offset=$(( start_sector*sector_size ))
+  local usable_size=$(( image_size-(first_lba*sector_size) ))
+  local last_lba=$(( usable_size/sector_size ))
+  local sector_count=$(( last_lba-(start_sector-1) ))
 
   if ! truncate -s "$image_size" "$IMG"; then
     rm -f "$IMG"
     error "Could not allocate space to create image $IMG." && exit 11
   fi
 
-  partition_file="/tmp/partition.fdisk"
+  local partition_file="/tmp/partition.fdisk"
 
   {
     echo "label: gpt"
@@ -390,10 +381,8 @@ openCoreSignature() {
 
 prepareOpenCoreImage() {
 
-  local current=""
-  local previous=""
   local target="$STORAGE/boot.img"
-  local signature
+  local current previous signature
 
   signature=$(stateFile "sig" "boot") || exit 11
   current=$(openCoreSignature)
