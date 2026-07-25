@@ -94,6 +94,7 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `MACHINE` | `q35` | QEMU machine type. |
+| `PCI_BUS` | `pcie.0` | Overrides the PCI bus used for attached devices. |
 | `HPET` | `off` | QEMU HPET timer setting. |
 | `VMPORT` | `off` | QEMU VMware port setting. |
 | `ARGUMENTS` |  | Additional raw arguments appended to the QEMU command line. |
