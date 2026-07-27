@@ -105,7 +105,7 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `PICKER` | `N` | Shows the OpenCore boot picker. |
-| `SECURE` | `off` | Enables System Management Mode. |
+| `SMM` | `N` | Enables System Management Mode. |
 | `LOGO` | `Y` | Enables the custom boot logo. |
 | `BOOT_INDEX` | `9` | Boot priority index for the OpenCore boot media. |
 | `MEDIA_TYPE` |  | Device type used for installation media. |
