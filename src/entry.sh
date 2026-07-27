@@ -8,6 +8,7 @@ set -Eeuo pipefail
 : "${PLATFORM:="x64"}"
 : "${DISK_TYPE:="blk"}"
 : "${SOUND:="usb-audio"}"
+: "${BOOT_MODE:="macos"}"
 : "${SUPPORT:="https://github.com/dockur/macos"}"
 
 cd /run
