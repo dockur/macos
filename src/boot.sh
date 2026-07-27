@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${SECURE:="off"}"       # Secure boot
 : "${PICKER:="N"}"         # Show picker
-: "${BOOT_MODE:="macos"}"  # Boot mode
+: "${LOGO:=""}"            # Enable logo
+: "${CLEAR:=""}"           # Clear NVRAM
 
 BOOT_DESC=""
 BOOT_OPTS=""
@@ -102,6 +102,16 @@ prepareOvmfVars() {
   fi
 
   ! setOwner "$DEST.vars" && warn "failed to set the owner for \"$DEST.vars\" !"
+
+  return 0
+}
+
+clearNvram() {
+
+  if enabled "${CLEAR:-}"; then
+    # Clear NVRAM (helps to fix corruptions)
+    rm -f "$DEST.rom" "$DEST.vars"
+  fi
 
   return 0
 }
@@ -443,6 +453,7 @@ html "$msg"
 enabled "$DEBUG" && echo "$msg"
 
 selectOvmfFiles
+clearNvram
 
 BOOT_OPTS+=" -smbios type=2"
 BOOT_OPTS+=" -rtc base=utc,base=localtime"
