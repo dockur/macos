@@ -364,8 +364,8 @@ fi
 
 # Recovery media is required only while the primary disk is absent or blank.
 if [ ! -s "$BASE_IMG" ] && ! hasData; then
-  ! install "$VERSION" "$BASE_IMG" && exit 34
-  ! setOwner "$BASE_IMG" && warn "failed to set the owner for \"$BASE_IMG\" !"
+  install "$VERSION" "$BASE_IMG" || exit 34
+  setOwner "$BASE_IMG" || warn "failed to set the owner for \"$BASE_IMG\" !"
 fi
 
 if ! generateID; then

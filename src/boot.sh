@@ -74,7 +74,7 @@ prepareOvmfRom() {
     error "Failed to move UEFI boot file to $DEST.rom" && exit 44
   fi
 
-  ! setOwner "$DEST.rom" && warn "failed to set the owner for \"$DEST.rom\" !"
+  setOwner "$DEST.rom" || warn "failed to set the owner for \"$DEST.rom\" !"
 
   return 0
 }
@@ -102,7 +102,7 @@ prepareOvmfVars() {
     error "Failed to move UEFI vars file to $DEST.vars" && exit 45
   fi
 
-  ! setOwner "$DEST.vars" && warn "failed to set the owner for \"$DEST.vars\" !"
+  setOwner "$DEST.vars" || warn "failed to set the owner for \"$DEST.vars\" !"
 
   return 0
 }
@@ -472,7 +472,7 @@ addOvmfOptions
 
 prepareOpenCoreImage
 
-! setOwner "$IMG" && error "Failed to set the owner for \"$IMG\" !"
+setOwner "$IMG" || error "Failed to set the owner for \"$IMG\" !"
 
 BOOT_DRIVE_ID="OpenCore"
 
