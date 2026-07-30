@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 # Docker environment variables
 : "${PICKER:="N"}"         # Show picker
+: "${SMM:=""}"             # Enable SMM
 : "${LOGO:=""}"            # Enable logo
 : "${CLEAR:=""}"           # Clear NVRAM
 
