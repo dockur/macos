@@ -143,4 +143,4 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `DEBUG` | `N` | Enables verbose debug output. |
 | `TRACE` | `N` | Enables shell command tracing. |
 | `SERIAL` | `mon:stdio` | QEMU serial device configuration. |
-| `MONITOR` | `unix:$QEMU_DIR/monitor.sock,server,wait=off,nodelay` | QEMU monitor configuration. |
+| `MONITOR` | `unix:/run/shm/monitor.sock` | QEMU monitor configuration. |
