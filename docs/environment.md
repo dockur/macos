@@ -19,13 +19,13 @@ An empty default means the variable is unset and its value is determined automat
 
 | Variable | Default | Description |
 |---|---|---|
-| `CPU_CORES` | `1` | Number of virtual CPU cores, such as `4`, `half`, or `max`. |
+| `CPU_CORES` | `2` | Number of virtual CPU cores, such as `4`, `half`, or `max`. |
 | `CPU_MODEL` |  | QEMU CPU model. Selected automatically for Intel or AMD hosts when unset. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
 | `SMP` |  | Custom CPU topology. Determined from `CPU_CORES` when unset. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. |
 | `RAM_SIZE` | `4G` | Amount of RAM assigned to macOS, such as `8G`, `half`, or `max`. |
-| `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting macOS. |
+| `RAM_CHECK` | `N` | Checks whether enough host memory is available before starting macOS. |
 
 ## 💾 Storage
 
@@ -85,7 +85,7 @@ An empty default means the variable is unset and its value is determined automat
 | `VNC_PORT` | `5900` | Port for the VNC server. |
 | `WSS_PORT` | `5700` | WebSocket port used by noVNC. |
 | `WSD_PORT` | `8004` | Internal websocketd port used for the display stream. |
-| `AUDIO` | `N` | Streams guest audio to the web viewer. |
+| `AUDIO` | `Y` | Streams guest audio to the web viewer. |
 | `SOUND` | `usb-audio` | QEMU audio device used by the web viewer. |
 | `AUX_PORT` | `8003` | Internal WebSocket port used for the audio stream. |
 | `PROTECT` | `N` | Enables password protection for the web interface. |
