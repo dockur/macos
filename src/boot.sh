@@ -2,10 +2,10 @@
 set -Eeuo pipefail
 
 # Docker environment variables
-: "${PICKER:="N"}"         # Show picker
 : "${SMM:=""}"             # Enable SMM
 : "${LOGO:=""}"            # Enable logo
 : "${CLEAR:=""}"           # Clear NVRAM
+: "${PICKER:="N"}"         # Show picker
 
 BOOT_DESC=""
 BOOT_OPTS=""
@@ -49,13 +49,17 @@ prepareUefiRom() {
 
   local logo="/var/www/img/${PROCESS,,}.bmp"
   [ ! -s "$logo" ] && logo="/var/www/img/qemu.bmp"
-  [ ! -s "$logo" ] && LOGO="N"
+
+  if ! disabled "$LOGO" && [ ! -s "$logo" ]; then
+    LOGO="N"
+    warn "boot logo file ($logo) not found!"
+  fi
 
   rm -f "$DEST.tmp"
 
   if ! disabled "$LOGO" &&
-     ! /run/boot-logo.bin "$logo" "$rom" --output "$DEST.tmp"; then
-    warn "failed to add custom logo to BIOS!"
+     ! /run/boot-logo "$logo" "$rom" --output "$DEST.tmp" -q; then
+    warn "failed to add custom logo ($logo) to BIOS!"
     rm -f "$DEST.tmp"
   fi
 
