@@ -35,7 +35,7 @@ selectOvmfFiles() {
   return 0
 }
 
-prepareOvmfRom() {
+prepareUefiRom() {
 
   if [ -e "$DEST.rom" ] && [ ! -f "$DEST.rom" ]; then
     error "UEFI boot path \"$DEST.rom\" is not a regular file!"
@@ -44,29 +44,24 @@ prepareOvmfRom() {
 
   [ -s "$DEST.rom" ] && return 0
 
-  [ ! -s "$OVMF/$ROM" ] && error "UEFI boot file ($OVMF/$ROM) not found!" && exit 44
+  local rom="$OVMF/$ROM"
+  [ ! -s "$rom" ] && error "UEFI boot file ($rom) not found!" && exit 44
 
-  local logo="/var/www/img/${PROCESS,,}.ffs"
-  [ ! -s "$logo" ] && logo="/var/www/img/qemu.ffs"
+  local logo="/var/www/img/${PROCESS,,}.bmp"
+  [ ! -s "$logo" ] && logo="/var/www/img/qemu.bmp"
   [ ! -s "$logo" ] && LOGO="N"
 
   rm -f "$DEST.tmp"
 
-  if disabled "${LOGO:-}"; then
-    if ! cp "$OVMF/$ROM" "$DEST.tmp"; then
-      rm -f "$DEST.tmp"
-      error "Failed to copy UEFI boot file to $DEST.tmp" && exit 44
-    fi
-  else
-    if ! /run/utk.bin "$OVMF/$ROM" replace_ffs LogoDXE "$logo" save "$DEST.tmp"; then
-      warn "failed to add custom logo to BIOS!"
-      rm -f "$DEST.tmp"
+  if ! disabled "$LOGO" &&
+     ! /run/boot-logo.bin "$logo" "$rom" --output "$DEST.tmp"; then
+    warn "failed to add custom logo to BIOS!"
+    rm -f "$DEST.tmp"
+  fi
 
-      if ! cp "$OVMF/$ROM" "$DEST.tmp"; then
-        rm -f "$DEST.tmp"
-        error "Failed to copy UEFI boot file to $DEST.tmp" && exit 44
-      fi
-    fi
+  if [[ ! -f "$DEST.tmp" ]] && ! cp "$rom" "$DEST.tmp"; then
+    rm -f "$DEST.tmp"
+    error "Failed to copy UEFI boot file to $DEST.tmp" && exit 44
   fi
 
   if ! mv "$DEST.tmp" "$DEST.rom"; then
@@ -79,7 +74,7 @@ prepareOvmfRom() {
   return 0
 }
 
-prepareOvmfVars() {
+prepareUefiVars() {
 
   if [ -e "$DEST.vars" ] && [ ! -f "$DEST.vars" ]; then
     error "UEFI vars path \"$DEST.vars\" is not a regular file!"
@@ -88,11 +83,12 @@ prepareOvmfVars() {
 
   [ -s "$DEST.vars" ] && return 0
 
-  [ ! -s "$OVMF/$VARS" ] && error "UEFI vars file ($OVMF/$VARS) not found!" && exit 45
+  local vars="$OVMF/$VARS"
+  [ ! -s "$vars" ] && error "UEFI vars file ($vars) not found!" && exit 45
 
   rm -f "$DEST.tmp"
 
-  if ! cp "$OVMF/$VARS" "$DEST.tmp"; then
+  if ! cp "$vars" "$DEST.tmp"; then
     rm -f "$DEST.tmp"
     error "Failed to copy UEFI vars file to $DEST.tmp" && exit 45
   fi
@@ -466,8 +462,8 @@ osk=$(echo "bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap" | 
 BOOT_OPTS+=" -device isa-applesmc,osk=$osk"
 
 # OVMF
-prepareOvmfRom
-prepareOvmfVars
+prepareUefiRom
+prepareUefiVars
 addOvmfOptions
 
 prepareOpenCoreImage
