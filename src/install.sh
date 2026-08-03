@@ -30,6 +30,8 @@ function getRandom() {
   local result=""
   local chars=("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "A" "B" "C" "D" "E" "F")
 
+  # Apple recovery requests require opaque hexadecimal nonce fields; they
+  # are session tokens rather than persistent machine identity.
   for ((i=0; i<length; i++)); do
       result+="${chars[$((RANDOM % 16))]}"
   done
@@ -80,6 +82,8 @@ function download() {
   local msg="Downloading macOS ${version^}"
   info "$msg recovery image..." && html "$msg..."
 
+  # The initial request exists only to obtain Apple's recovery-session cookie
+  # from the verbose response headers.
   appleSession=$(curl --disable --max-time 30 -v -H "Host: osrecovery.apple.com" \
                       -H "Connection: close" \
                       -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '/session=/ {print $2; exit}' || :)
@@ -92,6 +96,8 @@ function download() {
   log=$(mktemp)
   response=$(mktemp)
 
+  # Submit the board identifier and fresh request nonces while capturing both
+  # Apple's text response and curl's diagnostic output separately.
   if curl --disable --max-time 60 --silent --show-error --fail-with-body \
       --request POST \
       --header "Host: osrecovery.apple.com" \
@@ -108,6 +114,8 @@ function download() {
     local code=$?
   fi
 
+  # Apple's response is space-delimited key/value text. Splitting it into
+  # records makes the image URL and expiring asset token selectable below.
   info=$(tr ' ' '\n' < "$response")
   reason=$(sed -En 's/^curl: \([0-9]+\) //p' "$log" | tail -n 1)
 
@@ -126,6 +134,8 @@ function download() {
     return 1
   fi
 
+  # The recovery response supplies the CDN URL and its expiring token as
+  # separate records; both are required for the authenticated download.
   downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg' | head -n 1 || :)
   downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg' | head -n 1 || :)
 
@@ -137,6 +147,8 @@ function download() {
     return 1
   fi
 
+  # Content-Length is optional validation metadata. The DMG format checks
+  # below remain authoritative when the CDN omits it.
   expected=$(curl --disable -fsSI \
     -H "Host: oscdn.apple.com" \
     -H "Connection: close" \
@@ -202,6 +214,8 @@ checkDmgImage() {
 
   info "Checking recovery image format..."
 
+  # qemu-img validates the disk container structure without mounting or
+  # trusting filesystems inside the downloaded recovery image.
   if ! qemu-img info "$file" >/dev/null; then
     error "Downloaded recovery image is not a valid disk image!"
     return 1
@@ -215,6 +229,8 @@ install() {
   local version="$1"
   local dest="$2"
 
+  # Apple recovery catalogs are selected by board identifier, so each macOS
+  # generation maps to a model known to receive that release.
   case "${version,,}" in
     "tahoe" | "26"* | "16"* )
       local board="Mac-CFF7D910A743CAAF" ;;
@@ -241,8 +257,12 @@ install() {
     error "Failed to create directory \"$STORAGE\" !" && return 1
   fi
 
+  # New recovery media invalidates cached firmware state that may still point
+  # at an older installer or incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
+  # A bundled recovery image takes precedence over network retrieval, but is
+  # subjected to the same size and container-format validation.
   if [ -f "/boot.dmg" ]; then
     if ! cp "/boot.dmg" "$dest"; then
       error "Failed to copy bundled recovery image to $dest."
@@ -268,6 +288,8 @@ install() {
 
   if (( rc != 0 )); then
 
+    # Status 2 represents deterministic download validation failure, so a
+    # second transport attempt cannot recover it.
     if (( rc == 2 )); then
       rm -f -- "$file" "$file.aria2"
       exit 60
@@ -293,6 +315,8 @@ install() {
 
 generateID() {
 
+  # Machine identity must remain stable across restarts because OpenCore,
+  # macOS activation, and the generated network identity all depend on it.
   restoreState UUID "id" || return 1
 
   [ -n "$UUID" ] && return 0
@@ -314,6 +338,8 @@ generateAddress() {
 
   [ -n "$MAC" ] && return 0
 
+  # Derive a stable address from the UUID while retaining the Apple-assigned
+  # 00:16:CB prefix expected by the generated OpenCore identity.
   # Generate Apple MAC address based on UUID value
   MAC=$(echo "$UUID" | md5sum | sed 's/^\(..\)\(..\)\(..\)\(..\)\(..\).*$/00:16:cb:\3:\4:\5/')
   MAC="${MAC^^}"
@@ -330,6 +356,8 @@ generateSerial() {
 
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
+  # Generate the serial and board serial as one matched pair and persist both;
+  # changing either independently would create an inconsistent Apple identity.
   # Generate unique serial numbers for machine
   SN=$(/usr/local/bin/macserial --num 1 --model "${MODEL}" 2>/dev/null)
 
@@ -356,6 +384,8 @@ if [ -z "$VERSION" ]; then
 
 fi
 
+# Version-specific storage is chosen only for a new installation. Existing
+# disks keep their original path even when VERSION later changes.
 # Keep the current storage location when a primary disk already exists.
 if [ ! -s "$BASE_IMG" ] && ! hasDisk; then
   STORAGE="$STORAGE/${VERSION,,}"
@@ -382,6 +412,8 @@ fi
 
 DISK_OPTS=""
 
+# Recovery media is attached read-only and only while present; installation
+# writes belong on the separately managed primary data disk.
 if [ -s "$BASE_IMG" ]; then
   DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
   DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"

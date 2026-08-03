@@ -13,6 +13,8 @@ OVMF="/usr/share/OVMF"
 
 selectOvmfFiles() {
 
+  # OVMF variable templates contain resolution-specific GOP settings.
+  # Keep their persistent filenames separate when HEIGHT changes.
   case "${HEIGHT,,}" in
     "1080" )
       DEST="$PROCESS"
@@ -42,6 +44,8 @@ prepareUefiRom() {
     exit 44
   fi
 
+  # Reuse the prepared firmware across restarts; CLEAR deliberately removes
+  # it when the logo or firmware state needs to be regenerated.
   [ -s "$DEST.rom" ] && return 0
 
   local rom="$OVMF/$ROM"
@@ -55,6 +59,8 @@ prepareUefiRom() {
     warn "boot logo file ($logo) not found!"
   fi
 
+  # Publish through a temporary file so a failed logo patch cannot replace
+  # the last usable firmware image.
   rm -f "$DEST.tmp"
 
   if ! disabled "$LOGO" &&
@@ -85,11 +91,15 @@ prepareUefiVars() {
     exit 44
   fi
 
+  # The writable NVRAM store carries firmware and OpenCore boot state across
+  # restarts, so initialize it only when no persistent copy exists.
   [ -s "$DEST.vars" ] && return 0
 
   local vars="$OVMF/$VARS"
   [ ! -s "$vars" ] && error "UEFI vars file ($vars) not found!" && exit 45
 
+  # Build the initial variable store atomically for the same reason as the
+  # firmware code image above.
   rm -f "$DEST.tmp"
 
   if ! cp "$vars" "$DEST.tmp"; then
@@ -119,6 +129,8 @@ clearNvram() {
 
 addOvmfOptions() {
 
+  # OVMF code is immutable, while the separate variable store must remain
+  # writable for boot entries and runtime firmware settings.
   BOOT_OPTS+=" -drive if=pflash,format=raw,readonly=on,file=$DEST.rom"
   BOOT_OPTS+=" -drive if=pflash,format=raw,file=$DEST.vars"
 
@@ -146,6 +158,8 @@ extractOpenCore() {
     error "Failed to extract archive!" && exit 11
   fi
 
+  # The bundled image supplies OpenCore binaries, but its config is replaced
+  # with the project template containing this VM's generated identity.
   # Overwrite extracted OpenCore config with our own
   CFG="$(find "$OUT" -type f -path '*/EFI/OC/config.plist' -print -quit)"
   [ -z "${CFG:-}" ] && error "Could not locate extracted OpenCore config.plist under \"$OUT\"." && exit 12
@@ -190,6 +204,8 @@ configureOpenCorePlist() {
   cp "$PLIST" "$CFG"
 
   # Replace placeholders with machine details
+  # OpenCore stores ROM as six raw MAC bytes in plist data rather than as a
+  # colon-delimited string.
   ROM="${MAC//[^[:alnum:]]/}"
   ROM="${ROM,,}"
   brom=$(echo "$ROM" | xxd -r -p | base64)
@@ -203,6 +219,8 @@ configureOpenCorePlist() {
   sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
   # Show boot picker if requested
+  # Showing the picker also exposes auxiliary entries and extends the timeout
+  # so recovery and maintenance choices remain selectable.
   if enabled "$PICKER"; then
     sed -i '/<key>ShowPicker<\/key>/{n;s|<false/>|<true/>|}' "$CFG"
     sed -i '/<key>HideAuxiliary<\/key>/{n;s|<true/>|<false/>|}' "$CFG"
@@ -242,6 +260,8 @@ checkOpenCoreConfig() {
 
   info "Validating OpenCore config..."
 
+  # Parse the completed plist and verify typed values; successful text
+  # substitutions alone do not prove the generated config is valid.
   if ! python3 - "$CFG" "$MODEL" "$SN" "$MLB" "$UUID" "$ROM" <<'EOF'
 import plistlib
 import sys
@@ -312,6 +332,8 @@ buildOpenCoreImage() {
   msg="Creating OpenCore boot disk"
   info "$msg..." && html "$msg..."
 
+  # Construct a fixed-size GPT disk containing one FAT32 EFI System
+  # Partition, which firmware can boot without a loop device.
   local image_size=$(( size_mb*1024*1024 ))
   local partition_offset=$(( start_sector*sector_size ))
   local usable_size=$(( image_size-(first_lba*sector_size) ))
@@ -337,6 +359,8 @@ buildOpenCoreImage() {
     echo "${FILE}1 : start=$start_sector, size=$sector_count, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, uuid=05157F6E-0AE8-4D1A-BEA5-AC172453D02C, name=\"primary\""
   } > "$partition_file"
 
+  # Point mtools directly at the partition offset so the image can be
+  # formatted and populated inside an unprivileged container.
   sfdisk -q "$IMG" < "$partition_file"
   echo "drive c: file=\"$IMG\" partition=0 offset=$partition_offset" > /etc/mtools.conf
 
@@ -376,6 +400,8 @@ printMachineDetails() {
 
 openCoreSignature() {
 
+  # Hash every generated setting that changes OpenCore contents; an unchanged
+  # signature allows the persistent boot image to be reused safely.
   {
     echo "MODEL=$MODEL"
     echo "SN=$SN"
@@ -399,6 +425,8 @@ prepareOpenCoreImage() {
   current=$(openCoreSignature)
   previous=$(readState "sig" "boot") || exit 11
 
+  # Rebuild only when the generated machine identity, resolution, or picker
+  # configuration differs from the stored boot-image signature.
   if [ -s "$target" ] && [ "$previous" = "$current" ]; then
     IMG="$target"
     return 0
@@ -430,6 +458,8 @@ prepareOpenCoreImage() {
   msg="Saving OpenCore boot image"
   info "$msg..." && html "$msg..."
 
+  # Publish the completed image first and record its signature only afterward,
+  # preventing a failed build from being treated as current.
   if ! mv -f "$IMG" "$target"; then
     rm -f "$IMG" "$signature"
     error "Failed to move OpenCore image to $target" && exit 11
@@ -458,10 +488,13 @@ clearNvram
 
 BOOT_OPTS+=" -smbios type=2"
 BOOT_OPTS+=" -rtc base=utc,base=localtime"
+# Disable firmware sleep states and bridge hotplug behavior that macOS does
+# not handle reliably on the emulated ICH9 platform.
 BOOT_OPTS+=" -global ICH9-LPC.disable_s3=1"
 BOOT_OPTS+=" -global ICH9-LPC.disable_s4=1"
 BOOT_OPTS+=" -global ICH9-LPC.acpi-pci-hotplug-with-bridge-support=off"
 
+# Decode the Apple SMC key at runtime rather than storing it as plain text.
 osk=$(echo "bheuneqjbexolgurfrjbeqfthneqrqcyrnfrqbagfgrny(p)NccyrPbzchgreVap" | tr 'A-Za-z' 'N-ZA-Mn-za-m')
 BOOT_OPTS+=" -device isa-applesmc,osk=$osk"
 
@@ -476,6 +509,8 @@ setOwner "$IMG" || error "Failed to set the owner for \"$IMG\" !"
 
 BOOT_DRIVE_ID="OpenCore"
 
+# OpenCore is immutable at runtime; persistent boot choices live in OVMF
+# NVRAM, so attach the generated boot disk read-only.
 DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
 DISK_OPTS+=" -drive file=$IMG,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
 
