@@ -7,6 +7,7 @@ set -Eeuo pipefail
 : "${TIMEOUT:="105"}"
 : "${PLATFORM:="x64"}"
 : "${DISK_TYPE:="blk"}"
+: "${RAM_MINIMUM:="4G"}"
 : "${SOUND:="usb-audio"}"
 : "${BOOT_MODE:="macos"}"
 : "${SUPPORT:="https://github.com/dockur/macos"}"
