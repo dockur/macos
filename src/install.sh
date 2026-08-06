@@ -224,6 +224,48 @@ checkDmgImage() {
   return 0
 }
 
+checkBootableDmgImage() {
+
+  local file="$1"
+  local listing
+
+  if ! listing=$(mktemp); then
+    error "Failed to create temporary file for custom image inspection."
+    return 1
+  fi
+
+  if ! 7z l -slt "$file" > "$listing" 2>/dev/null; then
+    rm -f "$listing"
+    error "Failed to inspect the contents of the custom recovery image."
+    return 1
+  fi
+
+  # A directly bootable macOS or recovery image must expose boot.efi.
+  if grep -Eiq \
+    '^Path = (.+[\\/])?(System[\\/]Library[\\/]CoreServices[\\/]boot\.efi|com\.apple\.recovery\.boot[\\/]boot\.efi)$' \
+    "$listing"; then
+
+    rm -f "$listing"
+    return 0
+  fi
+
+  # These files identify installer distribution media rather than an image
+  # that OpenCore can boot directly.
+  if grep -Eiq \
+    '^Path = (.+[\\/])?(InstallAssistant\.pkg|SharedSupport\.dmg|BaseSystem\.dmg)$|^Path = .*Install macOS .*\.app([\\/]|$)' \
+    "$listing"; then
+
+    rm -f "$listing"
+    error "The custom DMG contains macOS installer files, but is not itself a bootable recovery image."
+    error "Provide the bootable BaseSystem.dmg or RecoveryImage.dmg as /boot.dmg."
+    return 1
+  fi
+
+  rm -f "$listing"
+  error "The custom DMG is a valid disk image, but no macOS boot loader was found."
+  return 1
+}
+
 install() {
 
   local version="$1"
@@ -261,15 +303,18 @@ install() {
   # at an older installer or incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
-  # A bundled recovery image takes precedence over network retrieval, but is
-  # subjected to the same size and container-format validation.
+  # A bundled recovery image takes precedence over network retrieval,
+  # but is subjected to the same size and container-format validation.
   if [ -f "/boot.dmg" ]; then
+
+    info "Using custom macOS recovery image from /boot.dmg..."
+
     if ! cp "/boot.dmg" "$dest"; then
-      error "Failed to copy bundled recovery image to $dest."
+      error "Failed to copy custom recovery image to $dest."
       return 1
     fi
 
-    if ! checkDmgImage "$dest"; then
+    if ! checkDmgImage "$dest" || ! checkBootableDmgImage "$dest"; then
       rm -f "$dest"
       return 1
     fi
