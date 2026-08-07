@@ -39,7 +39,8 @@ RUN <<EOF
   apt-get update
   apt-get --no-install-recommends -y install \
     7zip \
-    mtools
+    mtools \
+    xmlstarlet
 
   apt-get clean
 
