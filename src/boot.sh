@@ -407,8 +407,17 @@ printMachineDetails() {
 
 openCoreSignature() {
 
-  # Hash every generated setting that changes OpenCore contents; an unchanged
-  # signature allows the persistent boot image to be reused safely.
+  local opencore config vmhide
+  local plist="/assets/config.plist"
+
+  [ -f "/custom.plist" ] && plist="/custom.plist"
+
+  opencore=$(sha256sum /opencore.iso | awk '{print $1}') || return 1
+  config=$(sha256sum "$plist" | awk '{print $1}') || return 1
+  vmhide=$(sha256sum /vmh.zip | awk '{print $1}') || return 1
+
+  # Hash every generated setting and source file that changes OpenCore contents;
+  # an unchanged signature allows the persistent boot image to be reused safely.
   {
     echo "MODEL=$MODEL"
     echo "SN=$SN"
@@ -418,6 +427,9 @@ openCoreSignature() {
     echo "WIDTH=$WIDTH"
     echo "HEIGHT=$HEIGHT"
     echo "PICKER=$PICKER"
+    echo "OPENCORE=$opencore"
+    echo "PLIST=$config"
+    echo "VMHIDE=$vmhide"
   } | sha256sum | awk '{print $1}'
 
   return 0
@@ -432,8 +444,8 @@ prepareOpenCoreImage() {
   current=$(openCoreSignature)
   previous=$(readState "sig" "boot") || exit 11
 
-  # Rebuild only when the generated machine identity, resolution, or picker
-  # configuration differs from the stored boot-image signature.
+  # Rebuild when generated settings or any source used to build OpenCore
+  # differs from the stored boot-image signature.
   if [ -s "$target" ] && [ "$previous" = "$current" ]; then
     IMG="$target"
     return 0
