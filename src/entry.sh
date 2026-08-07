@@ -16,7 +16,8 @@ cd /run
 
 . start.sh      # Startup hook
 . utils.sh      # Load functions
-. reset.sh      # Initialize system
+. init.sh       # Initialize system
+. memory.sh     # Check available memory
 . server.sh     # Start webserver
 . install.sh    # Get the OSX images
 . disk.sh       # Initialize disks
@@ -27,7 +28,6 @@ cd /run
 . cpu.sh        # Configure CPU model
 . proc.sh       # Initialize processor
 . power.sh      # Configure shutdown
-. memory.sh     # Check available memory
 . balloon.sh    # Initialize ballooning
 . config.sh     # Configure arguments
 . finish.sh     # Finish initialization
