@@ -505,8 +505,9 @@ enabled "$DEBUG" && echo "$msg"
 selectOvmfFiles
 clearNvram
 
+BOOT_OPTS+=" -rtc base=utc"
 BOOT_OPTS+=" -smbios type=2"
-BOOT_OPTS+=" -rtc base=utc,base=localtime"
+
 # Disable firmware sleep states and bridge hotplug behavior that macOS does
 # not handle reliably on the emulated ICH9 platform.
 BOOT_OPTS+=" -global ICH9-LPC.disable_s3=1"
