@@ -429,9 +429,9 @@ if [ -z "$VERSION" ]; then
 
 fi
 
-# Version-specific storage is chosen only for a new installation. Existing
-# disks keep their original path even when VERSION later changes.
-# Keep the current storage location when a primary disk already exists.
+# Use version-specific storage so each macOS version has its own folder.
+# Switching VERSION selects the corresponding existing installation without
+# overwriting existing disks or redownloading the installation media again.
 if [ ! -s "$BASE_IMG" ] && ! hasDisk; then
   STORAGE="$STORAGE/${VERSION,,}"
   BASE_IMG="$STORAGE/base.dmg"
