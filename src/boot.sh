@@ -269,44 +269,26 @@ checkOpenCoreConfig() {
 
   # Parse the completed plist and verify typed values; successful text
   # substitutions alone do not prove the generated config is valid.
-  if ! python3 - "$CFG" "$MODEL" "$SN" "$MLB" "$UUID" "$ROM" <<'EOF'
-import plistlib
-import sys
+  local path='/plist/dict/key[.="PlatformInfo"]/following-sibling::dict[1]/key[.="Generic"]/following-sibling::dict[1]'
+  local model serial board uuid rom_type rom
 
-path, model, serial, board, uuid, rom = sys.argv[1:]
+  if ! xmlstarlet val -q "$CFG"; then
+    error "OpenCore config.plist does not contain the generated machine identity!" && exit 12
+  fi
 
-with open(path, "rb") as f:
-    data = plistlib.load(f)
+  model=$(xmlstarlet sel -t -v "$path/key[.='SystemProductName']/following-sibling::*[1]" "$CFG")
+  serial=$(xmlstarlet sel -t -v "$path/key[.='SystemSerialNumber']/following-sibling::*[1]" "$CFG")
+  board=$(xmlstarlet sel -t -v "$path/key[.='MLB']/following-sibling::*[1]" "$CFG")
+  uuid=$(xmlstarlet sel -t -v "$path/key[.='SystemUUID']/following-sibling::*[1]" "$CFG")
+  rom_type=$(xmlstarlet sel -t -v "name($path/key[.='ROM']/following-sibling::*[1])" "$CFG")
+  rom=$(xmlstarlet sel -t -v "$path/key[.='ROM']/following-sibling::*[1]" "$CFG" | tr -d '[:space:]')
 
-try:
-    generic = data["PlatformInfo"]["Generic"]
-except KeyError as e:
-    print(f"Missing PlatformInfo/Generic key: {e}", file=sys.stderr)
-    sys.exit(1)
-
-checks = {
-    "SystemProductName": model,
-    "SystemSerialNumber": serial,
-    "MLB": board,
-    "SystemUUID": uuid,
-}
-
-for key, expected in checks.items():
-    actual = generic.get(key)
-    if actual != expected:
-        print(f"{key} is {actual!r}, expected {expected!r}", file=sys.stderr)
-        sys.exit(1)
-
-actual_rom = generic.get("ROM")
-if not isinstance(actual_rom, bytes):
-    print("ROM is not plist data", file=sys.stderr)
-    sys.exit(1)
-
-if actual_rom.hex().lower() != rom.lower():
-    print(f"ROM is {actual_rom.hex()}, expected {rom}", file=sys.stderr)
-    sys.exit(1)
-EOF
-  then
+  if [ "$model" != "$MODEL" ] ||
+     [ "$serial" != "$SN" ] ||
+     [ "$board" != "$MLB" ] ||
+     [ "$uuid" != "$UUID" ] ||
+     [ "$rom_type" != "data" ] ||
+     [ "$rom" != "$(printf '%s' "$ROM" | xxd -r -p | base64 | tr -d '[:space:]')" ]; then
     error "OpenCore config.plist does not contain the generated machine identity!" && exit 12
   fi
 
