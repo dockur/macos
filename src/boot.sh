@@ -215,7 +215,7 @@ configureOpenCorePlist() {
   sed -r -i -e 's|<string>iMac19,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>W00000000001</string>|<string>'"${SN}"'</string>|g' "$CFG"
   sed -r -i -e 's|<string>M0000000000000001</string>|<string>'"${MLB}"'</string>|g' "$CFG"
-  sed -r -i -e 's|<string>1920x1080@32</string>|<string>'"${resolution}"'</string>|g' "$CFG"
+  sed -i '/<key>Resolution<\/key>/{n;s|<string>[^<]*</string>|<string>'"${resolution}"'</string>|;}' "$CFG"
   sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
 
   # Show boot picker if requested
