@@ -203,29 +203,36 @@ configureOpenCorePlist() {
 
   cp "$PLIST" "$CFG"
 
-  # Replace placeholders with machine details
+  # Update machine details
   # OpenCore stores ROM as six raw MAC bytes in plist data rather than as a
   # colon-delimited string.
   ROM="${MAC//[^[:alnum:]]/}"
   ROM="${ROM,,}"
   brom=$(echo "$ROM" | xxd -r -p | base64)
   local resolution="${WIDTH}x${HEIGHT}@32"
+  local generic="/plist/dict/key[.='PlatformInfo']/following-sibling::dict[1]/key[.='Generic']/following-sibling::dict[1]"
+  local output="/plist/dict/key[.='UEFI']/following-sibling::dict[1]/key[.='Output']/following-sibling::dict[1]"
+  local boot="/plist/dict/key[.='Misc']/following-sibling::dict[1]/key[.='Boot']/following-sibling::dict[1]"
 
-  sed -r -i -e 's|<data>ESIzRFVm</data>|<data>'"${brom}"'</data>|g' "$CFG"
-  sed -r -i -e 's|<string>iMac19,1</string>|<string>'"${MODEL}"'</string>|g' "$CFG"
-  sed -r -i -e 's|<string>W00000000001</string>|<string>'"${SN}"'</string>|g' "$CFG"
-  sed -r -i -e 's|<string>M0000000000000001</string>|<string>'"${MLB}"'</string>|g' "$CFG"
-  sed -i '/<key>Resolution<\/key>/{n;s|<string>[^<]*</string>|<string>'"${resolution}"'</string>|;}' "$CFG"
-  sed -r -i -e 's|<string>00000000-0000-0000-0000-000000000000</string>|<string>'"${UUID}"'</string>|g' "$CFG"
+  xmlstarlet ed -P -L \
+    -u "$generic/key[.='ROM']/following-sibling::data[1]" -v "$brom" \
+    -u "$generic/key[.='SystemProductName']/following-sibling::string[1]" -v "$MODEL" \
+    -u "$generic/key[.='SystemSerialNumber']/following-sibling::string[1]" -v "$SN" \
+    -u "$generic/key[.='MLB']/following-sibling::string[1]" -v "$MLB" \
+    -u "$generic/key[.='SystemUUID']/following-sibling::string[1]" -v "$UUID" \
+    -u "$output/key[.='Resolution']/following-sibling::string[1]" -v "$resolution" \
+    "$CFG"
 
   # Show boot picker if requested
   # Showing the picker also exposes auxiliary entries and extends the timeout
   # so recovery and maintenance choices remain selectable.
   if enabled "$PICKER"; then
-    sed -i '/<key>ShowPicker<\/key>/{n;s|<false/>|<true/>|}' "$CFG"
-    sed -i '/<key>HideAuxiliary<\/key>/{n;s|<true/>|<false/>|}' "$CFG"
-    sed -i '/<key>Timeout<\/key>/{n;s|<integer>[0-9]\+</integer>|<integer>60</integer>|}' "$CFG"
-    sed -i '/<key>PickerMode<\/key>/{n;s|<string>[^<]*</string>|<string>Builtin</string>|}' "$CFG"
+    xmlstarlet ed -P -L \
+      -r "$boot/key[.='ShowPicker']/following-sibling::*[1]" -v true \
+      -r "$boot/key[.='HideAuxiliary']/following-sibling::*[1]" -v false \
+      -u "$boot/key[.='Timeout']/following-sibling::integer[1]" -v 60 \
+      -u "$boot/key[.='PickerMode']/following-sibling::string[1]" -v Builtin \
+      "$CFG"
   fi
 
   return 0
