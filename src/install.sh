@@ -396,23 +396,27 @@ generateAddress() {
 
 generateSerial() {
 
+  local generated generatedSN generatedMLB
+
   restoreState SN "sn" || return 1
   restoreState MLB "mlb" || return 1
 
   [ -n "$SN" ] && [ -n "$MLB" ] && return 0
 
-  # Generate the serial and board serial as one matched pair and persist both;
-  # changing either independently would create an inconsistent Apple identity.
-  # Generate unique serial numbers for machine
-  SN=$(/usr/local/bin/macserial --num 1 --model "${MODEL}" 2>/dev/null)
+  # Generate a serial pair and use only the values that are still missing,
+  # preserving any serial or board serial supplied by the user or restored from state.
+  generated=$(/usr/local/bin/macserial --num 1 --model "${MODEL}" 2>/dev/null)
 
-  SN="${SN##*$'\n'}"
-  [[ "$SN" != *" | "* ]] && error "$SN" && return 1
+  generated="${generated##*$'\n'}"
+  [[ "$generated" != *" | "* ]] && error "$generated" && return 1
 
-  MLB=${SN#*|}
-  MLB="${MLB#"${MLB%%[![:space:]]*}"}"
-  SN="${SN%%|*}"
-  SN="${SN%"${SN##*[![:space:]]}"}"
+  generatedMLB=${generated#*|}
+  generatedMLB="${generatedMLB#"${generatedMLB%%[![:space:]]*}"}"
+  generatedSN="${generated%%|*}"
+  generatedSN="${generatedSN%"${generatedSN##*[![:space:]]}"}"
+
+  [ -n "$SN" ] || SN="$generatedSN"
+  [ -n "$MLB" ] || MLB="$generatedMLB"
 
   writeState "sn" "$SN" || return 1
   writeState "mlb" "$MLB" || return 1
