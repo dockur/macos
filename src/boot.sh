@@ -270,18 +270,33 @@ checkOpenCoreConfig() {
   # Parse the completed plist and verify typed values; successful text
   # substitutions alone do not prove the generated config is valid.
   local path='/plist/dict/key[.="PlatformInfo"]/following-sibling::dict[1]/key[.="Generic"]/following-sibling::dict[1]'
-  local model serial board uuid rom_type rom
+  local values model serial board uuid rom_type rom
 
-  if ! xmlstarlet val -q "$CFG"; then
+  if ! xmlstarlet val -q "$CFG" 2>/dev/null; then
     error "OpenCore config.plist does not contain the generated machine identity!" && exit 12
   fi
 
-  model=$(xmlstarlet sel -t -v "$path/key[.='SystemProductName']/following-sibling::*[1]" "$CFG")
-  serial=$(xmlstarlet sel -t -v "$path/key[.='SystemSerialNumber']/following-sibling::*[1]" "$CFG")
-  board=$(xmlstarlet sel -t -v "$path/key[.='MLB']/following-sibling::*[1]" "$CFG")
-  uuid=$(xmlstarlet sel -t -v "$path/key[.='SystemUUID']/following-sibling::*[1]" "$CFG")
-  rom_type=$(xmlstarlet sel -t -v "name($path/key[.='ROM']/following-sibling::*[1])" "$CFG")
-  rom=$(xmlstarlet sel -t -v "$path/key[.='ROM']/following-sibling::*[1]" "$CFG" | tr -d '[:space:]')
+  if ! values=$(xmlstarlet sel -T -t \
+      -v "$path/key[.='SystemProductName']/following-sibling::*[1]" -n \
+      -v "$path/key[.='SystemSerialNumber']/following-sibling::*[1]" -n \
+      -v "$path/key[.='MLB']/following-sibling::*[1]" -n \
+      -v "$path/key[.='SystemUUID']/following-sibling::*[1]" -n \
+      -v "name($path/key[.='ROM']/following-sibling::*[1])" -n \
+      -v "$path/key[.='ROM']/following-sibling::*[1]" \
+      "$CFG" 2>/dev/null); then
+    error "OpenCore config.plist does not contain the generated machine identity!" && exit 12
+  fi
+
+  {
+    IFS= read -r model
+    IFS= read -r serial
+    IFS= read -r board
+    IFS= read -r uuid
+    IFS= read -r rom_type
+    IFS= read -r rom
+  } <<< "$values"
+
+  rom=$(printf '%s' "$rom" | tr -d '[:space:]')
 
   if [ "$model" != "$MODEL" ] ||
      [ "$serial" != "$SN" ] ||
