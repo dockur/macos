@@ -10,6 +10,7 @@ set -Eeuo pipefail
 : "${TIMEOUT:="105"}"
 : "${DISK_TYPE:="blk"}"
 : "${RAM_MINIMUM:="4G"}"
+: "${DISK_MINIMUM:="32G"}"
 : "${SOUND:="usb-audio"}"
 : "${BOOT_MODE:="macos"}"
 
