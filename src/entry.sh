@@ -2,6 +2,8 @@
 set -Eeuo pipefail
 
 : "${APP:="macOS"}"
+: "${SUPPORT:="https://github.com/dockur/macos"}"
+
 : "${VGA:="vmware"}"
 : "${SHUTDOWN:="Y"}"
 : "${TIMEOUT:="105"}"
@@ -10,7 +12,6 @@ set -Eeuo pipefail
 : "${RAM_MINIMUM:="4G"}"
 : "${SOUND:="usb-audio"}"
 : "${BOOT_MODE:="macos"}"
-: "${SUPPORT:="https://github.com/dockur/macos"}"
 
 cd /run
 
