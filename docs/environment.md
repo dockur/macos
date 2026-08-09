@@ -141,3 +141,4 @@ Also see [Dynamic memory allocation](https://github.com/qemus/qemu/blob/master/d
 | `TRACE` | `N` | Enables shell command tracing. |
 | `SERIAL` | `mon:stdio` | QEMU serial device configuration. |
 | `MONITOR` |  | QEMU monitor configuration. |
+| `QMP` |  | QEMU Machine Protocol configuration. |
