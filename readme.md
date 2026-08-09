@@ -73,7 +73,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 - Docker Desktop or Podman (Desktop) on Windows 11 with nested virtualization enabled.
 - An AVX2-capable processor, such as Intel Haswell (4th-generation Core) or AMD Zen (Ryzen 1000 series) or newer.
 - At least 4 GB of available RAM.
-- At least 64 GB of free disk space.
+- At least 32 GB of free disk space.
 
 > [!NOTE]
 > Docker Desktop on Linux, macOS, and Windows 10 does not currently provide KVM access to containers and is therefore not supported.
