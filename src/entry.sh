@@ -2,12 +2,12 @@
 set -Eeuo pipefail
 
 : "${APP:="macOS"}"
+: "${PLATFORM:="x64"}"
 : "${SUPPORT:="https://github.com/dockur/macos"}"
 
 : "${VGA:="vmware"}"
 : "${SHUTDOWN:="Y"}"
 : "${TIMEOUT:="105"}"
-: "${PLATFORM:="x64"}"
 : "${DISK_TYPE:="blk"}"
 : "${RAM_MINIMUM:="4G"}"
 : "${SOUND:="usb-audio"}"
