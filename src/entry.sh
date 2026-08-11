@@ -21,6 +21,7 @@ cd /run
 . init.sh       # Initialize system
 . memory.sh     # Check available memory
 . server.sh     # Start webserver
+. download.sh   # Load functions
 . install.sh    # Get the OSX images
 . disk.sh       # Initialize disks
 . display.sh    # Initialize graphics
