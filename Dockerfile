@@ -1,30 +1,15 @@
 # syntax=docker/dockerfile:1
 
-FROM --platform=$BUILDPLATFORM alpine:3.24 AS builder
-
-ARG VERSION_OPENCORE="1.0.7"
-ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
-ADD $REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip /tmp/opencore.zip
-
-RUN <<EOF
-  set -eu
-
-  apk --update --no-cache add unzip
-
-  # Extract macserial
-  unzip /tmp/opencore.zip -d /tmp/oc
-  cp /tmp/oc/Utilities/macserial/macserial.linux /macserial
-
-  rm -rf /tmp/* /var/tmp/* /var/cache/apk/*
-EOF
-
-FROM scratch AS runner
+FROM scratch AS base
 COPY --from=qemux/qemu:7.46 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_VM_HIDE="2.0.0"
+ARG VERSION_OPENCORE="1.0.7"
 ARG VERSION_KVM_OPENCORE="0.7"
 ARG VERSION_OSX_KVM="326053dd61f49375d5dfb28ee715d38b04b5cd8e"
+
+ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
 ARG REPO_VM_HIDE="https://github.com/Carnations-Botanica/VMHide"
 ARG REPO_KVM_OPENCORE="https://github.com/LongQT-sea/OpenCore-ISO"
 ARG REPO_OSX_KVM="https://raw.githubusercontent.com/kholia/OSX-KVM"
@@ -44,6 +29,11 @@ RUN <<EOF
 
   apt-get clean
 
+  # Extract macserial
+  wget "$REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip" -O /tmp/opencore.zip -q --timeout=30
+  unzip -p /tmp/opencore.zip Utilities/macserial/macserial.linux > /usr/local/bin/macserial
+  chmod 755 /usr/local/bin/macserial
+
   # Set version file
   echo "$VERSION_ARG" > /etc/version
 
@@ -52,7 +42,6 @@ EOF
 
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /assets/
-COPY --chmod=755 --from=builder /macserial /usr/local/bin/
 
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
