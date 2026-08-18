@@ -86,6 +86,10 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   
   - Start the container and connect to [port 8006](http://127.0.0.1:8006/) using your web browser.
 
+  - After the recovery image is downloaded, a black screen with a progress bar will appear while macOS downloads the remaining installation files.
+
+  - Once the download is complete, the macOS recovery menu will appear.
+
   - Choose `Disk Utility` and then select the largest `Apple Inc. VirtIO Block Media` disk.
 
   - Click the `Erase` button to format the disk to APFS, and give it any name you like.
