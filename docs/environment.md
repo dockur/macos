@@ -74,6 +74,8 @@ An empty default means the variable is unset and its value is determined automat
 | `VGA` | `vmware` | QEMU video adapter model. |
 | `WIDTH` | `1920` | Display width configured for macOS and OpenCore. |
 | `HEIGHT` | `1080` | Display height configured for macOS and OpenCore. |
+| `GPU` | `N` | Enables experimental GPU acceleration. |
+| `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
 
 ## 🌍 Web UI
 
