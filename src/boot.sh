@@ -119,10 +119,10 @@ prepareUefiVars() {
 
 clearNvram() {
 
-  if enabled "${CLEAR:-}"; then
-    # Clear NVRAM (helps to fix corruptions)
-    rm -f "$DEST.rom" "$DEST.vars"
-  fi
+  enabled "${CLEAR:-}" || return 0
+
+  # Clear NVRAM (helps to fix corruptions)
+  rm -f "$DEST.rom" "$DEST.vars"
 
   return 0
 }
@@ -264,8 +264,6 @@ checkOpenCoreConfig() {
   if [ ! -s "$CFG" ]; then
     error "OpenCore config.plist is missing or empty!" && exit 12
   fi
-
-  info "Validating OpenCore config..."
 
   # Parse the completed plist and verify typed values; successful text
   # substitutions alone do not prove the generated config is valid.
