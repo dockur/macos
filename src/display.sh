@@ -67,7 +67,7 @@ RAM_BACKEND="memfd"
 # bridge. The GOP ROM belongs to this same device; it is not a second display.
 REIMS_OPTS="-vga none"
 REIMS_OPTS+=" -device pci-bridge,chassis_nr=5,id=pci.5,bus=pcie.0,addr=1e.0"
-REIMS_OPTS+=" -device reims-vgpu-pci,id=reimsvgpu,romfile=${REIMS_ROM},rombar=1,bus=pci.5,addr=00.0"
+REIMS_OPTS+=" -device reims-vgpu-pci,id=reimsvgpu,romfile=${REIMS_ROM},rombar=1,bus=pci.5,addr=01.0"
 
 case "${DISPLAY,,}" in
 
