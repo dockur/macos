@@ -25,7 +25,7 @@ RUN <<EOF
   apt-get --no-install-recommends -y install \
     mtools \
     xmlstarlet \
-    vulkaninfo
+    vulkan-tools
 
   apt-get clean
 
