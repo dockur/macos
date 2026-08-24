@@ -4,7 +4,7 @@ set -Eeuo pipefail
 # Docker environment variables
 
 : "${GPU:="N"}"         # GPU acceleration
-: "${VGA:="virtio"}"    # VGA adaptor
+: "${VGA:="vmware"}"    # VGA adaptor
 : "${DISPLAY:="web"}"   # Display type
 : "${LOSSY:="N"}"       # Lossy VNC compression
 : "${VNC_PORT:="5900"}" # VNC port
