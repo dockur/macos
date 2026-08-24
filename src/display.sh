@@ -24,7 +24,7 @@ port=$(( VNC_PORT - 5900 ))
 LOSSY_OPT=""
 enabled "$LOSSY" && LOSSY_OPT=",lossy=on"
 
-if ! enabled "$GPU"; then
+configureSoftwareDisplay() {
 
   VGA_OPT="-vga ${VGA}"
   if [[ "${VGA,,}" == "std,"* ]]; then
@@ -47,10 +47,51 @@ if ! enabled "$GPU"; then
   esac
 
   return 0
-fi
+}
+
+configureSoftwareDisplay
+enabled "$GPU" || return 0
 
 msg="Configuring Reims vGPU..."
 enabled "$DEBUG" && echo "$msg"
+
+if [ ! -d /dev/dri ]; then
+  warn "GPU acceleration was requested, but '/dev/dri' was not added to the devices section of your compose file; falling back to software rendering."
+  return 0
+fi
+
+RENDER_NODE=""
+for node in /dev/dri/renderD*; do
+
+  [ -c "$node" ] || continue
+
+  gpu_fd=""
+  if ! { exec {gpu_fd}<>"$node"; } 2>/dev/null; then
+    continue
+  fi
+
+  { exec {gpu_fd}>&-; } 2>/dev/null || true
+  RENDER_NODE="$node"
+  break
+done
+
+if [ -z "$RENDER_NODE" ]; then
+  warn "GPU acceleration was requested, but no accessible DRM render node was found in '/dev/dri'; falling back to software rendering."
+  return 0
+fi
+
+if ! compgen -G '/usr/lib/*/libvulkan.so.1' >/dev/null 2>&1 \
+    && [ ! -e /usr/lib/libvulkan.so.1 ] \
+    && [ ! -e /usr/lib64/libvulkan.so.1 ]; then
+  warn "GPU acceleration was requested, but the Vulkan loader is not available in the container; falling back to software rendering."
+  return 0
+fi
+
+if ! compgen -G '/etc/vulkan/icd.d/*.json' >/dev/null 2>&1 \
+    && ! compgen -G '/usr/share/vulkan/icd.d/*.json' >/dev/null 2>&1; then
+  warn "GPU acceleration was requested, but no Vulkan ICD is available in the container; falling back to software rendering."
+  return 0
+fi
 
 REIMS_ROM="/usr/share/qemu/reims-vgpu-gop.rom"
 if [ ! -s "$REIMS_ROM" ]; then
