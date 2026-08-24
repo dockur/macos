@@ -4,7 +4,7 @@ set -Eeuo pipefail
 # Docker environment variables
 
 : "${GPU:="N"}"         # GPU acceleration
-: "${VGA:="vmware"}"    # VGA adaptor
+: "${VGA:="vmware"}"    # VGA adapter
 : "${DISPLAY:="web"}"   # Display type
 : "${LOSSY:="N"}"       # Lossy VNC compression
 : "${VNC_PORT:="5900"}" # VNC port
@@ -16,40 +16,54 @@ DISPLAY=$(strip "$DISPLAY")
 VNC_PORT=$(strip "$VNC_PORT")
 WSS_SOCKET="${WSS_SOCKET:-$QEMU_DIR/vnc-ws.sock}"
 
-port=$(( VNC_PORT - 5900 ))
+VGA_DEVICE="${VGA%%,*}"
+VGA_OPTIONS="${VGA#"$VGA_DEVICE"}"
 
-# Preserve the historic :0 setting as an alias for the managed web display.
-[[ "$DISPLAY" == ":0" ]] && DISPLAY="web"
+case "${VGA_DEVICE,,}" in
+  "std" | "vga" )
+    VGA_DEVICE="VGA"
+    VGA_ARG="-device" ;;
+  "vmware" | "vmware-svga" )
+    VGA_DEVICE="vmware-svga"
+    VGA_ARG="-device" ;;
+  "virtio" )
+    VGA_DEVICE="virtio-vga"
+    VGA_ARG="-device" ;;
+  "virtio-"* )
+    VGA_DEVICE="${VGA_DEVICE,,}"
+    VGA_ARG="-device" ;;
+  * )
+    VGA_ARG="-vga" ;;
+esac
+
+VGA="${VGA_DEVICE}${VGA_OPTIONS}"
+VGA_ARG+=" ${VGA}"
+
+# QEMU accepts a VNC display number rather than a TCP port,
+# so translate the configured port back to its :N display index.
+port=$(( VNC_PORT - 5900 ))
 
 LOSSY_OPT=""
 enabled "$LOSSY" && LOSSY_OPT=",lossy=on"
 
-configureSoftwareDisplay() {
+# Preserve the historic :0 setting as an alias for the managed web display.
+[[ "$DISPLAY" == ":0" ]] && DISPLAY="web"
 
-  VGA_OPT="-vga ${VGA}"
-  if [[ "${VGA,,}" == "std,"* ]]; then
-    VGA_OPT="-device VGA,${VGA#*,}"
-  fi
+case "${DISPLAY,,}" in
 
-  case "${DISPLAY,,}" in
+  "vnc" )
+    DISPLAY_OPTS="-display vnc=:${port}${LOSSY_OPT} ${VGA_ARG}" ;;
+  "web" )
+    DISPLAY_OPTS="-display vnc=:${port},websocket=unix:${WSS_SOCKET}${LOSSY_OPT} ${VGA_ARG}" ;;
+  "disabled" )
+    DISPLAY_OPTS="-display none ${VGA_ARG}" ;;
+  "none" )
+    DISPLAY_OPTS="-display none -vga none" ;;
+  *)
+    DISPLAY_OPTS="-display ${DISPLAY} ${VGA_ARG}" ;;
 
-    "vnc" )
-      DISPLAY_OPTS="-display vnc=:${port}${LOSSY_OPT} ${VGA_OPT}" ;;
-    "web" )
-      DISPLAY_OPTS="-display vnc=:${port},websocket=unix:${WSS_SOCKET}${LOSSY_OPT} ${VGA_OPT}" ;;
-    "disabled" )
-      DISPLAY_OPTS="-display none ${VGA_OPT}" ;;
-    "none" )
-      DISPLAY_OPTS="-display none -vga none" ;;
-    * )
-      DISPLAY_OPTS="-display ${DISPLAY} ${VGA_OPT}" ;;
+esac
 
-  esac
-
-  return 0
-}
-
-configureSoftwareDisplay
 enabled "$GPU" || return 0
 
 msg="Configuring Reims vGPU..."
