@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.19
 
 FROM scratch AS base
-COPY --from=qemux/qemu:7.49 / /
+COPY --from=qemux/qemu:7.49 --exclude=usr/bin/qemu-system-x86_64 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_VM_HIDE="2.0.0"
@@ -41,6 +41,8 @@ EOF
 
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /assets/
+COPY --from=qemux/qemu-reims:1.0.0 /usr/bin/qemu-system-x86_64 /usr/bin/
+COPY --from=qemux/qemu-reims:1.0.0 /usr/bin/reims-vgpu-gop.rom /usr/bin/
 
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
