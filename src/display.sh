@@ -80,16 +80,65 @@ if [ -z "$RENDER_NODE" ]; then
   return 0
 fi
 
-if ! compgen -G '/usr/lib/*/libvulkan.so.1' >/dev/null 2>&1 \
-    && [ ! -e /usr/lib/libvulkan.so.1 ] \
-    && [ ! -e /usr/lib64/libvulkan.so.1 ]; then
-  warn "GPU acceleration was requested, but the Vulkan loader is not available in the container; falling back to software rendering."
+if ! command -v vulkaninfo >/dev/null 2>&1; then
+  warn "GPU acceleration was requested, but 'vulkaninfo' is not available in the container; falling back to software rendering."
   return 0
 fi
 
-if ! compgen -G '/etc/vulkan/icd.d/*.json' >/dev/null 2>&1 \
-    && ! compgen -G '/usr/share/vulkan/icd.d/*.json' >/dev/null 2>&1; then
-  warn "GPU acceleration was requested, but no Vulkan ICD is available in the container; falling back to software rendering."
+VULKAN_SUMMARY=""
+if ! VULKAN_SUMMARY="$(vulkaninfo --summary 2>&1)"; then
+  enabled "$DEBUG" && printf '%s\n' "$VULKAN_SUMMARY"
+  warn "GPU acceleration was requested, but Vulkan device enumeration failed; falling back to software rendering."
+  return 0
+fi
+
+# Reims requires Vulkan 1.2 and rejects devices below that API floor. Mirror its
+# device policy here: CPU/software Vulkan does not count as hardware rendering,
+# while discrete, integrated, virtual and other non-CPU devices are eligible.
+if ! awk '
+  function check_device() {
+    if (!in_device || type == "" || major < 0 || minor < 0) {
+      return
+    }
+
+    if (type != "PHYSICAL_DEVICE_TYPE_CPU" &&
+        (major > 1 || (major == 1 && minor >= 2))) {
+      compatible = 1
+    }
+  }
+
+  /^GPU[0-9]+:/ {
+    check_device()
+    in_device = 1
+    major = -1
+    minor = -1
+    type = ""
+    next
+  }
+
+  in_device && /^[[:space:]]*apiVersion[[:space:]]*=/ {
+    value = $0
+    sub(/^.*=[[:space:]]*/, "", value)
+    split(value, version, ".")
+    major = version[1] + 0
+    minor = version[2] + 0
+    next
+  }
+
+  in_device && /^[[:space:]]*deviceType[[:space:]]*=/ {
+    type = $0
+    sub(/^.*=[[:space:]]*/, "", type)
+    sub(/[[:space:]].*$/, "", type)
+    next
+  }
+
+  END {
+    check_device()
+    exit compatible ? 0 : 1
+  }
+' <<< "$VULKAN_SUMMARY"; then
+  enabled "$DEBUG" && printf '%s\n' "$VULKAN_SUMMARY"
+  warn "GPU acceleration was requested, but no non-CPU Vulkan 1.2+ device is available; falling back to software rendering."
   return 0
 fi
 
