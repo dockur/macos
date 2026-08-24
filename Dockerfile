@@ -42,7 +42,7 @@ EOF
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /assets/
 COPY --from=qemux/qemu-reims:1.0.0 /usr/bin/qemu-system-x86_64 /usr/bin/
-COPY --from=qemux/qemu-reims:1.0.0 /usr/bin/reims-vgpu-gop.rom /usr/bin/
+COPY --from=qemux/qemu-reims:1.0.0 /usr/share/qemu/reims-vgpu-gop.rom /usr/share/qemu/
 
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
