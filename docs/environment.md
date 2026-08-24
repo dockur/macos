@@ -25,7 +25,7 @@ An empty default means the variable is unset and its value is determined automat
 | `SMP` |  | Custom CPU topology. Determined from `CPU_CORES` when unset. |
 | `KVM` | `Y` | Enables KVM hardware acceleration. |
 | `RAM_SIZE` | `4G` | Amount of RAM assigned to macOS, such as `8G`, `half`, or `max`. |
-| `RAM_BACKEND` |  | Guest RAM backing mechanism, set `memfd` for memfd-backed memory. |
+| `RAM_BACKEND` |  | Guest RAM backing mechanism. Automatically set to `memfd` when Reims vGPU is enabled. |
 | `RAM_CHECK` | `Y` | Checks whether enough host memory is available before starting macOS. |
 
 ## 💾 Storage
@@ -72,11 +72,10 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `DISPLAY` | `web` | Display backend, such as `web`, `vnc`, `disabled`, or `none`. |
-| `VGA` | `vmware` | QEMU video adapter model. |
+| `VGA` | `vmware` | QEMU video adapter model used when `GPU=N`. |
 | `WIDTH` | `1920` | Display width configured for macOS and OpenCore. |
 | `HEIGHT` | `1080` | Display height configured for macOS and OpenCore. |
-| `GPU` | `N` | Enables experimental GPU acceleration. |
-| `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
+| `GPU` | `N` | Enables hardware-accelerated graphics through Reims vGPU. |
 
 ## 🌍 Web UI
 
