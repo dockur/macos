@@ -88,6 +88,5 @@ info
 info "Device:     Reims vGPU"
 info "Backend:    Vulkan"
 info "RAM:        shared memfd"
-echo
 
 return 0
