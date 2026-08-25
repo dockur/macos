@@ -156,6 +156,81 @@ if ! awk '
   exit 72
 fi
 
+# Vulkan 1.2 promotes 8-bit storage and viewport-index output into core feature
+# structures, but support for both remains optional. Reims enables and relies on
+# these capabilities when translating the guest Metal command stream, so verify
+# them on the same Vulkan 1.2+ non-CPU device accepted above.
+VULKAN_DETAILS=""
+if ! VULKAN_DETAILS="$(env -u DISPLAY -u WAYLAND_DISPLAY vulkaninfo 2>&1)"; then
+  enabled "$DEBUG" && printf '%s\n' "$VULKAN_DETAILS"
+  error "GPU acceleration was requested, but Vulkan capability enumeration failed."
+  exit 72
+fi
+
+if ! awk '
+  function check_device() {
+    if (!in_device || type == "" || major < 0 || minor < 0) {
+      return
+    }
+
+    if (type != "PHYSICAL_DEVICE_TYPE_CPU" &&
+        (major > 1 || (major == 1 && minor >= 2)) &&
+        storage8 == "true" && viewport_index == "true") {
+      compatible = 1
+    }
+  }
+
+  /^GPU[0-9]+:/ {
+    check_device()
+    in_device = 1
+    major = -1
+    minor = -1
+    type = ""
+    storage8 = ""
+    viewport_index = ""
+    next
+  }
+
+  in_device && /^[[:space:]]*apiVersion[[:space:]]*=/ {
+    value = $0
+    sub(/^.*=[[:space:]]*/, "", value)
+    split(value, version, ".")
+    major = version[1] + 0
+    minor = version[2] + 0
+    next
+  }
+
+  in_device && /^[[:space:]]*deviceType[[:space:]]*=/ {
+    type = $0
+    sub(/^.*=[[:space:]]*/, "", type)
+    sub(/[[:space:]].*$/, "", type)
+    next
+  }
+
+  in_device && /^[[:space:]]*storageBuffer8BitAccess[[:space:]]*=/ {
+    storage8 = $0
+    sub(/^.*=[[:space:]]*/, "", storage8)
+    sub(/[[:space:]].*$/, "", storage8)
+    next
+  }
+
+  in_device && /^[[:space:]]*shaderOutputViewportIndex[[:space:]]*=/ {
+    viewport_index = $0
+    sub(/^.*=[[:space:]]*/, "", viewport_index)
+    sub(/[[:space:]].*$/, "", viewport_index)
+    next
+  }
+
+  END {
+    check_device()
+    exit compatible ? 0 : 1
+  }
+' <<< "$VULKAN_DETAILS"; then
+  enabled "$DEBUG" && printf '%s\n' "$VULKAN_DETAILS"
+  error "GPU acceleration was requested, but no Vulkan 1.2+ device provides Reims' required storageBuffer8BitAccess and shaderOutputViewportIndex features."
+  exit 72
+fi
+
 REIMS_ROM="/usr/share/qemu/reims-vgpu-gop.rom"
 if [ ! -s "$REIMS_ROM" ]; then
   error "Reims GOP ROM is missing at '$REIMS_ROM'."
