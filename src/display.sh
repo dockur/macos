@@ -69,11 +69,9 @@ enabled "$GPU" || return 0
 msg="Configuring Reims vGPU..."
 enabled "$DEBUG" && echo "$msg"
 
-fail="falling back to software rendering."
-
 if [ ! -d /dev/dri ]; then
-  warn "GPU acceleration was requested, but '/dev/dri' was not added to the devices section of your compose file; $fail"
-  return 0
+  error "GPU acceleration was requested, but '/dev/dri' was not added to the devices section of your compose file."
+  exit 72
 fi
 
 RENDER_NODE=""
@@ -92,20 +90,20 @@ for node in /dev/dri/renderD*; do
 done
 
 if [ -z "$RENDER_NODE" ]; then
-  warn "GPU acceleration was requested, but no accessible DRM render node was found in '/dev/dri'; $fail"
-  return 0
+  error "GPU acceleration was requested, but no accessible DRM render node was found in '/dev/dri'."
+  exit 72
 fi
 
 if ! command -v vulkaninfo >/dev/null 2>&1; then
-  warn "GPU acceleration was requested, but 'vulkaninfo' is not available in the container; $fail"
-  return 0
+  error "GPU acceleration was requested, but 'vulkaninfo' is not available in the container."
+  exit 72
 fi
 
 VULKAN_SUMMARY=""
 if ! VULKAN_SUMMARY="$(vulkaninfo --summary 2>&1)"; then
   enabled "$DEBUG" && printf '%s\n' "$VULKAN_SUMMARY"
-  warn "GPU acceleration was requested, but Vulkan device enumeration failed; $fail"
-  return 0
+  error "GPU acceleration was requested, but Vulkan device enumeration failed."
+  exit 72
 fi
 
 # Reims requires Vulkan 1.2 and rejects devices below that API floor. Mirror its
@@ -154,8 +152,8 @@ if ! awk '
   }
 ' <<< "$VULKAN_SUMMARY"; then
   enabled "$DEBUG" && printf '%s\n' "$VULKAN_SUMMARY"
-  warn "GPU acceleration was requested, but no non-CPU Vulkan 1.2+ device is available; $fail"
-  return 0
+  error "GPU acceleration was requested, but no Vulkan 1.2+ device is available."
+  exit 72
 fi
 
 REIMS_ROM="/usr/share/qemu/reims-vgpu-gop.rom"
@@ -189,10 +187,6 @@ case "${DISPLAY,,}" in
 esac
 
 echo
-info "Hardware rendering enabled:"
-info
-info "Device:     Reims vGPU"
-info "Backend:    Vulkan"
-info "RAM:        shared memfd"
+info "Hardware rendering enabled succesfully. Beware that this feature is still experimental!"
 
 return 0
