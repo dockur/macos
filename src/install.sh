@@ -430,7 +430,8 @@ extractBaseSystem() {
   local disk_dir="$dest/disk"
   local zip_dir="$dest/zip"
   local base_dir="$dest/base"
-  local entry partition image zip_entry zip base_entry base
+  local entry partition image
+  local zip_entry zip base_entry base
   local partitions=()
 
   BASE_SYSTEM_FILE=""
@@ -717,7 +718,7 @@ createInstallationImage() {
   # Extract the comparatively small application first. Doing this before the
   # large SharedSupport.dmg avoids keeping that file around while package
   # Payloads are expanded.
-  info "Extracting macOS installation application..."
+  info "Extracting macOS installer..."
 
   package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
 
