@@ -612,7 +612,7 @@ extractBaseSystem() {
 
     [ -n "$patch_entry" ] || continue
 
-    msg="Extracting image patch..."
+    msg="Extracting patch data..."
     info "$msg" && html "$msg"
 
     if ! extractArchiveEntry "$zip" "$patch_entry" "$patch_dir"; then
