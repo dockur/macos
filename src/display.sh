@@ -264,4 +264,6 @@ esac
 echo
 info "Hardware rendering enabled succesfully. Beware that this feature is still experimental!"
 
+enabled "$DEBUG" && echo && printf '%s\n' "$VULKAN_DETAILS"
+
 return 0
