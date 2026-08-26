@@ -847,6 +847,137 @@ checkWritableInstallationImage() {
   return 0
 }
 
+extractFileSystemImage() {
+
+  local image="$1"
+  local dest="$2"
+
+  local listing exclude links log
+  local line path target link parent root real_parent
+  local args=()
+
+  listing=$(mktemp "$STORAGE/tmp/filesystem-list.XXXXXX") || return 1
+  exclude=$(mktemp "$STORAGE/tmp/filesystem-exclude.XXXXXX") || {
+    rm -f "$listing"
+    return 1
+  }
+  links=$(mktemp "$STORAGE/tmp/filesystem-links.XXXXXX") || {
+    rm -f "$listing" "$exclude"
+    return 1
+  }
+  log=$(mktemp "$STORAGE/tmp/filesystem-extract.XXXXXX") || {
+    rm -f "$listing" "$exclude" "$links"
+    return 1
+  }
+
+  if ! 7z l -slt "$image" > "$listing" 2>/dev/null; then
+    rm -f "$listing" "$exclude" "$links" "$log"
+    error "Failed to inspect BaseSystem.dmg."
+    return 1
+  fi
+
+  : > "$exclude"
+  : > "$links"
+  path=""
+
+  # 7-Zip intentionally refuses some macOS filesystem links because targets
+  # containing parent components or link chains can escape a normal archive
+  # extraction directory. Exclude every symlink from bulk extraction and
+  # restore it ourselves only after all ordinary files are safely in place.
+  while IFS= read -r line; do
+
+    case "$line" in
+      "Path = "*)
+        path="${line#Path = }"
+        ;;
+      "Symbolic Link = "*)
+        target="${line#Symbolic Link = }"
+
+        [ -n "$path" ] && [ -n "$target" ] || continue
+
+        case "/$path/" in
+          *"/../"* | *"/./"* )
+            rm -f "$listing" "$exclude" "$links" "$log"
+            error "BaseSystem.dmg contains an unsafe link path: $path"
+            return 1
+            ;;
+        esac
+
+        [[ "$path" != /* ]] || {
+          rm -f "$listing" "$exclude" "$links" "$log"
+          error "BaseSystem.dmg contains an absolute link path: $path"
+          return 1
+        }
+
+        printf '%s\n' "$path" >> "$exclude"
+        printf '%s\0%s\0' "$path" "$target" >> "$links"
+        ;;
+    esac
+
+  done < "$listing"
+
+  rm -rf "$dest"
+  mkdir -p "$dest"
+
+  args=(x -y -spd "$image" "-o$dest")
+
+  if [ -s "$exclude" ]; then
+    args+=("-x@$exclude")
+  fi
+
+  if ! 7z "${args[@]}" > "$log" 2>&1; then
+    tail -n 20 "$log" >&2 || :
+    rm -f "$listing" "$exclude" "$links" "$log"
+    return 1
+  fi
+
+  root=$(realpath -e "$dest") || {
+    rm -f "$listing" "$exclude" "$links" "$log"
+    return 1
+  }
+
+  while IFS= read -r -d '' path && IFS= read -r -d '' target; do
+
+    link="$dest/$path"
+    parent="${link%/*}"
+
+    [ "$parent" != "$link" ] || parent="$dest"
+
+    if [ ! -d "$parent" ]; then
+      rm -f "$listing" "$exclude" "$links" "$log"
+      error "Failed to restore BaseSystem link because its parent is missing: $path"
+      return 1
+    fi
+
+    real_parent=$(realpath -e "$parent") || {
+      rm -f "$listing" "$exclude" "$links" "$log"
+      error "Failed to resolve BaseSystem link parent: $path"
+      return 1
+    }
+
+    case "$real_parent/" in
+      "$root/"*) ;;
+      *)
+        rm -f "$listing" "$exclude" "$links" "$log"
+        error "Refusing to restore BaseSystem link outside the extraction directory: $path"
+        return 1
+        ;;
+    esac
+
+    rm -f -- "$link"
+
+    if ! ln -s -- "$target" "$link"; then
+      rm -f "$listing" "$exclude" "$links" "$log"
+      error "Failed to restore BaseSystem link: $path"
+      return 1
+    fi
+
+  done < "$links"
+
+  rm -f "$listing" "$exclude" "$links" "$log"
+  return 0
+}
+
 createInstallationImage() {
 
   local dmg="$1"
@@ -899,7 +1030,7 @@ createInstallationImage() {
 
   info "Expanding recovery image..."
 
-  if ! 7z x -y "$base" -o"$base_dir" > /dev/null; then
+  if ! extractFileSystemImage "$base" "$base_dir"; then
     error "Failed to extract BaseSystem.dmg."
     rm -rf "$work"
     return 1
