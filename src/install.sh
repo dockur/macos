@@ -22,299 +22,609 @@ WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
 
 BASE_IMG_ID="InstallMedia"
-BASE_IMG="$STORAGE/base.dmg"
+BASE_IMG="$STORAGE/installer.img"
 
-function getRandom() {
+getInstallerMajor() {
 
-  local length="${1}"
-  local result=""
-  local chars=("0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "A" "B" "C" "D" "E" "F")
+  local version="$1"
 
-  # Apple recovery requests require opaque hexadecimal nonce fields; they
-  # are session tokens rather than persistent machine identity.
-  for ((i=0; i<length; i++)); do
-      result+="${chars[$((RANDOM % 16))]}"
-  done
+  case "${version,,}" in
+    "tahoe" | "26"* | "16"* ) echo "26" ;;
+    "sequoia" | "15"* ) echo "15" ;;
+    "sonoma" | "14"* ) echo "14" ;;
+    "ventura" | "13"* ) echo "13" ;;
+    "monterey" | "12"* ) echo "12" ;;
+    "bigsur" | "big-sur" | "11"* ) echo "11" ;;
+    * ) return 1 ;;
+  esac
 
-  echo "$result"
   return 0
 }
 
-checkDownloadSize() {
+getInstallerName() {
+
+  case "$1" in
+    "26" ) echo "Tahoe" ;;
+    "15" ) echo "Sequoia" ;;
+    "14" ) echo "Sonoma" ;;
+    "13" ) echo "Ventura" ;;
+    "12" ) echo "Monterey" ;;
+    "11" ) echo "Big Sur" ;;
+    * ) return 1 ;;
+  esac
+
+  return 0
+}
+
+getInstallerCatalog() {
+
+  # Apple's public release catalog for Tahoe also contains the current full
+  # installers for the supported Intel macOS generations below it.
+  echo "https://swscan.apple.com/content/catalogs/others/index-26-15-14-13-12-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog.gz"
+
+  return 0
+}
+
+getInstallerUrl() {
+
+  local major="$1"
+  local catalog meta output os version url
+  local best_version=""
+  local best_url=""
+  local metadata=()
+
+  catalog=$(mktemp) || return 1
+  meta=$(mktemp) || { rm -f "$catalog"; return 1; }
+
+  local catalog_url
+  catalog_url=$(getInstallerCatalog)
+
+  info "Checking Apple full installer catalog..."
+
+  if ! curl --disable --max-time 60 --silent --show-error --fail --location \
+      "$catalog_url" --output "$catalog"; then
+    rm -f "$catalog" "$meta"
+    error "Failed to download the Apple software update catalog."
+    return 1
+  fi
+
+  if ! output=$(gzip -dc "$catalog" 2>/dev/null); then
+    output=$(cat "$catalog") || {
+      rm -f "$catalog" "$meta"
+      error "Failed to read the Apple software update catalog."
+      return 1
+    }
+  fi
+
+  mapfile -t metadata < <(
+    sed -nE 's#.*<string>(https?://[^<]*com_apple_MobileAsset_MacSoftwareUpdate\.plist)</string>.*#\1#p' <<< "$output" |
+      sort -u
+  )
+
+  rm -f "$catalog"
+
+  if (( ${#metadata[@]} == 0 )); then
+    rm -f "$meta"
+    error "No macOS installers were found in the Apple catalog."
+    return 1
+  fi
+
+  for url in "${metadata[@]}"; do
+
+    if ! curl --disable --max-time 30 --silent --show-error --fail --location \
+        "$url" --output "$meta"; then
+      continue
+    fi
+
+    os=$(xmlstarlet sel -T -t \
+      -v "(//key[.='OSVersion']/following-sibling::string[1])[1]" \
+      "$meta" 2>/dev/null || :)
+
+    [ -n "$os" ] || continue
+    [[ "${os%%.*}" == "$major" ]] || continue
+
+    version="$os"
+
+    if [ -z "$best_version" ] ||
+       [ "$(printf '%s\n%s\n' "$best_version" "$version" | sort -V | tail -n 1)" == "$version" ]; then
+      best_version="$version"
+      best_url="${url%com_apple_MobileAsset_MacSoftwareUpdate.plist}InstallAssistant.pkg"
+    fi
+
+  done
+
+  rm -f "$meta"
+
+  if [ -z "$best_url" ]; then
+    error "No macOS $major installer was found in the Apple catalog."
+    return 1
+  fi
+
+  printf '%s\n%s\n' "$best_version" "$best_url"
+  return 0
+}
+
+checkInstallerPackage() {
 
   local file="$1"
-  local expected="$2"
-  local actual
+  local size magic
 
-  if [ -z "$expected" ]; then
-    warn "Could not determine expected recovery image size."
+  if [ ! -s "$file" ]; then
+    error "Downloaded installer package is missing or empty!"
+    return 1
+  fi
+
+  size=$(stat -c%s -- "$file") || return 1
+
+  if (( size < 5000000000 )); then
+    error "Downloaded installer package is unexpectedly small: $(formatBytes "$size")"
+    return 1
+  fi
+
+  magic=$(head -c 4 -- "$file" 2>/dev/null || :)
+
+  if [[ "$magic" != "xar!" ]]; then
+    error "Downloaded InstallAssistant.pkg is not a valid XAR package."
+    return 1
+  fi
+
+  return 0
+}
+
+downloadInstaller() {
+
+  local version="$1"
+  local url="$2"
+  local dest="$3"
+  local connections="${4:-1}"
+  local expected
+  local msg="Downloading macOS $version installatio files"
+
+  expected=$(curl --disable --max-time 30 --silent --show-error --fail --location --head \
+    "$url" 2>/dev/null |
+    awk 'tolower($1) == "content-length:" {gsub("\r", "", $2); value=$2} END {print value}' || :)
+
+  local rc=0
+
+  downloadToFile \
+    "$url" \
+    "$dest" \
+    "$msg" \
+    "${expected:-0}" \
+    "$connections" \
+    "Y" || rc=$?
+
+  (( rc == 0 )) || return "$rc"
+
+  checkInstallerPackage "$dest"
+}
+
+archiveEntry() {
+
+  local archive="$1"
+  local name="$2"
+
+  7z l -slt "$archive" 2>/dev/null |
+    sed -n 's/^Path = //p' |
+    grep -E "(^|/)${name//./\\.}$" |
+    head -n 1
+
+  return 0
+}
+
+extractArchiveEntry() {
+
+  local archive="$1"
+  local entry="$2"
+  local dest="$3"
+
+  [ -n "$entry" ] || return 1
+  mkdir -p "$dest"
+
+  7z x -y "$archive" "$entry" -o"$dest" > /dev/null
+}
+
+findInstallerApp() {
+
+  local root="$1"
+  local app
+
+  app=$(find "$root" -type d \( \
+      -name 'Install macOS*.app' -o \
+      -name 'Install OS X*.app' -o \
+      -name 'Install Mac OS X*.app' \
+    \) -print -quit 2>/dev/null || :)
+
+  if [ -n "$app" ]; then
+    echo "$app"
     return 0
   fi
 
-  if ! actual=$(stat -c%s -- "$file" 2>/dev/null); then
-    error "Failed to determine downloaded recovery image size."
-    return 1
-  fi
+  # Some recovery layouts use a less obvious bundle name. Locate the bundle
+  # containing the installer executable as a fallback.
+  local executable
+  executable=$(find "$root" -type f -path '*/Contents/MacOS/Install*' -print -quit 2>/dev/null || :)
 
-  if (( actual != expected )); then
-    error "Downloaded recovery image is incomplete: got $(formatBytes "$actual"), expected $(formatBytes "$expected")."
-    return 1
-  fi
+  [ -n "$executable" ] || return 1
 
+  app="${executable%/Contents/MacOS/*}"
+  [[ "$app" == *.app ]] || return 1
+
+  echo "$app"
   return 0
 }
 
-function download() {
+extractPackageInstallerApp() {
 
-  local info
-  local dest="$1"
-  local board="$2"
-  local version="$3"
-  local connections="${4:-1}"
-  local type="latest"
-  local appleSession
-  local downloadLink
-  local downloadSession
-  local log expected
-  local mlb="00000000000000000"
-  local reason response
+  local pkg="$1"
+  local dest="$2"
+  local listing entry payload out app
+  local index=0
 
-  local msg="Downloading macOS ${version^}"
-  info "$msg recovery image..." && html "$msg..."
+  listing=$(mktemp) || return 1
 
-  # The initial request exists only to obtain Apple's recovery-session cookie
-  # from the verbose response headers.
-  appleSession=$(curl --disable --max-time 30 -v -H "Host: osrecovery.apple.com" \
-                      -H "Connection: close" \
-                      -A "InternetRecovery/1.0" https://osrecovery.apple.com/ 2>&1 | tr ';' '\n' | awk -F'session=|;' '/session=/ {print $2; exit}' || :)
-
-  if [ -z "$appleSession" ]; then
-    error "Failed to obtain Apple recovery session."
+  if ! 7z l -slt "$pkg" > "$listing" 2>/dev/null; then
+    rm -f "$listing"
     return 1
   fi
 
-  log=$(mktemp)
-  response=$(mktemp)
+  while IFS= read -r entry; do
 
-  # Submit the board identifier and fresh request nonces while capturing both
-  # Apple's text response and curl's diagnostic output separately.
-  if curl --disable --max-time 60 --silent --show-error --fail-with-body \
-      --request POST \
-      --header "Host: osrecovery.apple.com" \
-      --header "Connection: close" \
-      --user-agent "InternetRecovery/1.0" \
-      --cookie "session=\"${appleSession}\"" \
-      --header "Content-Type: text/plain" \
-      --data $'cid='"$(getRandom 16)"$'\nsn='"${mlb}"$'\nbid='"${board}"$'\nk='"$(getRandom 64)"$'\nfg='"$(getRandom 64)"$'\nos='"${type}" \
-      --output "$response" \
-      https://osrecovery.apple.com/InstallationPayload/RecoveryImage \
-      2>"$log"; then
-    local code=0
-  else
-    local code=$?
-  fi
+    [[ "${entry##*/}" == "Payload" ]] || continue
 
-  # Apple's response is space-delimited key/value text. Splitting it into
-  # records makes the image URL and expiring asset token selectable below.
-  info=$(tr ' ' '\n' < "$response")
-  reason=$(sed -En 's/^curl: \([0-9]+\) //p' "$log" | tail -n 1)
+    index=$((index + 1))
+    out="$dest/payload-$index"
+    mkdir -p "$out/archive" "$out/files"
 
-  rm -f "$response" "$log"
-
-  if (( code != 0 )); then
-
-    msg="Failed to connect to the Apple servers"
-
-    if [ -n "$reason" ]; then
-      error "$msg: ${reason%.}."
-    else
-      error "$msg with exit status $code."
+    if ! 7z x -y "$pkg" "$entry" -o"$out/archive" > /dev/null 2>&1; then
+      continue
     fi
 
-    return 1
-  fi
+    payload="$out/archive/$entry"
+    [ -f "$payload" ] || payload=$(find "$out/archive" -type f -name Payload -print -quit 2>/dev/null || :)
+    [ -f "$payload" ] || continue
 
-  # The recovery response supplies the CDN URL and its expiring token as
-  # separate records; both are required for the authenticated download.
-  downloadLink=$(echo "$info" | grep 'oscdn' | grep 'dmg' | head -n 1 || :)
-  downloadSession=$(echo "$info" | grep 'expires' | grep 'dmg' | head -n 1 || :)
+    if ! 7z x -y "$payload" -o"$out/files" > /dev/null 2>&1; then
+      bsdtar -xf "$payload" -C "$out/files" > /dev/null 2>&1 || continue
+    fi
 
-  if [ -z "$downloadLink" ] || [ -z "$downloadSession" ]; then
+    if app=$(findInstallerApp "$out/files"); then
+      rm -f "$listing"
+      echo "$app"
+      return 0
+    fi
 
-    [ -n "$info" ] && echo "$info" && echo
-    error "The Apple servers returned an unexpected response."
+  done < <(sed -n 's/^Path = //p' "$listing")
 
-    return 1
-  fi
-
-  # Content-Length is optional validation metadata. The DMG format checks
-  # below remain authoritative when the CDN omits it.
-  expected=$(curl --disable -fsSI \
-    -H "Host: oscdn.apple.com" \
-    -H "Connection: close" \
-    -A "InternetRecovery/1.0" \
-    -H "Cookie: AssetToken=${downloadSession}" \
-    "$downloadLink" \
-    | awk 'tolower($1) == "content-length:" {gsub("\r","",$2); print $2; exit}' || :)
-
-  # Each attempt uses a newly issued Apple download session, so do not
-  # resume a partial download created with an older session.
-  rm -f -- "$dest" "$dest.aria2"
-
-  if downloadToFile \
-      "$downloadLink" \
-      "$dest" \
-      "$msg" \
-      "${expected:-0}" \
-      "$connections" \
-      "N" \
-      --header "Host: oscdn.apple.com" \
-      --header "Connection: close" \
-      --user-agent "InternetRecovery/1.0" \
-      --header "Cookie: AssetToken=${downloadSession}"; then
-    local rc=0
-  else
-    local rc=$?
-  fi
-
-  if (( rc != 0 )); then
-    rm -f -- "$dest" "$dest.aria2"
-    return "$rc"
-  fi
-
-  if ! checkDownloadSize "$dest" "$expected"; then
-    rm -f -- "$dest" "$dest.aria2"
-    return 1
-  fi
-
-  if ! checkDmgImage "$dest"; then
-    rm -f -- "$dest" "$dest.aria2"
-    return 1
-  fi
-
-  return 0
+  rm -f "$listing"
+  return 1
 }
 
-checkDmgImage() {
-
-  local file="$1"
-  local size
-
-  if [ ! -s "$file" ]; then
-    error "Downloaded recovery image is missing or empty!"
-    return 1
-  fi
-
-  size=$(stat -c%s "$file")
-
-  if [ "$size" -lt 100000000 ]; then
-    error "Downloaded recovery image is too small: $(formatBytes "$size")"
-    return 1
-  fi
-
-  info "Checking recovery image format..."
-
-  # qemu-img validates the disk container structure without mounting or
-  # trusting filesystems inside the downloaded recovery image.
-  if ! qemu-img info "$file" >/dev/null; then
-    error "Downloaded recovery image is not a valid disk image!"
-    return 1
-  fi
-
-  return 0
-}
-
-checkBootableDmgImage() {
+checkWritableInstallerImage() {
 
   local file="$1"
   local listing
 
-  if ! listing=$(mktemp); then
-    error "Failed to create temporary file for custom image inspection."
+  if [ ! -s "$file" ]; then
+    error "Installer image is missing or empty!"
     return 1
   fi
+
+  if ! qemu-img info -f raw "$file" > /dev/null; then
+    error "Installer image is not a valid raw disk image!"
+    return 1
+  fi
+
+  listing=$(mktemp) || return 1
 
   if ! 7z l -slt "$file" > "$listing" 2>/dev/null; then
     rm -f "$listing"
-    error "Failed to inspect the contents of the custom recovery image."
+    error "Failed to inspect the generated installer image."
     return 1
   fi
 
-  # A directly bootable macOS or recovery image must expose boot.efi.
-  if grep -Eiq \
-    '^Path = (.+[\\/])?(System[\\/]Library[\\/]CoreServices[\\/]boot\.efi|com\.apple\.recovery\.boot[\\/]boot\.efi)$' \
-    "$listing"; then
-
+  if ! grep -Eiq \
+      '^Path = (.+[\\/])?System[\\/]Library[\\/]CoreServices[\\/]boot\.efi$' \
+      "$listing"; then
     rm -f "$listing"
-    return 0
+    error "Generated installer image does not contain boot.efi."
+    return 1
   fi
 
-  # These files identify installer distribution media rather than an image
-  # that OpenCore can boot directly.
-  if grep -Eiq \
-    '^Path = (.+[\\/])?(InstallAssistant\.pkg|SharedSupport\.dmg|BaseSystem\.dmg)$|^Path = .*Install macOS .*\.app([\\/]|$)' \
-    "$listing"; then
-
+  if ! grep -Eiq \
+      '^Path = .*Install .*\.app[\\/]Contents[\\/]SharedSupport[\\/]SharedSupport\.dmg$' \
+      "$listing"; then
     rm -f "$listing"
-    error "The custom DMG contains macOS installer files, but is not itself a bootable recovery image."
-    error "Provide the bootable BaseSystem.dmg or RecoveryImage.dmg as /boot.dmg."
+    error "Generated installer image does not contain SharedSupport.dmg."
     return 1
   fi
 
   rm -f "$listing"
-  error "The custom DMG is a valid disk image, but no macOS boot loader was found."
-  return 1
+  return 0
+}
+
+createInstallerImage() {
+
+  local pkg="$1"
+  local dest="$2"
+  local version="$3"
+  local major="$4"
+  local work="$STORAGE/tmp/macos-installer"
+  local package_dir="$work/package"
+  local support_dir="$work/support"
+  local base_dir="$work/base"
+  local payload_dir="$work/payload"
+  local shared_entry base_entry shared base boot root
+  local base_app package_app source_app root_app app_name
+  local label tmp
+
+  rm -rf "$work"
+  mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
+
+  info "Extracting macOS installation files..."
+
+  shared_entry=$(archiveEntry "$pkg" "SharedSupport.dmg")
+
+  if [ -z "$shared_entry" ]; then
+    error "InstallAssistant.pkg does not contain SharedSupport.dmg."
+    rm -rf "$work"
+    return 1
+  fi
+
+  if ! extractArchiveEntry "$pkg" "$shared_entry" "$package_dir"; then
+    error "Failed to extract SharedSupport.dmg from InstallAssistant.pkg."
+    rm -rf "$work"
+    return 1
+  fi
+
+  shared="$package_dir/$shared_entry"
+  [ -f "$shared" ] || shared=$(find "$package_dir" -type f -name SharedSupport.dmg -print -quit 2>/dev/null || :)
+
+  if [ ! -f "$shared" ]; then
+    error "Failed to locate extracted SharedSupport.dmg."
+    rm -rf "$work"
+    return 1
+  fi
+
+  # Try to recover the full installer application skeleton while the package
+  # is still available. BaseSystem contains a usable installer bundle too, so
+  # failure here is non-fatal and has a fallback below.
+  package_app=$(extractPackageInstallerApp "$pkg" "$payload_dir" 2>/dev/null || :)
+
+  base_entry=$(archiveEntry "$shared" "BaseSystem.dmg")
+
+  if [ -z "$base_entry" ]; then
+    error "SharedSupport.dmg does not contain BaseSystem.dmg."
+    rm -rf "$work"
+    return 1
+  fi
+
+  if ! extractArchiveEntry "$shared" "$base_entry" "$support_dir"; then
+    error "Failed to extract BaseSystem.dmg from SharedSupport.dmg."
+    rm -rf "$work"
+    return 1
+  fi
+
+  base="$support_dir/$base_entry"
+  [ -f "$base" ] || base=$(find "$support_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
+
+  if [ ! -f "$base" ]; then
+    error "Failed to locate extracted BaseSystem.dmg."
+    rm -rf "$work"
+    return 1
+  fi
+
+  if ! 7z x -y "$base" -o"$base_dir" > /dev/null; then
+    error "Failed to extract BaseSystem.dmg."
+    rm -rf "$work"
+    return 1
+  fi
+
+  boot=$(find "$base_dir" -type f -path '*/System/Library/CoreServices/boot.efi' -print -quit 2>/dev/null || :)
+
+  if [ -z "$boot" ]; then
+    error "BaseSystem.dmg does not contain System/Library/CoreServices/boot.efi."
+    rm -rf "$work"
+    return 1
+  fi
+
+  root="${boot%/System/Library/CoreServices/boot.efi}"
+  [ -d "$root" ] || {
+    error "Failed to determine BaseSystem root directory."
+    rm -rf "$work"
+    return 1
+  }
+
+  base_app=$(findInstallerApp "$root" 2>/dev/null || :)
+  source_app="$package_app"
+  [ -d "$source_app" ] || source_app="$base_app"
+
+  if [ ! -d "$source_app" ]; then
+    error "Could not locate the macOS installer application."
+    rm -rf "$work"
+    return 1
+  fi
+
+  app_name="${source_app##*/}"
+  root_app="$root/$app_name"
+
+  if [ "$source_app" != "$root_app" ]; then
+    rm -rf "$root_app"
+
+    if ! cp -a "$source_app" "$root_app"; then
+      error "Failed to place the macOS installer application on the installer volume."
+      rm -rf "$work"
+      return 1
+    fi
+  fi
+
+  mkdir -p "$root_app/Contents/SharedSupport"
+  rm -f "$root_app/Contents/SharedSupport/SharedSupport.dmg"
+
+  # Move instead of copy so the 12-16 GB payload exists only once while the
+  # writable image is being assembled.
+  if ! mv "$shared" "$root_app/Contents/SharedSupport/SharedSupport.dmg"; then
+    error "Failed to place SharedSupport.dmg in the installer application."
+    rm -rf "$work"
+    return 1
+  fi
+
+  # Recovery's own installer bundle is normally the process launched at boot.
+  # Point it at the same local payload so it cannot fall back to Internet
+  # Recovery merely because the full application also exists at volume root.
+  if [ -d "$base_app" ] && [ "$base_app" != "$root_app" ]; then
+    mkdir -p "$base_app/Contents/SharedSupport"
+    rm -f "$base_app/Contents/SharedSupport/SharedSupport.dmg"
+    ln -s "/$app_name/Contents/SharedSupport/SharedSupport.dmg" \
+      "$base_app/Contents/SharedSupport/SharedSupport.dmg"
+  fi
+
+  touch "$root/.IAPhysicalMedia" "$root/.metadata_never_index"
+
+  # The package is no longer needed once its payload has been moved into the
+  # expanded BaseSystem, which keeps peak storage use substantially lower.
+  rm -f -- "$pkg" "$pkg.aria2"
+  rm -rf "$package_dir" "$support_dir" "$payload_dir"
+
+  label="Install macOS $(getInstallerName "$major")"
+  tmp="$dest.tmp"
+  rm -f "$tmp"
+
+  info "Creating macOS $version installer image..."
+  html "Creating macOS installer image..."
+
+  local partition="$work/installer.hfs"
+  local links="$work/symlinks"
+  local hfslog="$work/hfsplus.log"
+  local link path target
+  local payload_size partition_size disk_size partition_sectors
+  local mib=$((1024 * 1024))
+  local gib=$((1024 * 1024 * 1024))
+
+  if ! payload_size=$(du -sb --apparent-size -- "$root" | awk '{print $1}'); then
+    rm -f "$tmp"
+    rm -rf "$work"
+    error "Failed to calculate installer size."
+    return 1
+  fi
+
+  # Leave 2 GiB free so the image stays writable for later customization.
+  partition_size=$((payload_size + (2 * gib)))
+  partition_size=$((((partition_size + mib - 1) / mib) * mib))
+  disk_size=$((partition_size + (2 * mib)))
+  partition_sectors=$((partition_size / 512))
+
+  rm -f "$partition" "$links" "$hfslog"
+  truncate -s "$partition_size" "$partition"
+
+  if ! mkfs.hfsplus -v "$label" "$partition" > /dev/null; then
+    rm -f "$tmp" "$partition"
+    rm -rf "$work"
+    error "Failed to create HFS+ installer filesystem."
+    return 1
+  fi
+
+  # libdmg-hfsplus addall follows host symlinks. Remove them from the staging
+  # tree first and recreate them explicitly inside HFS+ afterwards.
+  : > "$links"
+
+  while IFS= read -r -d '' link; do
+    path="/${link#"$root"/}"
+    target=$(readlink -- "$link") || {
+      rm -f "$tmp" "$partition"
+      rm -rf "$work"
+      error "Failed to read installer symlink: $path"
+      return 1
+    }
+
+    printf '%s\0%s\0' "$path" "$target" >> "$links"
+    rm -f -- "$link"
+  done < <(find "$root" -type l -print0)
+
+  if ! hfsplus "$partition" addall "$root" / > "$hfslog" 2>&1; then
+    tail -n 20 "$hfslog" >&2 || :
+    rm -f "$tmp" "$partition"
+    rm -rf "$work"
+    error "Failed to copy installer files into HFS+ image."
+    return 1
+  fi
+
+  while IFS= read -r -d '' path && IFS= read -r -d '' target; do
+    if ! hfsplus "$partition" symlink "$path" "$target" >> "$hfslog" 2>&1; then
+      tail -n 20 "$hfslog" >&2 || :
+      rm -f "$tmp" "$partition"
+      rm -rf "$work"
+      error "Failed to recreate installer symlink: $path"
+      return 1
+    fi
+  done < "$links"
+
+  # Wrap the populated HFS+ partition in a sparse GPT raw disk. No loop device
+  # or host filesystem mount is required.
+  truncate -s "$disk_size" "$tmp"
+
+  if ! printf 'label: gpt\nunit: sectors\n\nstart=2048, size=%s, type=48465300-0000-11AA-AA11-00306543ECAC, name="%s"\n' \
+      "$partition_sectors" "$label" | sfdisk "$tmp" > /dev/null; then
+    rm -f "$tmp" "$partition"
+    rm -rf "$work"
+    error "Failed to create GPT installer disk."
+    return 1
+  fi
+
+  if ! dd if="$partition" of="$tmp" bs=1M seek=1 conv=notrunc,sparse status=none; then
+    rm -f "$tmp" "$partition"
+    rm -rf "$work"
+    error "Failed to write HFS+ installer partition."
+    return 1
+  fi
+
+  rm -f "$partition"
+
+  if ! checkWritableInstallerImage "$tmp"; then
+    rm -f "$tmp"
+    rm -rf "$work"
+    return 1
+  fi
+
+  if ! mv -f "$tmp" "$dest"; then
+    rm -f "$tmp"
+    rm -rf "$work"
+    error "Failed to move installer image to $dest."
+    return 1
+  fi
+
+  rm -rf "$work"
+  return 0
 }
 
 install() {
 
   local version="$1"
   local dest="$2"
+  local major name details release url
+  local pkg="$STORAGE/InstallAssistant.pkg"
 
-  # Apple recovery catalogs are selected by board identifier, so each macOS
-  # generation maps to a model known to receive that release.
-  case "${version,,}" in
-    "tahoe" | "26"* | "16"* )
-      local board="Mac-CFF7D910A743CAAF" ;;
-    "sequoia" | "15"* )
-      local board="Mac-937A206F2EE63C01" ;;
-    "sonoma" | "14"* )
-      local board="Mac-827FAC58A8FDFA22" ;;
-    "ventura" | "13"* )
-      local board="Mac-4B682C642B45593E" ;;
-    "monterey" | "12"* )
-      local board="Mac-B809C3757DA9BB8D" ;;
-    "bigsur" | "big-sur" | "11"* )
-      local board="Mac-2BD1B31983FE1663" ;;
-    "catalina" | "10"* )
-      local board="Mac-00BE6ED71E35EB86" ;;
-    *)
-      error "Unknown VERSION specified, value \"${version}\" is not recognized!"
-      return 1 ;;
-  esac
-
-  rm -f "$dest"
-
-  if ! makeDir "$STORAGE"; then
-    error "Failed to create directory \"$STORAGE\" !" && return 1
+  if ! major=$(getInstallerMajor "$version"); then
+    error "Installer images are supported for macOS Big Sur (11) through Tahoe (26)."
+    return 1
   fi
 
-  # New recovery media invalidates cached firmware state that may still point
-  # at an older installer or incompatible boot entry.
+  name=$(getInstallerName "$major") || return 1
+
+  if ! makeDir "$STORAGE"; then
+    error "Failed to create directory \"$STORAGE\" !"
+    return 1
+  fi
+
+  # New installation media invalidates cached firmware state that may still
+  # point at an older installer or incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
-  # A bundled recovery image takes precedence over network retrieval,
-  # but is subjected to the same size and container-format validation.
-  if [ -f "/boot.dmg" ]; then
+  if [ -f "/boot.img" ]; then
 
-    info "Using custom macOS recovery image from /boot.dmg..."
+    info "Using custom macOS installer image from /boot.img..."
 
-    if ! cp "/boot.dmg" "$dest"; then
-      error "Failed to copy custom recovery image to $dest."
-      return 1
-    fi
-
-    if ! checkDmgImage "$dest" || ! checkBootableDmgImage "$dest"; then
+    if ! cp "/boot.img" "$dest" || ! checkWritableInstallerImage "$dest"; then
       rm -f "$dest"
       return 1
     fi
@@ -322,40 +632,49 @@ install() {
     return 0
   fi
 
-  local file="$STORAGE/boot.dmg"
+  if [ -f "/boot.dmg" ]; then
 
-  # Try a multi-connection download first.
-  if download "$file" "$board" "$version" "${CONNECTIONS:-1}"; then
-    local rc=0
-  else
-    local rc=$?
-  fi
+    info "Converting custom macOS boot image from dmg to raw format..."
 
-  if (( rc != 0 )); then
-
-    # Status 2 represents deterministic download validation failure, so a
-    # second transport attempt cannot recover it.
-    if (( rc == 2 )); then
-      rm -f -- "$file" "$file.aria2"
-      exit 60
+    if ! qemu-img convert -p -O raw "/boot.dmg" "$dest" ||
+       ! checkWritableInstallerImage "$dest"; then
+      rm -f "$dest"
+      return 1
     fi
 
-    delay 5
-
-    # Obtain a fresh Apple session and retry with single-connection Wget.
-    if ! download "$file" "$board" "$version" "1"; then
-      rm -f -- "$file" "$file.aria2"
-      exit 60
-    fi
-
+    return 0
   fi
 
-  if ! mv -f "$file" "$dest"; then
-    error "Failed to move recovery image to $dest."
+  if ! details=$(getInstallerUrl "$major"); then
     return 1
   fi
 
-  return 0
+  {
+    IFS= read -r release
+    IFS= read -r url
+  } <<< "$details"
+
+  if [ -z "$release" ] || [ -z "$url" ]; then
+    error "Failed to resolve the macOS $name full installer URL."
+    return 1
+  fi
+
+  info "Using macOS $name $release installer."
+
+  if [ -s "$pkg" ]; then
+    if ! checkInstallerPackage "$pkg"; then
+      rm -f "$pkg" "$pkg.aria2"
+    fi
+  fi
+
+  if [ ! -s "$pkg" ]; then
+    if ! downloadInstaller "$release" "$url" "$pkg" "${CONNECTIONS:-1}"; then
+      rm -f "$pkg" "$pkg.aria2"
+      return 1
+    fi
+  fi
+
+  createInstallerImage "$pkg" "$dest" "$release" "$major"
 }
 
 generateID() {
@@ -438,10 +757,10 @@ fi
 # overwriting existing disks or redownloading the installation media again.
 if [ ! -s "$BASE_IMG" ] && ! hasDisk; then
   STORAGE="$STORAGE/${VERSION,,}"
-  BASE_IMG="$STORAGE/base.dmg"
+  BASE_IMG="$STORAGE/installer.img"
 fi
 
-# Recovery media is required only while the primary disk is absent or blank.
+# Installation media is required only while the primary disk is absent or blank.
 if [ ! -s "$BASE_IMG" ] && ! hasData; then
   install "$VERSION" "$BASE_IMG" || exit 34
   setOwner "$BASE_IMG" || warn "failed to set the owner for \"$BASE_IMG\" !"
@@ -461,11 +780,11 @@ fi
 
 DISK_OPTS=""
 
-# Recovery media is attached read-only and only while present; installation
-# writes belong on the separately managed primary data disk.
+# Keep the installation media writable so it can be modified in
+# later setup stages without rebuilding or converting the media again.
 if [ -s "$BASE_IMG" ]; then
   DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
-  DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"
+  DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=raw,cache=unsafe,if=none"
 fi
 
 return 0
