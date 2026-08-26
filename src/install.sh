@@ -409,7 +409,8 @@ createInstallationImage() {
   local base boot root base_app package_app
   local source_app root_app app_name label tmp
 
-  info "Inspecting installation package..."
+  local msg="Extracting system data..."
+  info "$msg" && html "$msg" 
 
   rm -rf "$work"
   mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
@@ -421,8 +422,6 @@ createInstallationImage() {
     rm -rf "$work"
     return 1
   fi
-
-  info "Extracting support files..."
 
   if ! extractArchiveEntry "$pkg" "$shared_entry" "$package_dir"; then
     error "Failed to extract SharedSupport.dmg from InstallAssistant.pkg."
@@ -446,8 +445,6 @@ createInstallationImage() {
 
   package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
 
-  info "Inspecting support files..."
-
   base_entry=$(archiveEntry "$shared" "BaseSystem.dmg")
 
   if [ -z "$base_entry" ]; then
@@ -456,7 +453,8 @@ createInstallationImage() {
     return 1
   fi
 
-  info "Extracting base system..."
+  local msg="Extracting recovery image..."
+  info "$msg" && html "$msg" 
 
   if ! extractArchiveEntry "$shared" "$base_entry" "$support_dir"; then
     error "Failed to extract BaseSystem.dmg from SharedSupport.dmg."
@@ -473,7 +471,7 @@ createInstallationImage() {
     return 1
   fi
 
-  info "Expanding base system..."
+  info "Expanding recovery image..."
 
   if ! 7z x -y "$base" -o"$base_dir" > /dev/null; then
     error "Failed to extract BaseSystem.dmg."
@@ -509,7 +507,7 @@ createInstallationImage() {
   app_name="${source_app##*/}"
   root_app="$root/$app_name"
 
-  info "Preparing macOS installation application..."
+  info "Preparing macOS installation files..."
 
   if [ "$source_app" != "$root_app" ]; then
     rm -rf "$root_app"
@@ -564,8 +562,6 @@ createInstallationImage() {
   local mib=$((1024 * 1024))
   local gib=$((1024 * 1024 * 1024))
 
-  info "Calculating macOS installation image size..."
-
   if ! payload_size=$(du -sb --apparent-size -- "$root" | awk '{print $1}'); then
     rm -f "$tmp"
     rm -rf "$work"
@@ -593,7 +589,6 @@ createInstallationImage() {
 
   # libdmg-hfsplus addall follows host symlinks. Remove them from the staging
   # tree first and recreate them explicitly inside HFS+ afterwards.
-  info "Preparing installation symlinks..."
 
   : > "$links"
 
@@ -620,8 +615,6 @@ createInstallationImage() {
     return 1
   fi
 
-  info "Recreating installation symlinks..."
-
   while IFS= read -r -d '' path && IFS= read -r -d '' target; do
     if ! hfsplus "$partition" symlink "$path" "$target" >> "$hfslog" 2>&1; then
       tail -n 20 "$hfslog" >&2 || :
@@ -634,7 +627,7 @@ createInstallationImage() {
 
   # Wrap the populated HFS+ partition in a sparse GPT raw disk. No loop device
   # or host filesystem mount is required.
-  info "Creating GPT installation disk..."
+  info "Writing HFS+ installation partition..."
 
   truncate -s "$disk_size" "$tmp"
 
@@ -645,8 +638,6 @@ createInstallationImage() {
     error "Failed to create GPT installation disk."
     return 1
   fi
-
-  info "Writing HFS+ installation partition..."
 
   if ! dd if="$partition" of="$tmp" bs=1M seek=1 conv=notrunc,sparse status=none; then
     rm -f "$tmp" "$partition"
