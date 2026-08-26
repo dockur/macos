@@ -656,7 +656,7 @@ extractBaseSystem() {
       return 1
     fi
 
-    msg="Reconstructing recovery image..."
+    msg="Building recovery image..."
     info "$msg" && html "$msg"
 
     dummy="$patch_dir/BaseSystem.dmg"
