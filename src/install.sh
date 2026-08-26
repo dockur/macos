@@ -1746,10 +1746,13 @@ if [ -n "$INSTALL_MEDIA_FILE" ]; then
   # Recovery reads the large InstallAssistant package directly from Linux. The
   # package export is read-only; a separate tiny writable share stores the guard
   # and diagnostic log for the unattended startup job.
+  # The generic QEMU layout uses PCI 0x5 for boot media and 0xA-0xF for
+  # managed disks. installer.img uses 0x6, so keep these auxiliary devices in
+  # the gap below the managed-disk range instead of relying on auto-placement.
   DISK_OPTS+=" -fsdev local,id=installmediafs,path=$media_dir,security_model=none,readonly=on"
-  DISK_OPTS+=" -device virtio-9p-pci,id=installmedia9p,fsdev=installmediafs,mount_tag=installmedia"
+  DISK_OPTS+=" -device virtio-9p-pci,id=installmedia9p,fsdev=installmediafs,mount_tag=installmedia,bus=pcie.0,addr=0x7"
   DISK_OPTS+=" -fsdev local,id=installstatefs,path=$INSTALL_STATE_DIR,security_model=none"
-  DISK_OPTS+=" -device virtio-9p-pci,id=installstate9p,fsdev=installstatefs,mount_tag=installstate"
+  DISK_OPTS+=" -device virtio-9p-pci,id=installstate9p,fsdev=installstatefs,mount_tag=installstate,bus=pcie.0,addr=0x8"
 fi
 
 return 0
