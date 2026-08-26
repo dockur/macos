@@ -24,7 +24,7 @@ HEIGHT=$(strip "$HEIGHT")
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/installer.img"
 
-getInstallerMajor() {
+getInstallationMajor() {
 
   local version="$1"
 
@@ -41,7 +41,7 @@ getInstallerMajor() {
   return 0
 }
 
-getInstallerName() {
+getInstallationName() {
 
   case "$1" in
     "26" ) echo "Tahoe" ;;
@@ -56,33 +56,33 @@ getInstallerName() {
   return 0
 }
 
-getInstallerCatalog() {
+getInstallationCatalog() {
 
-  # Apple's public release catalog for Tahoe also contains the current full
-  # installers for the supported Intel macOS generations below it.
+  # Apple's public release catalog for Tahoe also contains installation
+  # files for the supported Intel macOS generations below it.
   echo "https://swscan.apple.com/content/catalogs/others/index-26-15-14-13-12-10.16-10.15-10.14-10.13-10.12-10.11-10.10-10.9-mountainlion-lion-snowleopard-leopard.merged-1.sucatalog.gz"
 
   return 0
 }
 
-getInstallerUrl() {
+getInstallationUrl() {
 
   local major="$1"
 
-  local url catalog catalog_url pairs
-  local distfile count dist version
+  local count catalog catalog_url url
+  local pairs distfile dist version
   local best_version="" best_url=""
 
-  INSTALLER_RELEASE=""
-  INSTALLER_URL=""
+  INSTALLATION_RELEASE=""
+  INSTALLATION_URL=""
 
   catalog=$(mktemp) || return 1
   pairs=$(mktemp) || { rm -f "$catalog"; return 1; }
   distfile=$(mktemp) || { rm -f "$catalog" "$pairs"; return 1; }
 
-  catalog_url=$(getInstallerCatalog)
+  catalog_url=$(getInstallationCatalog)
 
-  info "Downloading Apple installer catalog..."
+  info "Downloading Apple installation catalog..."
 
   if ! curl --disable --max-time 60 --silent --show-error --fail --location \
       "$catalog_url" --output "$catalog"; then
@@ -91,7 +91,7 @@ getInstallerUrl() {
     return 1
   fi
 
-  info "Reading installer entries from Apple catalog..."
+  info "Reading installation entries from Apple catalog..."
 
   if ! gzip -dc "$catalog" 2>/dev/null | awk '
     /<key>[0-9]{3}-[0-9]+<\/key>/ {
@@ -119,7 +119,7 @@ getInstallerUrl() {
       dist=line
       next
     }
-    active & /<\/dict>/ {
+    active && /<\/dict>/ {
       depth--
       if (depth == 0) {
         if (ia != "" && dist != "")
@@ -137,12 +137,12 @@ getInstallerUrl() {
 
   if [ ! -s "$pairs" ]; then
     rm -f "$pairs" "$distfile"
-    error "No full macOS installers were found in the Apple catalog."
+    error "No macOS installation files were found in the Apple catalog."
     return 1
   fi
 
   count=$(wc -l < "$pairs")
-  info "Checking $count available macOS installer versions..."
+  info "Checking $count available macOS versions..."
 
   while IFS=$'	' read -r url dist; do
 
@@ -171,29 +171,29 @@ getInstallerUrl() {
   rm -f "$pairs" "$distfile"
 
   if [ -z "$best_url" ]; then
-    error "No macOS $major full installer was found in the Apple catalog."
+    error "No macOS $major installation files were found in the Apple catalog."
     return 1
   fi
 
-  INSTALLER_RELEASE="$best_version"
-  INSTALLER_URL="$best_url"
+  INSTALLATION_RELEASE="$best_version"
+  INSTALLATION_URL="$best_url"
   return 0
 }
 
-checkInstallerPackage() {
+checkInstallationPackage() {
 
   local file="$1"
   local size magic
 
   if [ ! -s "$file" ]; then
-    error "Downloaded installer package is missing or empty!"
+    error "Downloaded installation package is missing or empty!"
     return 1
   fi
 
   size=$(stat -c%s -- "$file") || return 1
 
   if (( size < 5000000000 )); then
-    error "Downloaded installer package is unexpectedly small: $(formatBytes "$size")"
+    error "Downloaded installation package is unexpectedly small: $(formatBytes "$size")"
     return 1
   fi
 
@@ -207,7 +207,7 @@ checkInstallerPackage() {
   return 0
 }
 
-downloadInstaller() {
+downloadInstallationFiles() {
 
   local version="$1"
   local url="$2"
@@ -216,7 +216,7 @@ downloadInstaller() {
   local expected
   local msg="Downloading macOS $version installatio files"
 
-  info "Checking macOS $version installer download size..."
+  info "Checking macOS $version download size..."
 
   expected=$(curl --disable --max-time 30 --silent --show-error --fail --location --head \
     "$url" 2>/dev/null |
@@ -236,7 +236,7 @@ downloadInstaller() {
 
   (( rc == 0 )) || return "$rc"
 
-  checkInstallerPackage "$dest"
+  checkInstallationPackage "$dest"
 }
 
 archiveEntry() {
@@ -264,7 +264,7 @@ extractArchiveEntry() {
   7z x -y "$archive" "$entry" -o"$dest" > /dev/null
 }
 
-findInstallerApp() {
+findInstallationApp() {
 
   local root="$1"
   local app
@@ -281,7 +281,7 @@ findInstallerApp() {
   fi
 
   # Some recovery layouts use a less obvious bundle name. Locate the bundle
-  # containing the installer executable as a fallback.
+  # containing the installation application executable as a fallback.
   local executable
   executable=$(find "$root" -type f -path '*/Contents/MacOS/Install*' -print -quit 2>/dev/null || :)
 
@@ -294,7 +294,7 @@ findInstallerApp() {
   return 0
 }
 
-extractPackageInstallerApp() {
+extractPackageInstallationApp() {
 
   local pkg="$1"
   local dest="$2"
@@ -328,7 +328,7 @@ extractPackageInstallerApp() {
       bsdtar -xf "$payload" -C "$out/files" > /dev/null 2>&1 || continue
     fi
 
-    if app=$(findInstallerApp "$out/files"); then
+    if app=$(findInstallationApp "$out/files"); then
       rm -f "$listing"
       echo "$app"
       return 0
@@ -340,18 +340,18 @@ extractPackageInstallerApp() {
   return 1
 }
 
-checkWritableInstallerImage() {
+checkWritableInstallationImage() {
 
   local file="$1"
   local listing
 
   if [ ! -s "$file" ]; then
-    error "Installer image is missing or empty!"
+    error "Installation image is missing or empty!"
     return 1
   fi
 
   if ! qemu-img info -f raw "$file" > /dev/null; then
-    error "Installer image is not a valid raw disk image!"
+    error "Installation image is not a valid raw disk image!"
     return 1
   fi
 
@@ -359,7 +359,7 @@ checkWritableInstallerImage() {
 
   if ! 7z l -slt "$file" > "$listing" 2>/dev/null; then
     rm -f "$listing"
-    error "Failed to inspect the generated installer image."
+    error "Failed to inspect the generated installation image."
     return 1
   fi
 
@@ -367,7 +367,7 @@ checkWritableInstallerImage() {
       '^Path = (.+[\\/])?System[\\/]Library[\\/]CoreServices[\\/]boot\.efi$' \
       "$listing"; then
     rm -f "$listing"
-    error "Generated installer image does not contain boot.efi."
+    error "Generated installation image does not contain boot.efi."
     return 1
   fi
 
@@ -375,7 +375,7 @@ checkWritableInstallerImage() {
       '^Path = .*Install .*\.app[\\/]Contents[\\/]SharedSupport[\\/]SharedSupport\.dmg$' \
       "$listing"; then
     rm -f "$listing"
-    error "Generated installer image does not contain SharedSupport.dmg."
+    error "Generated installation image does not contain SharedSupport.dmg."
     return 1
   fi
 
@@ -383,13 +383,13 @@ checkWritableInstallerImage() {
   return 0
 }
 
-createInstallerImage() {
+createInstallationImage() {
 
   local pkg="$1"
   local dest="$2"
   local version="$3"
   local major="$4"
-  local work="$STORAGE/tmp/macos-installer"
+  local work="$STORAGE/tmp/macos-installation"
   local package_dir="$work/package"
   local support_dir="$work/support"
   local base_dir="$work/base"
@@ -398,7 +398,7 @@ createInstallerImage() {
   local base_app package_app source_app root_app app_name
   local label tmp
 
-  info "Cleaning previous installer workspace..."
+  info "Cleaning previous installation workspace..."
 
   rm -rf "$work"
   mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
@@ -430,12 +430,12 @@ createInstallerImage() {
     return 1
   fi
 
-  # Try to recover the full installer application skeleton while the package
-  # is still available. BaseSystem contains a usable installer bundle too, so
+  # Try to recover the installation application skeleton while the package
+  # is still available. BaseSystem contains a usable installation bundle too, so
   # failure here is non-fatal and has a fallback below.
-  info "Extracting macOS installer application..."
+  info "Extracting macOS installation application..."
 
-  package_app=$(extractPackageInstallerApp "$pkg" "$payload_dir" 2>/dev/null || :)
+  package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
 
   info "Inspecting SharedSupport.dmg..."
 
@@ -487,12 +487,12 @@ createInstallerImage() {
     return 1
   }
 
-  base_app=$(findInstallerApp "$root" 2>/dev/null || :)
+  base_app=$(findInstallationApp "$root" 2>/dev/null || :)
   source_app="$package_app"
   [ -d "$source_app" ] || source_app="$base_app"
 
   if [ ! -d "$source_app" ]; then
-    error "Could not locate the macOS installer application."
+    error "Could not locate the macOS installation application."
     rm -rf "$work"
     return 1
   fi
@@ -500,13 +500,13 @@ createInstallerImage() {
   app_name="${source_app##*/}"
   root_app="$root/$app_name"
 
-  info "Preparing macOS installer application..."
+  info "Preparing macOS installation application..."
 
   if [ "$source_app" != "$root_app" ]; then
     rm -rf "$root_app"
 
     if ! cp -a "$source_app" "$root_app"; then
-      error "Failed to place the macOS installer application on the installer volume."
+      error "Failed to place the macOS installation application on the installation volume."
       rm -rf "$work"
       return 1
     fi
@@ -518,14 +518,14 @@ createInstallerImage() {
   # Move instead of copy so the 12-16 GB payload exists only once while the
   # writable image is being assembled.
   if ! mv "$shared" "$root_app/Contents/SharedSupport/SharedSupport.dmg"; then
-    error "Failed to place SharedSupport.dmg in the installer application."
+    error "Failed to place SharedSupport.dmg in the installation application."
     rm -rf "$work"
     return 1
   fi
 
-  # Recovery's own installer bundle is normally the process launched at boot.
+  # Recovery's own installation bundle is normally the process launched at boot.
   # Point it at the same local payload so it cannot fall back to Internet
-  # Recovery merely because the full application also exists at volume root.
+  # Recovery merely because the installation application also exists at volume root.
   if [ -d "$base_app" ] && [ "$base_app" != "$root_app" ]; then
     mkdir -p "$base_app/Contents/SharedSupport"
     rm -f "$base_app/Contents/SharedSupport/SharedSupport.dmg"
@@ -539,18 +539,18 @@ createInstallerImage() {
   # expanded BaseSystem, which keeps peak storage use substantially lower.
   rm -f -- "$pkg" "$pkg.aria2"
 
-  info "Cleaning temporary installer files..."
+  info "Cleaning temporary installation files..."
 
   rm -rf "$package_dir" "$support_dir" "$payload_dir"
 
-  label="Install macOS $(getInstallerName "$major")"
+  label="Install macOS $(getInstallationName "$major")"
   tmp="$dest.tmp"
   rm -f "$tmp"
 
-  info "Creating macOS $version installer image..."
-  html "Creating macOS installer image..."
+  info "Creating macOS $version installation image..."
+  html "Creating macOS installation image..."
 
-  local partition="$work/installer.hfs"
+  local partition="$work/installation.hfs"
   local links="$work/symlinks"
   local hfslog="$work/hfsplus.log"
   local link path target
@@ -558,12 +558,12 @@ createInstallerImage() {
   local mib=$((1024 * 1024))
   local gib=$((1024 * 1024 * 1024))
 
-  info "Calculating macOS installer image size..."
+  info "Calculating macOS installation image size..."
 
   if ! payload_size=$(du -sb --apparent-size -- "$root" | awk '{print $1}'); then
     rm -f "$tmp"
     rm -rf "$work"
-    error "Failed to calculate installer size."
+    error "Failed to calculate installation size."
     return 1
   fi
 
@@ -576,18 +576,18 @@ createInstallerImage() {
   rm -f "$partition" "$links" "$hfslog"
   truncate -s "$partition_size" "$partition"
 
-  info "Creating HFS+ installer filesystem..."
+  info "Creating HFS+ installation filesystem..."
 
   if ! mkfs.hfsplus -v "$label" "$partition" > /dev/null; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to create HFS+ installer filesystem."
+    error "Failed to create HFS+ installation filesystem."
     return 1
   fi
 
   # libdmg-hfsplus addall follows host symlinks. Remove them from the staging
   # tree first and recreate them explicitly inside HFS+ afterwards.
-  info "Preparing installer symlinks..."
+  info "Preparing installation symlinks..."
 
   : > "$links"
 
@@ -596,7 +596,7 @@ createInstallerImage() {
     target=$(readlink -- "$link") || {
       rm -f "$tmp" "$partition"
       rm -rf "$work"
-      error "Failed to read installer symlink: $path"
+      error "Failed to read installation symlink: $path"
       return 1
     }
 
@@ -604,31 +604,31 @@ createInstallerImage() {
     rm -f -- "$link"
   done < <(find "$root" -type l -print0)
 
-  info "Copying macOS installer files into HFS+ image..."
+  info "Copying macOS installation files into HFS+ image..."
 
   if ! hfsplus "$partition" addall "$root" / > "$hfslog" 2>&1; then
     tail -n 20 "$hfslog" >&2 || :
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to copy installer files into HFS+ image."
+    error "Failed to copy installation files into HFS+ image."
     return 1
   fi
 
-  info "Recreating installer symlinks..."
+  info "Recreating installation symlinks..."
 
   while IFS= read -r -d '' path && IFS= read -r -d '' target; do
     if ! hfsplus "$partition" symlink "$path" "$target" >> "$hfslog" 2>&1; then
       tail -n 20 "$hfslog" >&2 || :
       rm -f "$tmp" "$partition"
       rm -rf "$work"
-      error "Failed to recreate installer symlink: $path"
+      error "Failed to recreate installation symlink: $path"
       return 1
     fi
   done < "$links"
 
   # Wrap the populated HFS+ partition in a sparse GPT raw disk. No loop device
   # or host filesystem mount is required.
-  info "Creating GPT installer disk..."
+  info "Creating GPT installation disk..."
 
   truncate -s "$disk_size" "$tmp"
 
@@ -636,39 +636,39 @@ createInstallerImage() {
       "$partition_sectors" "$label" | sfdisk "$tmp" > /dev/null; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to create GPT installer disk."
+    error "Failed to create GPT installation disk."
     return 1
   fi
 
-  info "Writing HFS+ installer partition..."
+  info "Writing HFS+ installation partition..."
 
   if ! dd if="$partition" of="$tmp" bs=1M seek=1 conv=notrunc,sparse status=none; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to write HFS+ installer partition."
+    error "Failed to write HFS+ installation partition."
     return 1
   fi
 
   rm -f "$partition"
 
-  info "Verifying macOS installer image..."
+  info "Verifying macOS installation image..."
 
-  if ! checkWritableInstallerImage "$tmp"; then
+  if ! checkWritableInstallationImage "$tmp"; then
     rm -f "$tmp"
     rm -rf "$work"
     return 1
   fi
 
-  info "Finalizing macOS installer image..."
+  info "Finalizing macOS installation image..."
 
   if ! mv -f "$tmp" "$dest"; then
     rm -f "$tmp"
     rm -rf "$work"
-    error "Failed to move installer image to $dest."
+    error "Failed to move installation image to $dest."
     return 1
   fi
 
-  info "Cleaning installer workspace..."
+  info "Cleaning installation workspace..."
 
   rm -rf "$work"
   return 0
@@ -681,12 +681,12 @@ install() {
   local major name release url
   local pkg="$STORAGE/InstallAssistant.pkg"
 
-  if ! major=$(getInstallerMajor "$version"); then
-    error "Installer images are supported for macOS Big Sur (11) through Tahoe (26)."
+  if ! major=$(getInstallationMajor "$version"); then
+    error "Installation files are supported for macOS Big Sur (11) through Tahoe (26)."
     return 1
   fi
 
-  name=$(getInstallerName "$major") || return 1
+  name=$(getInstallationName "$major") || return 1
 
   if ! makeDir "$STORAGE"; then
     error "Failed to create directory \"$STORAGE\" !"
@@ -694,19 +694,19 @@ install() {
   fi
 
   # New installation media invalidates cached firmware state that may still
-  # point at an older installer or incompatible boot entry.
+  # point at older installation media or an incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
   if [ -f "/boot.img" ]; then
 
-    info "Using custom macOS installer image from /boot.img..."
+    info "Using custom macOS installation image from /boot.img..."
 
     if ! cp "/boot.img" "$dest"; then
       rm -f "$dest"
       return 1
     fi
 
-    checkWritableInstallerImage "$dest" || { rm -f "$dest"; return 1; }
+    checkWritableInstallationImage "$dest" || { rm -f "$dest"; return 1; }
 
     return 0
   fi
@@ -720,41 +720,41 @@ install() {
       return 1
     fi
 
-    checkWritableInstallerImage "$dest" || { rm -f "$dest"; return 1; }
+    checkWritableInstallationImage "$dest" || { rm -f "$dest"; return 1; }
 
     return 0
   fi
 
-  if ! getInstallerUrl "$major"; then
+  if ! getInstallationUrl "$major"; then
     return 1
   fi
 
-  release="$INSTALLER_RELEASE"
-  url="$INSTALLER_URL"
+  release="$INSTALLATION_RELEASE"
+  url="$INSTALLATION_URL"
 
   if [ -z "$release" ] || [ -z "$url" ]; then
-    error "Failed to resolve the macOS $name full installer URL."
+    error "Failed to resolve the macOS $name installation files URL."
     return 1
   fi
 
-  info "Using macOS $name $release installer."
+  info "Using macOS $name $release installation files."
 
   if [ -s "$pkg" ]; then
     info "Checking cached InstallAssistant.pkg..."
 
-    if ! checkInstallerPackage "$pkg"; then
+    if ! checkInstallationPackage "$pkg"; then
       rm -f "$pkg" "$pkg.aria2"
     fi
   fi
 
   if [ ! -s "$pkg" ]; then
-    if ! downloadInstaller "$release" "$url" "$pkg" "${CONNECTIONS:-1}"; then
+    if ! downloadInstallationFiles "$release" "$url" "$pkg" "${CONNECTIONS:-1}"; then
       rm -f "$pkg" "$pkg.aria2"
       return 1
     fi
   fi
 
-  createInstallerImage "$pkg" "$dest" "$release" "$major"
+  createInstallationImage "$pkg" "$dest" "$release" "$major"
 }
 
 generateID() {
