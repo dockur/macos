@@ -331,7 +331,7 @@ downloadInstallationFiles() {
   local connections="${4:-1}"
   local current=0 expected required
   local gib=$((1024 * 1024 * 1024))
-  local msg="Downloading macOS installation files"
+  local msg="Downloading macOS installer"
 
   info "Checking macOS $version download size..."
 
