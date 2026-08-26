@@ -241,8 +241,16 @@ archiveEntry() {
 
   local archive="$1"
   local name="$2"
+  local type=()
 
-  7z l -slt "$archive" 2>/dev/null |
+  # InstallAssistant.pkg is both a XAR package and a DMG-compatible file.
+  # Force the XAR handler when the archive has a XAR header, otherwise 7-Zip
+  # may detect the DMG footer and hide package members such as SharedSupport.dmg.
+  if [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+    type=(-txar)
+  fi
+
+  7z l "${type[@]}" -slt "$archive" 2>/dev/null |
     sed -n 's/^Path = //p' |
     grep -E "(^|/)${name//./\\.}$" |
     head -n 1
@@ -255,11 +263,16 @@ extractArchiveEntry() {
   local archive="$1"
   local entry="$2"
   local dest="$3"
+  local type=()
 
   [ -n "$entry" ] || return 1
   mkdir -p "$dest"
 
-  7z x -y "$archive" "$entry" -o"$dest" > /dev/null
+  if [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+    type=(-txar)
+  fi
+
+  7z x "${type[@]}" -y "$archive" "$entry" -o"$dest" > /dev/null
 }
 
 findInstallationApp() {
@@ -301,7 +314,7 @@ extractPackageInstallationApp() {
 
   listing=$(mktemp) || return 1
 
-  if ! 7z l -slt "$pkg" > "$listing" 2>/dev/null; then
+  if ! 7z l -txar -slt "$pkg" > "$listing" 2>/dev/null; then
     rm -f "$listing"
     return 1
   fi
@@ -314,7 +327,7 @@ extractPackageInstallationApp() {
     out="$dest/payload-$index"
     mkdir -p "$out/archive" "$out/files"
 
-    if ! 7z x -y "$pkg" "$entry" -o"$out/archive" > /dev/null 2>&1; then
+    if ! 7z x -txar -y "$pkg" "$entry" -o"$out/archive" > /dev/null 2>&1; then
       continue
     fi
 
@@ -396,7 +409,7 @@ createInstallationImage() {
   local base boot root base_app package_app
   local source_app root_app app_name label tmp
 
-  info "Inspecting InstallAssistant.pkg..."
+  info "Inspecting installation package..."
 
   rm -rf "$work"
   mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
@@ -409,7 +422,7 @@ createInstallationImage() {
     return 1
   fi
 
-  info "Extracting SharedSupport.dmg..."
+  info "Extracting support files..."
 
   if ! extractArchiveEntry "$pkg" "$shared_entry" "$package_dir"; then
     error "Failed to extract SharedSupport.dmg from InstallAssistant.pkg."
@@ -433,7 +446,7 @@ createInstallationImage() {
 
   package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
 
-  info "Inspecting SharedSupport.dmg..."
+  info "Inspecting support files..."
 
   base_entry=$(archiveEntry "$shared" "BaseSystem.dmg")
 
@@ -443,7 +456,7 @@ createInstallationImage() {
     return 1
   fi
 
-  info "Extracting BaseSystem.dmg..."
+  info "Extracting base system..."
 
   if ! extractArchiveEntry "$shared" "$base_entry" "$support_dir"; then
     error "Failed to extract BaseSystem.dmg from SharedSupport.dmg."
@@ -460,7 +473,7 @@ createInstallationImage() {
     return 1
   fi
 
-  info "Expanding BaseSystem.dmg..."
+  info "Expanding base system..."
 
   if ! 7z x -y "$base" -o"$base_dir" > /dev/null; then
     error "Failed to extract BaseSystem.dmg."
