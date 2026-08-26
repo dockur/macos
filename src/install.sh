@@ -865,15 +865,15 @@ checkAutomatedRecoveryImage() {
   fi
 
   if ! grep -Eiq \
-      '^Path = (.+[\\/])?usr[\\/]local[\\/]libexec[\\/]dockur-install\.sh$' \
+      '^Path = (.+[\\/])?usr[\\/]local[\\/]libexec[\\/]macos-install\.sh$' \
       "$listing"; then
     rm -f "$listing"
-    error "Automated recovery image does not contain dockur-install.sh."
+    error "Automated recovery image does not contain macos-install.sh."
     return 1
   fi
 
   if ! grep -Eiq \
-      '^Path = (.+[\\/])?System[\\/]Library[\\/]LaunchDaemons[\\/]com\.dockur\.install\.plist$' \
+      '^Path = (.+[\\/])?System[\\/]Library[\\/]LaunchDaemons[\\/]com\.macos\.install\.plist$' \
       "$listing"; then
     rm -f "$listing"
     error "Automated recovery image does not contain its launch daemon."
@@ -1018,8 +1018,8 @@ extractFileSystemImage() {
 injectAutomatedInstallation() {
 
   local root="$1"
-  local script="$root/usr/local/libexec/dockur-install.sh"
-  local plist="$root/System/Library/LaunchDaemons/com.dockur.install.plist"
+  local script="$root/usr/local/libexec/macos-install.sh"
+  local plist="$root/System/Library/LaunchDaemons/com.macos.install.plist"
 
   mkdir -p "$(dirname "$script")" "$(dirname "$plist")"
 
@@ -1027,7 +1027,7 @@ injectAutomatedInstallation() {
 #!/bin/bash
 set -u
 
-LOCAL_LOG="/var/log/install.log"
+LOCAL_LOG="/var/log/macos-install.log"
 STATE_DIR="/Volumes/installstate"
 MEDIA_DIR="/Volumes/installmedia"
 STATE_LOG="$STATE_DIR/install.log"
@@ -1143,10 +1143,10 @@ fi
 cat "$LOCAL_LOG" >> "$STATE_LOG" 2>/dev/null || :
 exec >> "$STATE_LOG" 2>&1
 
-echo "[dockur] installation state share mounted"
+echo "[log] installation state share mounted"
 
 if [ -e "$STARTED" ]; then
-  echo "[dockur] installation was already started; refusing to erase the target disk again"
+  echo "[log] installation was already started; refusing to erase the target disk again"
   exit 0
 fi
 
@@ -1154,7 +1154,7 @@ if ! mount_share installmedia ro; then
   fail "failed to mount installation media share"
 fi
 
-echo "[dockur] installation media share mounted"
+echo "[log] installation media share mounted"
 
 PACKAGE="$MEDIA_DIR/boot.dmg"
 [ -s "$PACKAGE" ] || fail "InstallAssistant package is missing"
@@ -1162,12 +1162,12 @@ PACKAGE="$MEDIA_DIR/boot.dmg"
 STARTOSINSTALL=$(find_startosinstall || :)
 [ -n "$STARTOSINSTALL" ] || fail "startosinstall was not found in the recovery image"
 
-echo "[dockur] using $STARTOSINSTALL"
+echo "[log] using $STARTOSINSTALL"
 
 TARGET_DISK=$(select_target_disk || :)
 [ -n "$TARGET_DISK" ] || fail "no writable installation disk of at least 16 GiB was found"
 
-echo "[dockur] selected $TARGET_DISK"
+echo "[log] selected $TARGET_DISK"
 
 : > "$STARTED" || fail "failed to create installation guard"
 
@@ -1184,7 +1184,7 @@ done
 
 [ -d "$TARGET_VOLUME" ] || fail "target APFS volume did not mount"
 
-echo "[dockur] starting macOS installation on $TARGET_VOLUME"
+echo "[log] starting macOS installation on $TARGET_VOLUME"
 "$STARTOSINSTALL" \
   --volume "$TARGET_VOLUME" \
   --agreetolicense \
@@ -1193,12 +1193,12 @@ rc=$?
 
 if (( rc != 0 )); then
   rm -f "$STARTED"
-  echo "[dockur] ERROR: startosinstall exited with status $rc"
+  echo "[log] ERROR: startosinstall exited with status $rc"
   "$STARTOSINSTALL" --usage >> "$STATE_LOG" 2>&1 || :
   exit "$rc"
 fi
 
-echo "[dockur] startosinstall completed its prepare phase; waiting for reboot"
+echo "[log] startosinstall completed its prepare phase; waiting for reboot"
 
 while :; do
   sleep 60
@@ -1211,10 +1211,10 @@ RECOVERY_SCRIPT
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.dockur.install</string>
+  <string>com.macos.install</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/local/libexec/dockur-install.sh</string>
+    <string>/usr/local/libexec/macos-install.sh</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
@@ -1235,26 +1235,15 @@ createInstallationImage() {
   local support_dir="$work/support"
   local base_dir="$work/base"
   local payload_dir="$work/payload"
-  local base boot root base_app package_app
   local root_app app_name startosinstall
-  local label tmp msg expanded_size hfslog
-  local partition payload_size staged_size
+  local base label tmp msg expanded_size
+  local boot root base_app package_app source_app
+  local partition hfslog payload_size staged_size
   local partition_size disk_size partition_sectors
   local mib=$((1024 * 1024))
 
   rm -rf "$work"
   mkdir -p "$support_dir" "$base_dir" "$payload_dir"
-
-  msg="Extracting macOS installer..."
-  info "$msg" && html "$msg"
-
-  package_app=$(extractPackageInstallationApp "$dmg" "$payload_dir" 2>/dev/null || :)
-
-  if [ ! -d "$package_app" ]; then
-    error "Failed to extract the macOS installation application."
-    rm -rf "$work"
-    return 1
-  fi
 
   if ! extractBaseSystem "$dmg" "$support_dir"; then
     error "Failed to reconstruct BaseSystem.dmg from the installation files."
@@ -1317,28 +1306,50 @@ createInstallationImage() {
   fi
 
   base_app=$(findInstallationApp "$root" 2>/dev/null || :)
-  app_name="${package_app##*/}"
+  source_app="$base_app"
+
+  # Current BaseSystem images already carry the matching small installer app.
+  # Prefer that copy: it avoids expanding InstallAssistant.pkg on Linux and also
+  # guarantees that the app skeleton matches the Recovery environment.
+  if [ ! -x "$source_app/Contents/Resources/startosinstall" ]; then
+
+    msg="Extracting macOS installer..."
+    info "$msg" && html "$msg"
+
+    package_app=$(extractPackageInstallationApp "$dmg" "$payload_dir" 2>/dev/null || :)
+    source_app="$package_app"
+
+    if [ ! -x "$source_app/Contents/Resources/startosinstall" ]; then
+      error "Neither BaseSystem.dmg nor InstallAssistant.pkg provided a usable macOS installation application."
+      rm -rf "$work"
+      return 1
+    fi
+  fi
+
+  app_name="${source_app##*/}"
   root_app="$root/$app_name"
 
   msg="Preparing unattended macOS installer..."
   info "$msg" && html "$msg"
 
-  rm -rf "$root_app"
+  if [ "$source_app" != "$root_app" ]; then
+    rm -rf "$root_app"
 
-  # Both paths live below the same work directory, so this is a metadata-only
-  # rename rather than another copy of the installer application.
-  if ! mv "$package_app" "$root_app"; then
-    error "Failed to place the macOS installation application in Recovery."
-    rm -rf "$work"
-    return 1
+    # Both paths live below the same work directory, so this is a metadata-only
+    # rename rather than another copy of the installer application.
+    if ! mv "$source_app" "$root_app"; then
+      error "Failed to place the macOS installation application in Recovery."
+      rm -rf "$work"
+      return 1
+    fi
   fi
 
   rm -rf "$payload_dir"
 
   startosinstall="$root_app/Contents/Resources/startosinstall"
 
-  if [ ! -f "$startosinstall" ]; then
-    error "The extracted macOS installation application does not contain startosinstall."
+  if [ ! -x "$startosinstall" ]; then
+    error "The macOS installation application does not contain an executable startosinstall."
     rm -rf "$work"
     return 1
   fi
