@@ -57,6 +57,14 @@ checkFreeSpace() {
   return 0
 }
 
+isXarArchive() {
+
+  local file="$1"
+
+  [ -f "$file" ] || return 1
+  cmp -s -n 4 <(printf 'xar!') "$file"
+}
+
 archiveEntrySize() {
 
   local archive="$1"
@@ -66,7 +74,7 @@ archiveEntrySize() {
 
   if [ -n "$forced" ]; then
     type=("-t$forced")
-  elif [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+  elif isXarArchive "$archive"; then
     type=(-txar)
   fi
 
@@ -96,7 +104,7 @@ archiveExpandedSize() {
 
   if [ -n "$forced" ]; then
     type=("-t$forced")
-  elif [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+  elif isXarArchive "$archive"; then
     type=(-txar)
   fi
 
@@ -299,7 +307,7 @@ getInstallationUrl() {
 checkInstallationPackage() {
 
   local file="$1"
-  local size magic
+  local size
 
   if [ ! -s "$file" ]; then
     error "Downloaded installation package is missing or empty!"
@@ -313,9 +321,7 @@ checkInstallationPackage() {
     return 1
   fi
 
-  magic=$(head -c 4 -- "$file" 2>/dev/null || :)
-
-  if [[ "$magic" != "xar!" ]]; then
+  if ! isXarArchive "$file"; then
     error "Downloaded InstallAssistant.pkg is not a valid XAR package."
     return 1
   fi
@@ -333,7 +339,7 @@ downloadInstallationFiles() {
   local gib=$((1024 * 1024 * 1024))
   local msg="Downloading macOS installer"
 
-  info "Checking macOS $version download size..."
+  info "Checking download size..."
 
   expected=$(curl --disable --max-time 30 --silent --show-error --fail --location --head \
     "$url" 2>/dev/null |
@@ -380,7 +386,7 @@ archiveEntry() {
   # InstallAssistant.pkg is both a XAR package and a DMG-compatible file.
   # Force the XAR handler when the archive has a XAR header, otherwise 7-Zip
   # may detect the DMG footer and hide package members such as SharedSupport.dmg.
-  if [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+  if isXarArchive "$archive"; then
     type=(-txar)
   fi
 
@@ -415,7 +421,7 @@ extractArchiveEntry() {
 
   if [ -n "$forced" ]; then
     type=("-t$forced")
-  elif [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+  elif isXarArchive "$archive"; then
     type=(-txar)
   fi
 
@@ -504,7 +510,27 @@ extractBaseSystem() {
     # been extracted, which keeps peak temporary storage lower.
     rm -rf "$disk_dir"
 
-    base_entry=$(archiveEntry "$zip" "BaseSystem.dmg")
+    # Big Sur and older package layouts expose AssetData/Restore/BaseSystem.dmg.
+    # Current installation data stores the Intel recovery image under payloadv2.
+    base_entry=$(
+      7z l -slt "$zip" 2>/dev/null |
+        sed -n 's/^Path = //p' |
+        awk '
+          /(^|\/)AssetData\/Restore\/BaseSystem\.dmg$/ {
+            legacy=$0
+          }
+          /(^|\/)AssetData\/payloadv2\/basesystem_patches\/x86_64BaseSystem\.dmg$/ {
+            modern=$0
+          }
+          END {
+            if (modern != "")
+              print modern
+            else if (legacy != "")
+              print legacy
+          }
+        '
+    )
+
     [ -n "$base_entry" ] || continue
 
     info "Extracting recovery image..."
@@ -514,13 +540,17 @@ extractBaseSystem() {
     fi
 
     base="$base_dir/$base_entry"
-    [ -f "$base" ] || base=$(find "$base_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
+
+    if [ ! -f "$base" ]; then
+      base=$(find "$base_dir" -type f \(           -name 'x86_64BaseSystem.dmg' -o           -name 'BaseSystem.dmg'         \) -print -quit 2>/dev/null || :)
+    fi
+
     [ -f "$base" ] || continue
 
     BASE_SYSTEM_FILE="$base"
 
-    # The large MobileAsset ZIP is no longer needed after BaseSystem.dmg has
-    # been extracted.
+    # The large MobileAsset ZIP is no longer needed after the recovery image
+    # has been extracted.
     rm -rf "$zip_dir"
 
     return 0
