@@ -92,8 +92,6 @@ getInstallationUrl() {
     return 1
   fi
 
-  info "Reading installation entries from Apple catalog..."
-
   if ! gzip -dc "$catalog" 2>/dev/null | awk '
     /<key>[0-9]{3}-[0-9]+<\/key>/ {
       active=1
