@@ -24,6 +24,99 @@ HEIGHT=$(strip "$HEIGHT")
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/installer.img"
 
+checkFreeSpace() {
+
+  local dir="$1"
+  local size="$2"
+
+  local base space size_gb space_gb
+  base=$(baseDir "$dir")
+
+  if ! space=$(df --output=avail -B 1 "$dir" | tail -n 1); then
+    error "Failed to check free space in $dir."
+    return 1
+  fi
+
+  if [[ ! "$space" =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then
+    error "Failed to determine available disk space for $dir."
+    return 1
+  fi
+
+  space="${space//[[:space:]]/}"
+
+  if (( size > space )); then
+
+    size_gb=$(formatBytes "$size")
+    space_gb=$(formatBytes "$space")
+
+    error "Insufficient free disk space in $base, have $space_gb available but need at least $size_gb."
+    return 1
+
+  fi
+
+  return 0
+}
+
+archiveEntrySize() {
+
+  local archive="$1"
+  local entry="$2"
+  local forced="${3:-}"
+  local type=()
+
+  if [ -n "$forced" ]; then
+    type=("-t$forced")
+  elif [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+    type=(-txar)
+  fi
+
+  7z l "${type[@]}" -slt "$archive" 2>/dev/null |
+    awk -v target="$entry" '
+      /^Path = / {
+        path=substr($0, 8)
+        next
+      }
+      /^Size = / && path == target {
+        size=substr($0, 8)
+        if (size ~ /^[0-9]+$/) {
+          print size
+          exit
+        }
+      }
+    '
+
+  return 0
+}
+
+archiveExpandedSize() {
+
+  local archive="$1"
+  local forced="${2:-}"
+  local type=()
+
+  if [ -n "$forced" ]; then
+    type=("-t$forced")
+  elif [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+    type=(-txar)
+  fi
+
+  7z l "${type[@]}" -slt "$archive" 2>/dev/null |
+    awk '
+      /^----------$/ {
+        entries=1
+        next
+      }
+      entries && /^Size = [0-9]+$/ {
+        total += substr($0, 8)
+      }
+      END {
+        printf "%.0f\n", total
+      }
+    '
+
+  return 0
+}
+
 getInstallationMajor() {
 
   local version="$1"
@@ -69,8 +162,9 @@ getInstallationUrl() {
 
   local major="$1"
 
-  local count catalog catalog_url url
-  local pairs distfile dist version
+  local catalog catalog_url catalog_size
+  local count url pairs distfile dist version
+  local metadata_space=$((128 * 1024 * 1024))
   local best_version="" best_url=""
 
   INSTALLATION_RELEASE=""
@@ -81,6 +175,22 @@ getInstallationUrl() {
   distfile=$(mktemp) || { rm -f "$catalog" "$pairs"; return 1; }
 
   catalog_url=$(getInstallationCatalog)
+
+  catalog_size=$(curl --disable --max-time 30 --silent --show-error --fail --location --head \
+    "$catalog_url" 2>/dev/null |
+    awk 'tolower($1) == "content-length:" {gsub("\r", "", $2); value=$2} END {print value}' || :)
+
+  if [[ "$catalog_size" =~ ^[0-9]+$ ]] && (( catalog_size > 0 )); then
+    checkFreeSpace "$(dirname "$catalog")" "$catalog_size" || {
+      rm -f "$catalog" "$pairs" "$distfile"
+      return 1
+    }
+  else
+    checkFreeSpace "$(dirname "$catalog")" "$metadata_space" || {
+      rm -f "$catalog" "$pairs" "$distfile"
+      return 1
+    }
+  fi
 
   local msg="Downloading Apple installation catalog..."
   info "$msg" && html "$msg"
@@ -139,6 +249,14 @@ getInstallationUrl() {
     error "No macOS installation files were found in the Apple catalog."
     return 1
   fi
+
+  # Distribution files are tiny and overwrite the same temporary file, so a
+  # single metadata reserve covers the whole version scan without doubling
+  # every request with an additional HEAD operation.
+  checkFreeSpace "$(dirname "$distfile")" "$metadata_space" || {
+    rm -f "$pairs" "$distfile"
+    return 1
+  }
 
   count=$(wc -l < "$pairs")
 
@@ -211,8 +329,9 @@ downloadInstallationFiles() {
   local url="$2"
   local dest="$3"
   local connections="${4:-1}"
-  local expected
-  local msg="Downloading macOS installation files..."
+  local current=0 expected required
+  local gib=$((1024 * 1024 * 1024))
+  local msg="Downloading macOS installation files"
 
   info "Checking macOS $version download size..."
 
@@ -220,9 +339,24 @@ downloadInstallationFiles() {
     "$url" 2>/dev/null |
     awk 'tolower($1) == "content-length:" {gsub("\r", "", $2); value=$2} END {print value}' || :)
 
+  if [ -f "$dest" ]; then
+    current=$(stat -c%s -- "$dest" 2>/dev/null || echo 0)
+  fi
+
+  if [[ "$expected" =~ ^[0-9]+$ ]] && (( expected > 0 )); then
+    required=$((expected - current))
+    (( required < 0 )) && required=0
+  else
+    # Current Big Sur and newer packages are roughly 12-16 GB. Keep a safe
+    # fallback when a CDN does not expose Content-Length.
+    required=$((20 * gib))
+  fi
+
+  checkFreeSpace "$(dirname "$dest")" "$required" || return 1
+
   local rc=0
 
-  info "$msg" && html "$msg"
+  info "$msg..."
 
   downloadToFile \
     "$url" \
@@ -263,16 +397,136 @@ extractArchiveEntry() {
   local archive="$1"
   local entry="$2"
   local dest="$3"
+  local forced="${4:-}"
+  local size
   local type=()
 
   [ -n "$entry" ] || return 1
   mkdir -p "$dest"
 
-  if [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
+  size=$(archiveEntrySize "$archive" "$entry" "$forced")
+
+  if [[ ! "$size" =~ ^[0-9]+$ ]]; then
+    error "Failed to determine extracted size for ${entry##*/}."
+    return 1
+  fi
+
+  checkFreeSpace "$dest" "$size" || return 1
+
+  if [ -n "$forced" ]; then
+    type=("-t$forced")
+  elif [ "$(head -c 4 -- "$archive" 2>/dev/null || :)" = "xar!" ]; then
     type=(-txar)
   fi
 
   7z x "${type[@]}" -y "$archive" "$entry" -o"$dest" > /dev/null
+}
+
+extractBaseSystem() {
+
+  local shared="$1"
+  local dest="$2"
+  local direct_dir="$dest/direct"
+  local disk_dir="$dest/disk"
+  local zip_dir="$dest/zip"
+  local base_dir="$dest/base"
+  local entry partition image zip_entry zip base_entry base
+  local partitions=()
+
+  BASE_SYSTEM_FILE=""
+
+  rm -rf "$direct_dir" "$disk_dir" "$zip_dir" "$base_dir"
+  mkdir -p "$direct_dir" "$disk_dir" "$zip_dir" "$base_dir"
+
+  # Keep a direct lookup for layouts that expose BaseSystem.dmg without the
+  # MobileAsset container used by current Big Sur and newer installation files.
+  entry=$(archiveEntry "$shared" "BaseSystem.dmg")
+
+  if [ -n "$entry" ]; then
+    info "Extracting recovery image..."
+
+    if extractArchiveEntry "$shared" "$entry" "$direct_dir"; then
+      base=$(find "$direct_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
+
+      if [ -f "$base" ]; then
+        BASE_SYSTEM_FILE="$base"
+        return 0
+      fi
+    fi
+  fi
+
+  rm -rf "$direct_dir"
+
+  mapfile -t partitions < <(
+    7z l -tdmg -slt "$shared" 2>/dev/null |
+      sed -n 's/^Path = //p' |
+      grep -Ei '\.(hfs|apfs)$' || :
+  )
+
+  (( ${#partitions[@]} > 0 )) || return 1
+
+  for partition in "${partitions[@]}"; do
+
+    rm -rf "$disk_dir" "$zip_dir" "$base_dir"
+    mkdir -p "$disk_dir" "$zip_dir" "$base_dir"
+
+    info "Extracting recovery filesystem..."
+
+    if ! extractArchiveEntry "$shared" "$partition" "$disk_dir" "dmg"; then
+      continue
+    fi
+
+    image="$disk_dir/$partition"
+    [ -f "$image" ] || image=$(find "$disk_dir" -type f \( -name '*.hfs' -o -name '*.apfs' \) -print -quit 2>/dev/null || :)
+    [ -f "$image" ] || continue
+
+    zip_entry=$(
+      7z l -slt "$image" 2>/dev/null |
+        sed -n 's/^Path = //p' |
+        grep -Ei '(^|/)com_apple_MobileAsset_MacSoftwareUpdate/[^/]+\.zip$' |
+        head -n 1 || :
+    )
+
+    [ -n "$zip_entry" ] || continue
+
+    info "Extracting installation data..."
+
+    if ! extractArchiveEntry "$image" "$zip_entry" "$zip_dir"; then
+      continue
+    fi
+
+    zip="$zip_dir/$zip_entry"
+    [ -f "$zip" ] || zip=$(find "$zip_dir" -type f -name '*.zip' -print -quit 2>/dev/null || :)
+    [ -f "$zip" ] || continue
+
+    # The filesystem image is no longer needed once the MobileAsset ZIP has
+    # been extracted, which keeps peak temporary storage lower.
+    rm -rf "$disk_dir"
+
+    base_entry=$(archiveEntry "$zip" "BaseSystem.dmg")
+    [ -n "$base_entry" ] || continue
+
+    info "Extracting recovery image..."
+
+    if ! extractArchiveEntry "$zip" "$base_entry" "$base_dir"; then
+      continue
+    fi
+
+    base="$base_dir/$base_entry"
+    [ -f "$base" ] || base=$(find "$base_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
+    [ -f "$base" ] || continue
+
+    BASE_SYSTEM_FILE="$base"
+
+    # The large MobileAsset ZIP is no longer needed after BaseSystem.dmg has
+    # been extracted.
+    rm -rf "$zip_dir"
+
+    return 0
+
+  done
+
+  return 1
 }
 
 findInstallationApp() {
@@ -309,7 +563,8 @@ extractPackageInstallationApp() {
 
   local pkg="$1"
   local dest="$2"
-  local listing entry payload out app
+  local listing entry out app old
+  local expanded payload payload_size
   local index=0
 
   listing=$(mktemp) || return 1
@@ -327,27 +582,65 @@ extractPackageInstallationApp() {
     out="$dest/payload-$index"
     mkdir -p "$out/archive" "$out/files"
 
-    if ! 7z x -txar -y "$pkg" "$entry" -o"$out/archive" > /dev/null 2>&1; then
+    if ! extractArchiveEntry "$pkg" "$entry" "$out/archive" "xar"; then
+      rm -rf "$out"
       continue
     fi
 
     payload="$out/archive/$entry"
     [ -f "$payload" ] || payload=$(find "$out/archive" -type f -name Payload -print -quit 2>/dev/null || :)
-    [ -f "$payload" ] || continue
+    [ -f "$payload" ] || { rm -rf "$out"; continue; }
+
+    expanded=$(archiveExpandedSize "$payload")
+
+    if [[ ! "$expanded" =~ ^[0-9]+$ ]] || (( expanded <= 0 )); then
+      payload_size=$(stat -c%s -- "$payload" 2>/dev/null || echo 0)
+
+      if [[ ! "$payload_size" =~ ^[0-9]+$ ]] || (( payload_size <= 0 )); then
+        rm -rf "$out"
+        continue
+      fi
+
+      # Payload formats vary across releases. When 7-Zip cannot calculate an
+      # expanded size, reserve four times the compressed payload as a safe
+      # fallback before trying either extractor.
+      expanded=$((payload_size * 4))
+    fi
+
+    if ! checkFreeSpace "$out/files" "$expanded"; then
+      rm -rf "$out"
+      continue
+    fi
 
     if ! 7z x -y "$payload" -o"$out/files" > /dev/null 2>&1; then
-      bsdtar -xf "$payload" -C "$out/files" > /dev/null 2>&1 || continue
+      bsdtar -xf "$payload" -C "$out/files" > /dev/null 2>&1 || {
+        rm -rf "$out"
+        continue
+      }
     fi
+
+    # The packaged Payload is no longer needed once its files have been expanded.
+    rm -rf "$out/archive"
 
     if app=$(findInstallationApp "$out/files"); then
       rm -f "$listing"
+
+      # Failed payload attempts can be large. Keep only the tree containing the
+      # application that will actually be used.
+      for old in "$dest"/payload-*; do
+        [ "$old" = "$out" ] || rm -rf "$old"
+      done
+
       echo "$app"
       return 0
     fi
 
+    rm -rf "$out"
+
   done < <(sed -n 's/^Path = //p' "$listing")
 
   rm -f "$listing"
+  rm -rf "$dest"
   return 1
 }
 
@@ -405,12 +698,10 @@ createInstallationImage() {
   local support_dir="$work/support"
   local base_dir="$work/base"
   local payload_dir="$work/payload"
-  local shared_entry base_entry shared
+  local shared_entry shared expanded_size
   local base boot root base_app package_app
-  local source_app root_app app_name label tmp
-
-  local msg="Extracting system data..."
-  info "$msg" && html "$msg" 
+  local source_app root_app app_name app_size
+  local label tmp
 
   rm -rf "$work"
   mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
@@ -422,6 +713,16 @@ createInstallationImage() {
     rm -rf "$work"
     return 1
   fi
+
+  # Extract the comparatively small application first. Doing this before the
+  # large SharedSupport.dmg avoids keeping that file around while package
+  # Payloads are expanded.
+  info "Extracting macOS installation application..."
+
+  package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
+
+  local msg="Extracting system data..."
+  info "$msg" && html "$msg"
 
   if ! extractArchiveEntry "$pkg" "$shared_entry" "$package_dir"; then
     error "Failed to extract SharedSupport.dmg from InstallAssistant.pkg."
@@ -438,38 +739,35 @@ createInstallationImage() {
     return 1
   fi
 
-  # Try to recover the installation application skeleton while the package
-  # is still available. BaseSystem contains a usable installation bundle too, so
-  # failure here is non-fatal and has a fallback below.
-  info "Extracting macOS installation application..."
+  # Nothing after this point needs the large package itself.
+  rm -f -- "$pkg" "$pkg.aria2"
 
-  package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
-
-  base_entry=$(archiveEntry "$shared" "BaseSystem.dmg")
-
-  if [ -z "$base_entry" ]; then
-    error "SharedSupport.dmg does not contain BaseSystem.dmg."
+  if ! extractBaseSystem "$shared" "$support_dir"; then
+    error "Failed to locate BaseSystem.dmg in the installation support files."
     rm -rf "$work"
     return 1
   fi
 
-  local msg="Extracting recovery image..."
-  info "$msg" && html "$msg" 
-
-  if ! extractArchiveEntry "$shared" "$base_entry" "$support_dir"; then
-    error "Failed to extract BaseSystem.dmg from SharedSupport.dmg."
-    rm -rf "$work"
-    return 1
-  fi
-
-  base="$support_dir/$base_entry"
-  [ -f "$base" ] || base=$(find "$support_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
+  base="$BASE_SYSTEM_FILE"
 
   if [ ! -f "$base" ]; then
     error "Failed to locate extracted BaseSystem.dmg."
     rm -rf "$work"
     return 1
   fi
+
+  expanded_size=$(archiveExpandedSize "$base")
+
+  if [[ ! "$expanded_size" =~ ^[0-9]+$ ]] || (( expanded_size <= 0 )); then
+    error "Failed to determine expanded recovery image size."
+    rm -rf "$work"
+    return 1
+  fi
+
+  checkFreeSpace "$base_dir" "$expanded_size" || {
+    rm -rf "$work"
+    return 1
+  }
 
   info "Expanding recovery image..."
 
@@ -478,6 +776,10 @@ createInstallationImage() {
     rm -rf "$work"
     return 1
   fi
+
+  # BaseSystem.dmg and the nested support intermediates are no longer needed
+  # once the recovery filesystem has been expanded.
+  rm -rf "$support_dir"
 
   boot=$(find "$base_dir" -type f -path '*/System/Library/CoreServices/boot.efi' -print -quit 2>/dev/null || :)
 
@@ -510,6 +812,20 @@ createInstallationImage() {
   info "Preparing macOS installation files..."
 
   if [ "$source_app" != "$root_app" ]; then
+
+    app_size=$(du -sb --apparent-size -- "$source_app" 2>/dev/null | awk '{print $1}' || :)
+
+    if [[ ! "$app_size" =~ ^[0-9]+$ ]]; then
+      error "Failed to determine installation application size."
+      rm -rf "$work"
+      return 1
+    fi
+
+    checkFreeSpace "$root" "$app_size" || {
+      rm -rf "$work"
+      return 1
+    }
+
     rm -rf "$root_app"
 
     if ! cp -a "$source_app" "$root_app"; then
@@ -519,16 +835,21 @@ createInstallationImage() {
     fi
   fi
 
+  # The package Payload is no longer needed after its application has been
+  # copied into the staged installation filesystem.
+  rm -rf "$payload_dir"
+
   mkdir -p "$root_app/Contents/SharedSupport"
   rm -f "$root_app/Contents/SharedSupport/SharedSupport.dmg"
 
-  # Move instead of copy so the 12-16 GB payload exists only once while the
-  # writable image is being assembled.
+  # Move instead of copy so the large support image exists only once.
   if ! mv "$shared" "$root_app/Contents/SharedSupport/SharedSupport.dmg"; then
     error "Failed to place SharedSupport.dmg in the installation application."
     rm -rf "$work"
     return 1
   fi
+
+  rm -rf "$package_dir"
 
   # Recovery's own installation bundle is normally the process launched at boot.
   # Point it at the same local payload so it cannot fall back to Internet
@@ -541,11 +862,6 @@ createInstallationImage() {
   fi
 
   touch "$root/.IAPhysicalMedia" "$root/.metadata_never_index"
-
-  # The package is no longer needed once its payload has been moved into the
-  # expanded BaseSystem, which keeps peak storage use substantially lower.
-  rm -f -- "$pkg" "$pkg.aria2"
-  rm -rf "$package_dir" "$support_dir" "$payload_dir"
 
   label="Install macOS $(getInstallationName "$major")"
   tmp="$dest.tmp"
@@ -569,11 +885,20 @@ createInstallationImage() {
     return 1
   fi
 
-  # Leave 2 GiB free so the image stays writable for later customization.
+  # Leave 2 GiB of logical free space so the image stays writable for later
+  # customization. The sparse file does not allocate that free space on disk.
   partition_size=$((payload_size + (2 * gib)))
   partition_size=$((((partition_size + mib - 1) / mib) * mib))
   disk_size=$((partition_size + (2 * mib)))
   partition_sectors=$((partition_size / 512))
+
+  # Populating HFS+ writes approximately the staged payload again, plus
+  # filesystem metadata. Reserve another 512 MiB for that metadata.
+  checkFreeSpace "$work" "$((payload_size + (512 * mib)))" || {
+    rm -f "$tmp"
+    rm -rf "$work"
+    return 1
+  }
 
   rm -f "$partition" "$links" "$hfslog"
   truncate -s "$partition_size" "$partition"
@@ -589,7 +914,6 @@ createInstallationImage() {
 
   # libdmg-hfsplus addall follows host symlinks. Remove them from the staging
   # tree first and recreate them explicitly inside HFS+ afterwards.
-
   : > "$links"
 
   while IFS= read -r -d '' link; do
@@ -625,6 +949,19 @@ createInstallationImage() {
     fi
   done < "$links"
 
+  # The complete staged tree has now been copied into HFS+. Delete it before
+  # creating the raw disk so the final phase does not keep three copies of the
+  # installation data at once.
+  rm -rf "$base_dir"
+  rm -f "$links" "$hfslog"
+
+  # dd below creates one more physical copy of the populated filesystem.
+  checkFreeSpace "$(dirname "$tmp")" "$payload_size" || {
+    rm -f "$tmp" "$partition"
+    rm -rf "$work"
+    return 1
+  }
+
   # Wrap the populated HFS+ partition in a sparse GPT raw disk. No loop device
   # or host filesystem mount is required.
   info "Writing HFS+ installation partition..."
@@ -646,6 +983,7 @@ createInstallationImage() {
     return 1
   fi
 
+  # Drop the temporary filesystem as soon as the raw image contains it.
   rm -f "$partition"
 
   info "Finalizing macOS installation image..."
@@ -673,6 +1011,7 @@ install() {
   local dest="$2"
   local major name release url
   local pkg="$STORAGE/InstallAssistant.pkg"
+  local custom_size
 
   if ! major=$(getInstallationMajor "$version"); then
     error "Installation files are supported for macOS Big Sur (11) through Tahoe (26)."
@@ -694,6 +1033,15 @@ install() {
 
     info "Using custom macOS installation image from /boot.img..."
 
+    custom_size=$(stat -c%s -- "/boot.img" 2>/dev/null || :)
+
+    if [[ ! "$custom_size" =~ ^[0-9]+$ ]]; then
+      error "Failed to determine custom installation image size."
+      return 1
+    fi
+
+    checkFreeSpace "$(dirname "$dest")" "$custom_size" || return 1
+
     if ! cp "/boot.img" "$dest"; then
       rm -f "$dest"
       return 1
@@ -705,6 +1053,17 @@ install() {
   fi
 
   if [ -f "/boot.dmg" ]; then
+
+    custom_size=$(qemu-img info "/boot.dmg" 2>/dev/null |
+      sed -nE 's/.*\(([0-9]+) bytes\).*/\1/p' |
+      head -n 1 || :)
+
+    if [[ ! "$custom_size" =~ ^[0-9]+$ ]]; then
+      error "Failed to determine converted custom image size."
+      return 1
+    fi
+
+    checkFreeSpace "$(dirname "$dest")" "$custom_size" || return 1
 
     info "Converting custom macOS boot image from dmg to raw format..."
 
