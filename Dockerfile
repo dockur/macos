@@ -4,14 +4,12 @@ FROM scratch AS base
 COPY --from=qemux/qemu:7.49 --exclude=usr/bin/qemu-system-x86_64 / /
 
 ARG VERSION_ARG="0.0"
-ARG VERSION_IPSW="3.1.705"
 ARG VERSION_VM_HIDE="2.0.0"
 ARG VERSION_OPENCORE="1.0.7"
 ARG VERSION_KVM_OPENCORE="0.7"
 ARG VERSION_OSX_KVM="326053dd61f49375d5dfb28ee715d38b04b5cd8e"
 ARG VERSION_HFSPLUS="8b02f7129264834aacd20b31060898c54009f9bb"
 
-ARG REPO_IPSW="https://github.com/blacktop/ipsw"
 ARG REPO_OPENCORE="https://github.com/acidanthera/OpenCorePkg"
 ARG REPO_VM_HIDE="https://github.com/Carnations-Botanica/VMHide"
 ARG REPO_KVM_OPENCORE="https://github.com/LongQT-sea/OpenCore-ISO"
@@ -29,16 +27,11 @@ RUN <<EOF
   apt-get --no-install-recommends -y install \
     mtools \
     hfsprogs \
-    libarchive-tools \
     xmlstarlet \
-    vulkan-tools
+    vulkan-tools \
+    libarchive-tools
 
   apt-get clean
-
-  # Extract ipsw
-  wget "$REPO_IPSW/releases/download/v$VERSION_IPSW/ipsw_${VERSION_IPSW}_linux_x86_64.tar.gz" -O /tmp/ipsw.tar.gz -q --timeout=30
-  tar -xzf /tmp/ipsw.tar.gz -C /tmp
-  install -m 755 /tmp/ipsw /usr/local/bin/ipsw
 
   # Extract macserial
   wget "$REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip" -O /tmp/opencore.zip -q --timeout=30
