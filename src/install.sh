@@ -1097,11 +1097,36 @@ createInstallationImage() {
 
   rm -rf "$payload_dir"
 
-  # Create the destination directory in the staged tree, but do not copy the
-  # large DMG into it. /boot.dmg may be a read-only bind mount or live on a
-  # different filesystem.
   mkdir -p "$root_app/Contents/SharedSupport"
   rm -f "$root_app/Contents/SharedSupport/SharedSupport.dmg"
+
+  dmg_size=$(stat -c%s -- "$dmg" 2>/dev/null || :)
+
+  if [[ ! "$dmg_size" =~ ^[0-9]+$ ]] || (( dmg_size <= 0 )); then
+    rm -rf "$work"
+    error "Failed to determine installation DMG size."
+    return 1
+  fi
+
+  # $STORAGE/boot.dmg lives on the same filesystem as the staging tree, so this
+  # normally creates a zero-copy hard link. A user-supplied /boot.dmg may be a
+  # read-only bind mount or live on another filesystem; copy it only then.
+  if ! ln -- "$dmg" "$shared" 2>/dev/null; then
+
+    checkFreeSpace "$(dirname "$shared")" "$dmg_size" || {
+      rm -rf "$work"
+      return 1
+    }
+
+    info "Copying installation data..."
+
+    if ! cp --sparse=always -- "$dmg" "$shared"; then
+      rm -f "$shared"
+      rm -rf "$work"
+      error "Failed to stage installation DMG."
+      return 1
+    fi
+  fi
 
   # Recovery's own installation bundle is normally the process launched at boot.
   # Point it at the same local payload so it cannot fall back to Internet Recovery.
@@ -1123,9 +1148,8 @@ createInstallationImage() {
   info "Creating macOS installation image..."
 
   local partition="$work/installation.hfs"
-  local links="$work/symlinks"
   local hfslog="$work/hfsplus.log"
-  local link path target
+  local shared="$root_app/Contents/SharedSupport/SharedSupport.dmg"
   local payload_size staged_size partition_size disk_size partition_sectors
   local mib=$((1024 * 1024))
   local gib=$((1024 * 1024 * 1024))
@@ -1137,16 +1161,7 @@ createInstallationImage() {
     return 1
   fi
 
-  dmg_size=$(stat -c%s -- "$dmg" 2>/dev/null || :)
-
-  if [[ ! "$dmg_size" =~ ^[0-9]+$ ]] || (( dmg_size <= 0 )); then
-    rm -f "$tmp"
-    rm -rf "$work"
-    error "Failed to determine installation DMG size."
-    return 1
-  fi
-
-  payload_size=$((staged_size + dmg_size))
+  payload_size="$staged_size"
 
   # Leave 2 GiB of logical free space so the image stays writable for later
   # customization. The sparse file does not allocate that free space on disk.
@@ -1161,7 +1176,7 @@ createInstallationImage() {
     return 1
   }
 
-  rm -f "$partition" "$links" "$hfslog"
+  rm -f "$partition" "$hfslog"
   truncate -s "$partition_size" "$partition"
 
   msg="Creating installation filesystem..."
@@ -1174,24 +1189,12 @@ createInstallationImage() {
     return 1
   fi
 
-  : > "$links"
-
-  while IFS= read -r -d '' link; do
-    path="/${link#"$root"/}"
-    target=$(readlink -- "$link") || {
-      rm -f "$tmp" "$partition"
-      rm -rf "$work"
-      error "Failed to read installation symlink: $path"
-      return 1
-    }
-
-    printf '%s\0%s\0' "$path" "$target" >> "$links"
-    rm -f -- "$link"
-  done < <(find "$root" -type l -print0)
-
   msg="Copying macOS installation files..."
   info "$msg" && html "$msg"
 
+  # Import the complete tree in one hfsplus process. Its addall implementation
+  # preserves symlinks itself. Keeping SharedSupport.dmg in this same import
+  # also avoids reopening the large catalog for a separate add operation.
   if ! hfsplus "$partition" addall "$root" / > "$hfslog" 2>&1; then
     tail -n 20 "$hfslog" >&2 || :
     rm -f "$tmp" "$partition"
@@ -1200,30 +1203,8 @@ createInstallationImage() {
     return 1
   fi
 
-  # Add the large source DMG directly to HFS+. This works for both an external
-  # read-only /boot.dmg and the writable $STORAGE/boot.dmg without staging a
-  # second host-side copy.
-  if ! hfsplus "$partition" add "$dmg" \
-      "/$app_name/Contents/SharedSupport/SharedSupport.dmg" >> "$hfslog" 2>&1; then
-    tail -n 20 "$hfslog" >&2 || :
-    rm -f "$tmp" "$partition"
-    rm -rf "$work"
-    error "Failed to copy installation DMG into HFS+ image."
-    return 1
-  fi
-
-  while IFS= read -r -d '' path && IFS= read -r -d '' target; do
-    if ! hfsplus "$partition" symlink "$path" "$target" >> "$hfslog" 2>&1; then
-      tail -n 20 "$hfslog" >&2 || :
-      rm -f "$tmp" "$partition"
-      rm -rf "$work"
-      error "Failed to recreate installation symlink: $path"
-      return 1
-    fi
-  done < "$links"
-
   rm -rf "$base_dir"
-  rm -f "$links" "$hfslog"
+  rm -f "$hfslog"
 
   checkFreeSpace "$(dirname "$tmp")" "$payload_size" || {
     rm -f "$tmp" "$partition"
