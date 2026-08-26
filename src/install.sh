@@ -65,6 +65,23 @@ isXarArchive() {
   cmp -s -n 4 <(printf 'xar!') "$file"
 }
 
+isBxDiff50() {
+
+  local file="$1"
+
+  [ -f "$file" ] || return 1
+  cmp -s -n 8 <(printf 'BXDIFF50') "$file"
+}
+
+bxdiffValue() {
+
+  local file="$1"
+  local offset="$2"
+
+  od -An -v -j "$offset" -N 8 -tu8 "$file" 2>/dev/null |
+    tr -d '[:space:]'
+}
+
 archiveEntrySize() {
 
   local archive="$1"
@@ -200,7 +217,7 @@ getInstallationUrl() {
     }
   fi
 
-  local msg="Downloading Apple installation catalog..."
+  local msg="Downloading installation catalog..."
   info "$msg" && html "$msg"
 
   if ! curl --disable --max-time 60 --silent --show-error --fail --location \
@@ -430,44 +447,24 @@ extractArchiveEntry() {
 
 extractBaseSystem() {
 
-  local shared="$1"
+  local support="$1"
   local dest="$2"
-  local direct_dir="$dest/direct"
   local disk_dir="$dest/disk"
   local zip_dir="$dest/zip"
+  local patch_dir="$dest/patch"
   local base_dir="$dest/base"
-  local entry partition image msg
-  local zip_entry zip base_entry base
+  local partition image msg
+  local zip_entry zip base_entry patch_entry
+  local patch dummy base patched_size control_size
   local partitions=()
 
   BASE_SYSTEM_FILE=""
 
-  rm -rf "$direct_dir" "$disk_dir" "$zip_dir" "$base_dir"
-  mkdir -p "$direct_dir" "$disk_dir" "$zip_dir" "$base_dir"
-
-  # Keep a direct lookup for layouts that expose BaseSystem.dmg without the
-  # MobileAsset container used by current Big Sur and newer installation files.
-  entry=$(archiveEntry "$shared" "BaseSystem.dmg")
-
-  if [ -n "$entry" ]; then
-
-    msg="Extracting recovery image..."
-    info "$msg" && html "$msg"
-
-    if extractArchiveEntry "$shared" "$entry" "$direct_dir"; then
-      base=$(find "$direct_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
-
-      if [ -f "$base" ]; then
-        BASE_SYSTEM_FILE="$base"
-        return 0
-      fi
-    fi
-  fi
-
-  rm -rf "$direct_dir"
+  rm -rf "$disk_dir" "$zip_dir" "$patch_dir" "$base_dir"
+  mkdir -p "$disk_dir" "$zip_dir" "$patch_dir" "$base_dir"
 
   mapfile -t partitions < <(
-    7z l -tdmg -slt "$shared" 2>/dev/null |
+    7z l -tdmg -slt "$support" 2>/dev/null |
       sed -n 's/^Path = //p' |
       grep -Ei '\.(hfs|apfs)$' || :
   )
@@ -476,13 +473,13 @@ extractBaseSystem() {
 
   for partition in "${partitions[@]}"; do
 
-    rm -rf "$disk_dir" "$zip_dir" "$base_dir"
-    mkdir -p "$disk_dir" "$zip_dir" "$base_dir"
+    rm -rf "$disk_dir" "$zip_dir" "$patch_dir" "$base_dir"
+    mkdir -p "$disk_dir" "$zip_dir" "$patch_dir" "$base_dir"
 
-    msg="Extracting recovery filesystem..."
+    msg="Extracting recovery data..."
     info "$msg" && html "$msg"
 
-    if ! extractArchiveEntry "$shared" "$partition" "$disk_dir" "dmg"; then
+    if ! extractArchiveEntry "$support" "$partition" "$disk_dir" "dmg"; then
       continue
     fi
 
@@ -510,54 +507,117 @@ extractBaseSystem() {
     [ -f "$zip" ] || zip=$(find "$zip_dir" -type f -name '*.zip' -print -quit 2>/dev/null || :)
     [ -f "$zip" ] || continue
 
-    # The filesystem image is no longer needed once the MobileAsset ZIP has
-    # been extracted, which keeps peak temporary storage lower.
+    # The extracted support filesystem is no longer needed after the
+    # MobileAsset ZIP has been copied out.
     rm -rf "$disk_dir"
 
-    # Big Sur and older package layouts expose AssetData/Restore/BaseSystem.dmg.
-    # Current installation data stores the Intel recovery image under payloadv2.
+    # Older layouts contain a ready-to-use BaseSystem.dmg.
     base_entry=$(
       7z l -slt "$zip" 2>/dev/null |
         sed -n 's/^Path = //p' |
-        awk '
-          /(^|\/)AssetData\/Restore\/BaseSystem\.dmg$/ {
-            legacy=$0
-          }
-          /(^|\/)AssetData\/payloadv2\/basesystem_patches\/x86_64BaseSystem\.dmg$/ {
-            modern=$0
-          }
-          END {
-            if (modern != "")
-              print modern
-            else if (legacy != "")
-              print legacy
-          }
-        '
+        grep -Ei '(^|/)AssetData/Restore/BaseSystem\.dmg$' |
+        head -n 1 || :
     )
 
-    [ -n "$base_entry" ] || continue
+    if [ -n "$base_entry" ]; then
 
-    local msg="Extracting recovery image..."
+      msg="Extracting recovery image..."
+      info "$msg" && html "$msg"
+
+      if ! extractArchiveEntry "$zip" "$base_entry" "$base_dir"; then
+        continue
+      fi
+
+      base="$base_dir/$base_entry"
+      [ -f "$base" ] || base=$(find "$base_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
+      [ -f "$base" ] || continue
+
+      rm -rf "$zip_dir"
+      BASE_SYSTEM_FILE="$base"
+      return 0
+    fi
+
+    # Current releases store the Intel BaseSystem as a BXDIFF50 replacement
+    # stream. Reconstruct it locally instead of downloading a second image.
+    patch_entry=$(
+      7z l -slt "$zip" 2>/dev/null |
+        sed -n 's/^Path = //p' |
+        grep -Ei '(^|/)AssetData/payloadv2/basesystem_patches/x86_64BaseSystem\.dmg$' |
+        head -n 1 || :
+    )
+
+    [ -n "$patch_entry" ] || continue
+
+    msg="Extracting image patch..."
     info "$msg" && html "$msg"
 
-    if ! extractArchiveEntry "$zip" "$base_entry" "$base_dir"; then
+    if ! extractArchiveEntry "$zip" "$patch_entry" "$patch_dir"; then
       continue
     fi
 
-    base="$base_dir/$base_entry"
+    patch="$patch_dir/$patch_entry"
+    [ -f "$patch" ] || patch=$(find "$patch_dir" -type f -name 'x86_64BaseSystem.dmg' -print -quit 2>/dev/null || :)
+    [ -f "$patch" ] || continue
 
-    if [ ! -f "$base" ]; then
-      base=$(find "$base_dir" -type f \(           -name 'x86_64BaseSystem.dmg' -o           -name 'BaseSystem.dmg'         \) -print -quit 2>/dev/null || :)
-    fi
-
-    [ -f "$base" ] || continue
-
-    BASE_SYSTEM_FILE="$base"
-
-    # The large MobileAsset ZIP is no longer needed after the recovery image
-    # has been extracted.
+    # The MobileAsset ZIP is no longer needed after the patch has been copied.
     rm -rf "$zip_dir"
 
+    if ! isBxDiff50 "$patch"; then
+      error "Recovery image patch is not a valid BXDIFF50 file."
+      return 1
+    fi
+
+    patched_size=$(bxdiffValue "$patch" 16)
+    control_size=$(bxdiffValue "$patch" 24)
+
+    if [[ ! "$patched_size" =~ ^[0-9]+$ ]] || (( patched_size <= 0 )); then
+      error "Failed to determine reconstructed recovery image size."
+      return 1
+    fi
+
+    if [[ ! "$control_size" =~ ^[0-9]+$ ]]; then
+      error "Failed to read recovery image patch metadata."
+      return 1
+    fi
+
+    if (( control_size != 0 )); then
+      error "Recovery image patch requires an existing base image."
+      return 1
+    fi
+
+    checkFreeSpace "$base_dir" "$patched_size" || return 1
+
+    if ! command -v ipsw >/dev/null 2>&1; then
+      error "The ipsw utility is required to reconstruct the recovery image."
+      return 1
+    fi
+
+    msg="Reconstructing recovery image..."
+    info "$msg" && html "$msg"
+
+    dummy="$patch_dir/BaseSystem.dmg"
+    : > "$dummy"
+
+    if ! ipsw ota patch bxdiff -s "$patch" "$dummy" -o "$base_dir" > "$patch_dir/ipsw.log" 2>&1; then
+      tail -n 20 "$patch_dir/ipsw.log" >&2 || :
+      error "Failed to reconstruct BaseSystem.dmg."
+      return 1
+    fi
+
+    base="$base_dir/BaseSystem.dmg"
+
+    if [ ! -f "$base" ]; then
+      error "Reconstructed BaseSystem.dmg was not created."
+      return 1
+    fi
+
+    if [ "$(stat -c%s -- "$base" 2>/dev/null || echo 0)" != "$patched_size" ]; then
+      error "Reconstructed BaseSystem.dmg has an unexpected size."
+      return 1
+    fi
+
+    rm -rf "$patch_dir"
+    BASE_SYSTEM_FILE="$base"
     return 0
 
   done
@@ -730,57 +790,26 @@ createInstallationImage() {
   local version="$3"
   local major="$4"
   local work="$STORAGE/tmp/macos-installation"
-  local package_dir="$work/package"
   local support_dir="$work/support"
   local base_dir="$work/base"
   local payload_dir="$work/payload"
-  local shared_entry shared expanded_size
+  local expanded_size
   local base boot root base_app package_app
   local source_app root_app app_name app_size
   local label tmp
 
   rm -rf "$work"
-  mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
+  mkdir -p "$support_dir" "$base_dir" "$payload_dir"
 
-  shared_entry=$(archiveEntry "$pkg" "SharedSupport.dmg")
-
-  if [ -z "$shared_entry" ]; then
-    error "InstallAssistant.pkg does not contain SharedSupport.dmg."
-    rm -rf "$work"
-    return 1
-  fi
-
-  # Extract the comparatively small application first. Doing this before the
-  # large SharedSupport.dmg avoids keeping that file around while package
-  # Payloads are expanded.
   local msg="Extracting macOS installer..."
   info "$msg" && html "$msg"
 
   package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
 
-  msg="Extracting system data..."
-  info "$msg" && html "$msg"
-
-  if ! extractArchiveEntry "$pkg" "$shared_entry" "$package_dir"; then
-    error "Failed to extract SharedSupport.dmg from InstallAssistant.pkg."
-    rm -rf "$work"
-    return 1
-  fi
-
-  shared="$package_dir/$shared_entry"
-  [ -f "$shared" ] || shared=$(find "$package_dir" -type f -name SharedSupport.dmg -print -quit 2>/dev/null || :)
-
-  if [ ! -f "$shared" ]; then
-    error "Failed to locate extracted SharedSupport.dmg."
-    rm -rf "$work"
-    return 1
-  fi
-
-  # Nothing after this point needs the large package itself.
-  rm -f -- "$pkg" "$pkg.aria2"
-
-  if ! extractBaseSystem "$shared" "$support_dir"; then
-    error "Failed to locate BaseSystem.dmg in the installation support files."
+  # InstallAssistant.pkg is a XAR/DMG hybrid. Use its DMG side directly for
+  # the support data so we do not create another 12-16 GB copy.
+  if ! extractBaseSystem "$pkg" "$support_dir"; then
+    error "Failed to reconstruct BaseSystem.dmg from the installation files."
     rm -rf "$work"
     return 1
   fi
@@ -788,7 +817,7 @@ createInstallationImage() {
   base="$BASE_SYSTEM_FILE"
 
   if [ ! -f "$base" ]; then
-    error "Failed to locate extracted BaseSystem.dmg."
+    error "Failed to locate reconstructed BaseSystem.dmg."
     rm -rf "$work"
     return 1
   fi
@@ -814,8 +843,8 @@ createInstallationImage() {
     return 1
   fi
 
-  # BaseSystem.dmg and the nested support intermediates are no longer needed
-  # once the recovery filesystem has been expanded.
+  # The reconstructed BaseSystem and all support intermediates are no longer
+  # needed after the recovery filesystem has been expanded.
   rm -rf "$support_dir"
 
   boot=$(find "$base_dir" -type f -path '*/System/Library/CoreServices/boot.efi' -print -quit 2>/dev/null || :)
@@ -872,25 +901,24 @@ createInstallationImage() {
     fi
   fi
 
-  # The package Payload is no longer needed after its application has been
+  # The package Payload is no longer needed after the application has been
   # copied into the staged installation filesystem.
   rm -rf "$payload_dir"
 
   mkdir -p "$root_app/Contents/SharedSupport"
   rm -f "$root_app/Contents/SharedSupport/SharedSupport.dmg"
 
-  # Move instead of copy so the large support image exists only once.
-  if ! mv "$shared" "$root_app/Contents/SharedSupport/SharedSupport.dmg"; then
-    error "Failed to place SharedSupport.dmg in the installation application."
+  # The downloaded package is itself the hybrid SharedSupport image. Keep the
+  # cached copy until the final installation image is complete, and hard-link
+  # it into the staging tree so this does not consume another 12-16 GB.
+  if ! ln "$pkg" "$root_app/Contents/SharedSupport/SharedSupport.dmg"; then
+    error "Failed to link cached installation data into the macOS application."
     rm -rf "$work"
     return 1
   fi
 
-  rm -rf "$package_dir"
-
   # Recovery's own installation bundle is normally the process launched at boot.
-  # Point it at the same local payload so it cannot fall back to Internet
-  # Recovery merely because the installation application also exists at volume root.
+  # Point it at the same local payload so it cannot fall back to Internet Recovery.
   if [ -d "$base_app" ] && [ "$base_app" != "$root_app" ]; then
     mkdir -p "$base_app/Contents/SharedSupport"
     rm -f "$base_app/Contents/SharedSupport/SharedSupport.dmg"
@@ -999,8 +1027,6 @@ createInstallationImage() {
     return 1
   }
 
-  # Wrap the populated HFS+ partition in a sparse GPT raw disk. No loop device
-  # or host filesystem mount is required.
   info "Writing HFS+ installation partition..."
 
   truncate -s "$disk_size" "$tmp"
@@ -1020,7 +1046,6 @@ createInstallationImage() {
     return 1
   fi
 
-  # Drop the temporary filesystem as soon as the raw image contains it.
   rm -f "$partition"
 
   info "Finalizing macOS installation image..."
@@ -1038,6 +1063,10 @@ createInstallationImage() {
     return 1
   fi
 
+  # The final image now contains the installation payload, so the persistent
+  # download checkpoint is no longer needed.
+  rm -f -- "$pkg" "$pkg.aria2"
+
   rm -rf "$work"
   return 0
 }
@@ -1047,7 +1076,8 @@ install() {
   local version="$1"
   local dest="$2"
   local major name release url
-  local pkg="$STORAGE/InstallAssistant.pkg"
+  local pkg="$STORAGE/tmp/InstallAssistant.pkg"
+  local cache="$STORAGE/boot.dmg"
   local custom_size
 
   if ! major=$(getInstallationMajor "$version"); then
@@ -1059,6 +1089,11 @@ install() {
 
   if ! makeDir "$STORAGE"; then
     error "Failed to create directory \"$STORAGE\" !"
+    return 1
+  fi
+
+  if ! makeDir "$STORAGE/tmp"; then
+    error "Failed to create directory \"$STORAGE/tmp\" !"
     return 1
   fi
 
@@ -1114,6 +1149,34 @@ install() {
     return 0
   fi
 
+  # boot.dmg is the persistent checkpoint for a successfully downloaded
+  # InstallAssistant image. Resume from it before touching Apple's catalog.
+  if [ -s "$cache" ]; then
+
+    if ! checkInstallationPackage "$cache"; then
+      error "Installation data in $cache is invalid; remove it to download again."
+      return 1
+    fi
+
+    createInstallationImage "$cache" "$dest" "$version" "$major"
+    return $?
+  fi
+
+  # Promote a successfully completed download from the old temporary name so
+  # upgrades to this code do not force another large download.
+  if [ -s "$pkg" ] && [ ! -e "$pkg.aria2" ]; then
+
+    if checkInstallationPackage "$pkg"; then
+      if ! mv -f "$pkg" "$cache"; then
+        error "Failed to save downloaded installation data to $cache."
+        return 1
+      fi
+
+      createInstallationImage "$cache" "$dest" "$version" "$major"
+      return $?
+    fi
+  fi
+
   if ! getInstallationUrl "$major"; then
     return 1
   fi
@@ -1128,22 +1191,20 @@ install() {
 
   info "Using macOS $name $release installation files."
 
-  if [ -s "$pkg" ]; then
-    info "Checking cached InstallAssistant.pkg..."
-
-    if ! checkInstallationPackage "$pkg"; then
-      rm -f "$pkg" "$pkg.aria2"
-    fi
+  # Keep partial downloads so downloadToFile can resume them on the next run.
+  # Only a fully downloaded and validated file is promoted to boot.dmg.
+  if ! downloadInstallationFiles "$release" "$url" "$pkg" "${CONNECTIONS:-1}"; then
+    return 1
   fi
 
-  if [ ! -s "$pkg" ]; then
-    if ! downloadInstallationFiles "$release" "$url" "$pkg" "${CONNECTIONS:-1}"; then
-      rm -f "$pkg" "$pkg.aria2"
-      return 1
-    fi
+  if ! mv -f "$pkg" "$cache"; then
+    error "Failed to save downloaded installation data to $cache."
+    return 1
   fi
 
-  createInstallationImage "$pkg" "$dest" "$release" "$major"
+  rm -f "$pkg.aria2"
+
+  createInstallationImage "$cache" "$dest" "$release" "$major"
 }
 
 generateID() {
