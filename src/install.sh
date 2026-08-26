@@ -436,7 +436,7 @@ extractBaseSystem() {
   local disk_dir="$dest/disk"
   local zip_dir="$dest/zip"
   local base_dir="$dest/base"
-  local entry partition image
+  local entry partition image msg
   local zip_entry zip base_entry base
   local partitions=()
 
@@ -450,7 +450,9 @@ extractBaseSystem() {
   entry=$(archiveEntry "$shared" "BaseSystem.dmg")
 
   if [ -n "$entry" ]; then
-    info "Extracting recovery image..."
+
+    msg="Extracting recovery image..."
+    info "$msg" && html "$msg"
 
     if extractArchiveEntry "$shared" "$entry" "$direct_dir"; then
       base=$(find "$direct_dir" -type f -name BaseSystem.dmg -print -quit 2>/dev/null || :)
@@ -477,7 +479,8 @@ extractBaseSystem() {
     rm -rf "$disk_dir" "$zip_dir" "$base_dir"
     mkdir -p "$disk_dir" "$zip_dir" "$base_dir"
 
-    info "Extracting recovery filesystem..."
+    msg="Extracting recovery filesystem..."
+    info "$msg" && html "$msg"
 
     if ! extractArchiveEntry "$shared" "$partition" "$disk_dir" "dmg"; then
       continue
@@ -496,7 +499,8 @@ extractBaseSystem() {
 
     [ -n "$zip_entry" ] || continue
 
-    info "Extracting installation data..."
+    msg="Extracting installation data..."
+    info "$msg" && html "$msg"
 
     if ! extractArchiveEntry "$image" "$zip_entry" "$zip_dir"; then
       continue
@@ -533,7 +537,8 @@ extractBaseSystem() {
 
     [ -n "$base_entry" ] || continue
 
-    info "Extracting recovery image..."
+    local msg="Extracting recovery image..."
+    info "$msg" && html "$msg"
 
     if ! extractArchiveEntry "$zip" "$base_entry" "$base_dir"; then
       continue
@@ -748,11 +753,12 @@ createInstallationImage() {
   # Extract the comparatively small application first. Doing this before the
   # large SharedSupport.dmg avoids keeping that file around while package
   # Payloads are expanded.
-  info "Extracting macOS installer..."
+  local msg="Extracting macOS installer..."
+  info "$msg" && html "$msg"
 
   package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
 
-  local msg="Extracting system data..."
+  msg="Extracting system data..."
   info "$msg" && html "$msg"
 
   if ! extractArchiveEntry "$pkg" "$shared_entry" "$package_dir"; then
