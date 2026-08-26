@@ -863,7 +863,7 @@ createInstallationImage() {
   rm -rf "$work"
   mkdir -p "$support_dir" "$base_dir" "$payload_dir"
 
-  local msg="Extracting macOS installer..."
+  local msg="Extracting package..."
   info "$msg" && html "$msg"
 
   package_app=$(extractPackageInstallationApp "$dmg" "$payload_dir" 2>/dev/null || :)
