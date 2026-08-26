@@ -68,79 +68,115 @@ getInstallerCatalog() {
 getInstallerUrl() {
 
   local major="$1"
-  local catalog meta output os version url
-  local best_version=""
-  local best_url=""
-  local metadata=()
+
+  local url catalog catalog_url pairs
+  local distfile count dist version
+  local best_version="" best_url=""
+
+  INSTALLER_RELEASE=""
+  INSTALLER_URL=""
 
   catalog=$(mktemp) || return 1
-  meta=$(mktemp) || { rm -f "$catalog"; return 1; }
+  pairs=$(mktemp) || { rm -f "$catalog"; return 1; }
+  distfile=$(mktemp) || { rm -f "$catalog" "$pairs"; return 1; }
 
-  local catalog_url
   catalog_url=$(getInstallerCatalog)
 
-  info "Checking Apple full installer catalog..."
+  info "Downloading Apple installer catalog..."
 
   if ! curl --disable --max-time 60 --silent --show-error --fail --location \
       "$catalog_url" --output "$catalog"; then
-    rm -f "$catalog" "$meta"
+    rm -f "$catalog" "$pairs" "$distfile"
     error "Failed to download the Apple software update catalog."
     return 1
   fi
 
-  if ! output=$(gzip -dc "$catalog" 2>/dev/null); then
-    output=$(cat "$catalog") || {
-      rm -f "$catalog" "$meta"
-      error "Failed to read the Apple software update catalog."
-      return 1
+  info "Reading installer entries from Apple catalog..."
+
+  if ! gzip -dc "$catalog" 2>/dev/null | awk '
+    /<key>[0-9]{3}-[0-9]+<\/key>/ {
+      active=1
+      depth=0
+      ia=""
+      dist=""
+      next
     }
-  fi
-
-  mapfile -t metadata < <(
-    sed -nE 's#.*<string>(https?://[^<]*com_apple_MobileAsset_MacSoftwareUpdate\.plist)</string>.*#\1#p' <<< "$output" |
-      sort -u
-  )
-
-  rm -f "$catalog"
-
-  if (( ${#metadata[@]} == 0 )); then
-    rm -f "$meta"
-    error "No macOS installers were found in the Apple catalog."
+    active && /<dict>/ {
+      depth++
+      next
+    }
+    active && /<string>.*InstallAssistant\.pkg<\/string>/ {
+      line=$0
+      sub(/.*<string>/, "", line)
+      sub(/<\/string>.*/, "", line)
+      ia=line
+      next
+    }
+    active && /<string>.*English\.dist<\/string>/ {
+      line=$0
+      sub(/.*<string>/, "", line)
+      sub(/<\/string>.*/, "", line)
+      dist=line
+      next
+    }
+    active & /<\/dict>/ {
+      depth--
+      if (depth == 0) {
+        if (ia != "" && dist != "")
+          print ia "	" dist
+        active=0
+      }
+    }
+  ' > "$pairs"; then
+    rm -f "$catalog" "$pairs" "$distfile"
+    error "Failed to parse the Apple software update catalog."
     return 1
   fi
 
-  for url in "${metadata[@]}"; do
+  rm -f "$catalog"
+
+  if [ ! -s "$pairs" ]; then
+    rm -f "$pairs" "$distfile"
+    error "No full macOS installers were found in the Apple catalog."
+    return 1
+  fi
+
+  count=$(wc -l < "$pairs")
+  info "Checking $count available macOS installer versions..."
+
+  while IFS=$'	' read -r url dist; do
+
+    [ -n "$url" ] && [ -n "$dist" ] || continue
 
     if ! curl --disable --max-time 30 --silent --show-error --fail --location \
-        "$url" --output "$meta"; then
+        "$dist" --output "$distfile"; then
       continue
     fi
 
-    os=$(xmlstarlet sel -T -t \
-      -v "(//key[.='OSVersion']/following-sibling::string[1])[1]" \
-      "$meta" 2>/dev/null || :)
+    version=$(xmlstarlet sel -T -t \
+      -v "(//key[.='VERSION']/following-sibling::string[1])[1]" \
+      "$distfile" 2>/dev/null || :)
 
-    [ -n "$os" ] || continue
-    [[ "${os%%.*}" == "$major" ]] || continue
-
-    version="$os"
+    [ -n "$version" ] || continue
+    [[ "${version%%.*}" == "$major" ]] || continue
 
     if [ -z "$best_version" ] ||
        [ "$(printf '%s\n%s\n' "$best_version" "$version" | sort -V | tail -n 1)" == "$version" ]; then
       best_version="$version"
-      best_url="${url%com_apple_MobileAsset_MacSoftwareUpdate.plist}InstallAssistant.pkg"
+      best_url="$url"
     fi
 
-  done
+  done < "$pairs"
 
-  rm -f "$meta"
+  rm -f "$pairs" "$distfile"
 
   if [ -z "$best_url" ]; then
-    error "No macOS $major installer was found in the Apple catalog."
+    error "No macOS $major full installer was found in the Apple catalog."
     return 1
   fi
 
-  printf '%s\n%s\n' "$best_version" "$best_url"
+  INSTALLER_RELEASE="$best_version"
+  INSTALLER_URL="$best_url"
   return 0
 }
 
@@ -180,11 +216,15 @@ downloadInstaller() {
   local expected
   local msg="Downloading macOS $version installatio files"
 
+  info "Checking macOS $version installer download size..."
+
   expected=$(curl --disable --max-time 30 --silent --show-error --fail --location --head \
     "$url" 2>/dev/null |
     awk 'tolower($1) == "content-length:" {gsub("\r", "", $2); value=$2} END {print value}' || :)
 
   local rc=0
+
+  info "Downloading macOS $version installation files..."
 
   downloadToFile \
     "$url" \
@@ -358,10 +398,12 @@ createInstallerImage() {
   local base_app package_app source_app root_app app_name
   local label tmp
 
+  info "Cleaning previous installer workspace..."
+
   rm -rf "$work"
   mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
 
-  info "Extracting macOS installation files..."
+  info "Inspecting InstallAssistant.pkg..."
 
   shared_entry=$(archiveEntry "$pkg" "SharedSupport.dmg")
 
@@ -370,6 +412,8 @@ createInstallerImage() {
     rm -rf "$work"
     return 1
   fi
+
+  info "Extracting SharedSupport.dmg..."
 
   if ! extractArchiveEntry "$pkg" "$shared_entry" "$package_dir"; then
     error "Failed to extract SharedSupport.dmg from InstallAssistant.pkg."
@@ -389,7 +433,11 @@ createInstallerImage() {
   # Try to recover the full installer application skeleton while the package
   # is still available. BaseSystem contains a usable installer bundle too, so
   # failure here is non-fatal and has a fallback below.
+  info "Extracting macOS installer application..."
+
   package_app=$(extractPackageInstallerApp "$pkg" "$payload_dir" 2>/dev/null || :)
+
+  info "Inspecting SharedSupport.dmg..."
 
   base_entry=$(archiveEntry "$shared" "BaseSystem.dmg")
 
@@ -398,6 +446,8 @@ createInstallerImage() {
     rm -rf "$work"
     return 1
   fi
+
+  info "Extracting BaseSystem.dmg..."
 
   if ! extractArchiveEntry "$shared" "$base_entry" "$support_dir"; then
     error "Failed to extract BaseSystem.dmg from SharedSupport.dmg."
@@ -413,6 +463,8 @@ createInstallerImage() {
     rm -rf "$work"
     return 1
   fi
+
+  info "Expanding BaseSystem.dmg..."
 
   if ! 7z x -y "$base" -o"$base_dir" > /dev/null; then
     error "Failed to extract BaseSystem.dmg."
@@ -447,6 +499,8 @@ createInstallerImage() {
 
   app_name="${source_app##*/}"
   root_app="$root/$app_name"
+
+  info "Preparing macOS installer application..."
 
   if [ "$source_app" != "$root_app" ]; then
     rm -rf "$root_app"
@@ -484,6 +538,9 @@ createInstallerImage() {
   # The package is no longer needed once its payload has been moved into the
   # expanded BaseSystem, which keeps peak storage use substantially lower.
   rm -f -- "$pkg" "$pkg.aria2"
+
+  info "Cleaning temporary installer files..."
+
   rm -rf "$package_dir" "$support_dir" "$payload_dir"
 
   label="Install macOS $(getInstallerName "$major")"
@@ -501,6 +558,8 @@ createInstallerImage() {
   local mib=$((1024 * 1024))
   local gib=$((1024 * 1024 * 1024))
 
+  info "Calculating macOS installer image size..."
+
   if ! payload_size=$(du -sb --apparent-size -- "$root" | awk '{print $1}'); then
     rm -f "$tmp"
     rm -rf "$work"
@@ -517,6 +576,8 @@ createInstallerImage() {
   rm -f "$partition" "$links" "$hfslog"
   truncate -s "$partition_size" "$partition"
 
+  info "Creating HFS+ installer filesystem..."
+
   if ! mkfs.hfsplus -v "$label" "$partition" > /dev/null; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
@@ -526,6 +587,8 @@ createInstallerImage() {
 
   # libdmg-hfsplus addall follows host symlinks. Remove them from the staging
   # tree first and recreate them explicitly inside HFS+ afterwards.
+  info "Preparing installer symlinks..."
+
   : > "$links"
 
   while IFS= read -r -d '' link; do
@@ -541,6 +604,8 @@ createInstallerImage() {
     rm -f -- "$link"
   done < <(find "$root" -type l -print0)
 
+  info "Copying macOS installer files into HFS+ image..."
+
   if ! hfsplus "$partition" addall "$root" / > "$hfslog" 2>&1; then
     tail -n 20 "$hfslog" >&2 || :
     rm -f "$tmp" "$partition"
@@ -548,6 +613,8 @@ createInstallerImage() {
     error "Failed to copy installer files into HFS+ image."
     return 1
   fi
+
+  info "Recreating installer symlinks..."
 
   while IFS= read -r -d '' path && IFS= read -r -d '' target; do
     if ! hfsplus "$partition" symlink "$path" "$target" >> "$hfslog" 2>&1; then
@@ -561,6 +628,8 @@ createInstallerImage() {
 
   # Wrap the populated HFS+ partition in a sparse GPT raw disk. No loop device
   # or host filesystem mount is required.
+  info "Creating GPT installer disk..."
+
   truncate -s "$disk_size" "$tmp"
 
   if ! printf 'label: gpt\nunit: sectors\n\nstart=2048, size=%s, type=48465300-0000-11AA-AA11-00306543ECAC, name="%s"\n' \
@@ -571,6 +640,8 @@ createInstallerImage() {
     return 1
   fi
 
+  info "Writing HFS+ installer partition..."
+
   if ! dd if="$partition" of="$tmp" bs=1M seek=1 conv=notrunc,sparse status=none; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
@@ -580,11 +651,15 @@ createInstallerImage() {
 
   rm -f "$partition"
 
+  info "Verifying macOS installer image..."
+
   if ! checkWritableInstallerImage "$tmp"; then
     rm -f "$tmp"
     rm -rf "$work"
     return 1
   fi
+
+  info "Finalizing macOS installer image..."
 
   if ! mv -f "$tmp" "$dest"; then
     rm -f "$tmp"
@@ -592,6 +667,8 @@ createInstallerImage() {
     error "Failed to move installer image to $dest."
     return 1
   fi
+
+  info "Cleaning installer workspace..."
 
   rm -rf "$work"
   return 0
@@ -601,7 +678,7 @@ install() {
 
   local version="$1"
   local dest="$2"
-  local major name details release url
+  local major name release url
   local pkg="$STORAGE/InstallAssistant.pkg"
 
   if ! major=$(getInstallerMajor "$version"); then
@@ -624,10 +701,12 @@ install() {
 
     info "Using custom macOS installer image from /boot.img..."
 
-    if ! cp "/boot.img" "$dest" || ! checkWritableInstallerImage "$dest"; then
+    if ! cp "/boot.img" "$dest"; then
       rm -f "$dest"
       return 1
     fi
+
+    checkWritableInstallerImage "$dest" || { rm -f "$dest"; return 1; }
 
     return 0
   fi
@@ -636,23 +715,22 @@ install() {
 
     info "Converting custom macOS boot image from dmg to raw format..."
 
-    if ! qemu-img convert -p -O raw "/boot.dmg" "$dest" ||
-       ! checkWritableInstallerImage "$dest"; then
+    if ! qemu-img convert -p -O raw "/boot.dmg" "$dest"; then
       rm -f "$dest"
       return 1
     fi
 
+    checkWritableInstallerImage "$dest" || { rm -f "$dest"; return 1; }
+
     return 0
   fi
 
-  if ! details=$(getInstallerUrl "$major"); then
+  if ! getInstallerUrl "$major"; then
     return 1
   fi
 
-  {
-    IFS= read -r release
-    IFS= read -r url
-  } <<< "$details"
+  release="$INSTALLER_RELEASE"
+  url="$INSTALLER_URL"
 
   if [ -z "$release" ] || [ -z "$url" ]; then
     error "Failed to resolve the macOS $name full installer URL."
@@ -662,6 +740,8 @@ install() {
   info "Using macOS $name $release installer."
 
   if [ -s "$pkg" ]; then
+    info "Checking cached InstallAssistant.pkg..."
+
     if ! checkInstallerPackage "$pkg"; then
       rm -f "$pkg" "$pkg.aria2"
     fi
