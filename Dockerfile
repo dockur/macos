@@ -1,5 +1,34 @@
 # syntax=docker/dockerfile:1.19
 
+FROM qemux/qemu:7.49 AS hfsplus-builder
+
+ARG VERSION_HFSPLUS="7ac55ec64c96f7800d9818ce64c79670e7f02b67"
+ARG REPO_HFSPLUS="https://github.com/planetbeing/libdmg-hfsplus"
+
+RUN <<EOF
+  set -eu
+
+  apt-get update
+  apt-get --no-install-recommends -y install \
+    build-essential \
+    ca-certificates \
+    cmake \
+    wget \
+    zlib1g-dev
+
+  wget "$REPO_HFSPLUS/archive/$VERSION_HFSPLUS.tar.gz" -O /tmp/hfsplus.tar.gz -q --timeout=30
+  tar -xzf /tmp/hfsplus.tar.gz -C /tmp
+
+  cmake \
+    -S "/tmp/libdmg-hfsplus-$VERSION_HFSPLUS" \
+    -B /tmp/hfsplus-build \
+    -DBUILD_STATIC=ON
+
+  cmake --build /tmp/hfsplus-build --target hfsplus --parallel "$(nproc)"
+  cp /tmp/hfsplus-build/hfs/hfsplus /usr/local/bin/hfsplus
+  strip /usr/local/bin/hfsplus
+EOF
+
 FROM scratch AS base
 COPY --from=qemux/qemu:7.49 --exclude=usr/bin/qemu-system-x86_64 / /
 
@@ -24,6 +53,8 @@ RUN <<EOF
   apt-get update
   apt-get --no-install-recommends -y install \
     mtools \
+    hfsprogs \
+    libarchive-tools \
     xmlstarlet \
     vulkan-tools
 
@@ -42,6 +73,7 @@ EOF
 
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /assets/
+COPY --from=hfsplus-builder /usr/local/bin/hfsplus /usr/local/bin/hfsplus
 COPY --from=qemux/qemu-reims:1.0.0 /usr/bin/qemu-system-x86_64 /usr/bin/
 COPY --from=qemux/qemu-reims:1.0.0 /usr/share/qemu/reims-vgpu-gop.rom /usr/share/qemu/
 
