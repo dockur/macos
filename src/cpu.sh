@@ -31,8 +31,8 @@ selectAmdCpuModel() {
   # Older macOS releases use the conservative Haswell profile; newer releases
   # receive Skylake plus a mitigation flag only when the host can provide it.
   case "${VERSION,,}" in
-    "10"* | "11"* | "12"* | "13"* | \
-    "catalina" | "bigsur" | "big-sur" | "monterey" | "ventura" )
+    "11"* | "12"* | "13"* | \
+    "bigsur" | "big-sur" | "monterey" | "ventura" )
       CPU_MODEL="Haswell-noTSX"
       ;;
     *)
