@@ -1028,7 +1028,8 @@ createInstallationImage() {
     return 1
   }
 
-  info "Expanding recovery image..."
+  msg="Expanding recovery image..."
+  info "$msg" && html "$msg"
 
   if ! extractFileSystemImage "$base" "$base_dir"; then
     error "Failed to extract BaseSystem.dmg."
@@ -1119,8 +1120,7 @@ createInstallationImage() {
   tmp="$dest.tmp"
   rm -f "$tmp"
 
-  local msg="Creating macOS installation image..."
-  info "$msg" && html "$msg"
+  info "Creating macOS installation image..."
 
   local partition="$work/installation.hfs"
   local links="$work/symlinks"
@@ -1164,7 +1164,8 @@ createInstallationImage() {
   rm -f "$partition" "$links" "$hfslog"
   truncate -s "$partition_size" "$partition"
 
-  info "Creating HFS+ installation filesystem..."
+  msg="Creating installation filesystem..."
+  info "$msg" && html "$msg"
 
   if ! mkfs.hfsplus -v "$label" "$partition" > /dev/null; then
     rm -f "$tmp" "$partition"
@@ -1188,7 +1189,8 @@ createInstallationImage() {
     rm -f -- "$link"
   done < <(find "$root" -type l -print0)
 
-  info "Copying macOS installation files into HFS+ image..."
+  msg="Copying macOS installation files..."
+  info "$msg" && html "$msg"
 
   if ! hfsplus "$partition" addall "$root" / > "$hfslog" 2>&1; then
     tail -n 20 "$hfslog" >&2 || :
@@ -1229,7 +1231,7 @@ createInstallationImage() {
     return 1
   }
 
-  info "Writing HFS+ installation partition..."
+  info "Writing installation partition..."
 
   truncate -s "$disk_size" "$tmp"
 
@@ -1250,7 +1252,7 @@ createInstallationImage() {
 
   rm -f "$partition"
 
-  info "Finalizing macOS installation image..."
+  info "Finalizing installation image..."
 
   if ! checkWritableInstallationImage "$tmp"; then
     rm -f "$tmp"
