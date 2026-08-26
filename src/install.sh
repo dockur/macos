@@ -82,7 +82,8 @@ getInstallationUrl() {
 
   catalog_url=$(getInstallationCatalog)
 
-  info "Downloading Apple installation catalog..."
+  local msg="Downloading Apple installation catalog..."
+  info "$msg" && html "$msg"
 
   if ! curl --disable --max-time 60 --silent --show-error --fail --location \
       "$catalog_url" --output "$catalog"; then
@@ -142,7 +143,6 @@ getInstallationUrl() {
   fi
 
   count=$(wc -l < "$pairs")
-  info "Checking $count available macOS versions..."
 
   while IFS=$'	' read -r url dist; do
 
@@ -214,7 +214,7 @@ downloadInstallationFiles() {
   local dest="$3"
   local connections="${4:-1}"
   local expected
-  local msg="Downloading macOS $version installatio files"
+  local msg="Downloading macOS installation files..."
 
   info "Checking macOS $version download size..."
 
@@ -224,7 +224,7 @@ downloadInstallationFiles() {
 
   local rc=0
 
-  info "Downloading macOS $version installation files..."
+  info "$msg" && html "$msg"
 
   downloadToFile \
     "$url" \
@@ -394,16 +394,14 @@ createInstallationImage() {
   local support_dir="$work/support"
   local base_dir="$work/base"
   local payload_dir="$work/payload"
-  local shared_entry base_entry shared base boot root
-  local base_app package_app source_app root_app app_name
-  local label tmp
+  local shared_entry base_entry shared
+  local base boot root base_app package_app
+  local source_app root_app app_name label tmp
 
-  info "Cleaning previous installation workspace..."
+  info "Inspecting InstallAssistant.pkg..."
 
   rm -rf "$work"
   mkdir -p "$package_dir" "$support_dir" "$base_dir" "$payload_dir"
-
-  info "Inspecting InstallAssistant.pkg..."
 
   shared_entry=$(archiveEntry "$pkg" "SharedSupport.dmg")
 
@@ -538,9 +536,6 @@ createInstallationImage() {
   # The package is no longer needed once its payload has been moved into the
   # expanded BaseSystem, which keeps peak storage use substantially lower.
   rm -f -- "$pkg" "$pkg.aria2"
-
-  info "Cleaning temporary installation files..."
-
   rm -rf "$package_dir" "$support_dir" "$payload_dir"
 
   label="Install macOS $(getInstallationName "$major")"
@@ -651,7 +646,7 @@ createInstallationImage() {
 
   rm -f "$partition"
 
-  info "Verifying macOS installation image..."
+  info "Finalizing macOS installation image..."
 
   if ! checkWritableInstallationImage "$tmp"; then
     rm -f "$tmp"
@@ -659,16 +654,12 @@ createInstallationImage() {
     return 1
   fi
 
-  info "Finalizing macOS installation image..."
-
   if ! mv -f "$tmp" "$dest"; then
     rm -f "$tmp"
     rm -rf "$work"
     error "Failed to move installation image to $dest."
     return 1
   fi
-
-  info "Cleaning installation workspace..."
 
   rm -rf "$work"
   return 0
