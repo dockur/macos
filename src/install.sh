@@ -346,13 +346,72 @@ checkInstallationPackage() {
   return 0
 }
 
+checkRecoveryDmg() {
+
+  local file="$1"
+  local listing
+
+  if [ ! -s "$file" ]; then
+    error "Recovery image is missing or empty!"
+    return 1
+  fi
+
+  if ! qemu-img info "$file" > /dev/null 2>&1; then
+    return 1
+  fi
+
+  listing=$(mktemp) || return 1
+
+  if ! 7z l -slt "$file" > "$listing" 2>/dev/null; then
+    rm -f "$listing"
+    return 1
+  fi
+
+  if ! grep -Eiq \
+      '^Path = (.+[\\/])?(System[\\/]Library[\\/]CoreServices[\\/]boot\.efi|com\.apple\.recovery\.boot[\\/]boot\.efi)$' \
+      "$listing"; then
+    rm -f "$listing"
+    return 1
+  fi
+
+  rm -f "$listing"
+  return 0
+}
+
+useRecoveryDmg() {
+
+  local source="$1"
+  local dest="$2"
+  local size
+
+  size=$(qemu-img info "$source" 2>/dev/null |
+    sed -nE 's/.*\(([0-9]+) bytes\).*/\1/p' |
+    head -n 1 || :)
+
+  if [[ ! "$size" =~ ^[0-9]+$ ]]; then
+    error "Failed to determine converted recovery image size."
+    return 1
+  fi
+
+  checkFreeSpace "$(dirname "$dest")" "$size" || return 1
+
+  info "Using macOS recovery image..."
+
+  if ! qemu-img convert -p -O raw "$source" "$dest"; then
+    rm -f "$dest"
+    return 1
+  fi
+
+  return 0
+}
+
 downloadInstallationFiles() {
 
   local version="$1"
   local url="$2"
   local dest="$3"
   local connections="${4:-1}"
-  local current=0 expected required
+  local expected required
   local gib=$((1024 * 1024 * 1024))
   local msg="Downloading macOS installer"
 
@@ -362,13 +421,8 @@ downloadInstallationFiles() {
     "$url" 2>/dev/null |
     awk 'tolower($1) == "content-length:" {gsub("\r", "", $2); value=$2} END {print value}' || :)
 
-  if [ -f "$dest" ]; then
-    current=$(stat -c%s -- "$dest" 2>/dev/null || echo 0)
-  fi
-
   if [[ "$expected" =~ ^[0-9]+$ ]] && (( expected > 0 )); then
-    required=$((expected - current))
-    (( required < 0 )) && required=0
+    required="$expected"
   else
     # Current Big Sur and newer packages are roughly 12-16 GB. Keep a safe
     # fallback when a CDN does not expose Content-Length.
@@ -376,6 +430,8 @@ downloadInstallationFiles() {
   fi
 
   checkFreeSpace "$(dirname "$dest")" "$required" || return 1
+
+  rm -f -- "$dest" "$dest.aria2"
 
   local rc=0
 
@@ -387,11 +443,19 @@ downloadInstallationFiles() {
     "$msg" \
     "${expected:-0}" \
     "$connections" \
-    "Y" || rc=$?
+    "N" || rc=$?
 
-  (( rc == 0 )) || return "$rc"
+  if (( rc != 0 )); then
+    rm -f -- "$dest" "$dest.aria2"
+    return "$rc"
+  fi
 
-  checkInstallationPackage "$dest"
+  if ! checkInstallationPackage "$dest"; then
+    rm -f -- "$dest" "$dest.aria2"
+    return 1
+  fi
+
+  return 0
 }
 
 archiveEntry() {
@@ -785,10 +849,8 @@ checkWritableInstallationImage() {
 
 createInstallationImage() {
 
-  local pkg="$1"
+  local dmg="$1"
   local dest="$2"
-  local version="$3"
-  local major="$4"
   local work="$STORAGE/tmp/macos-installation"
   local support_dir="$work/support"
   local base_dir="$work/base"
@@ -796,7 +858,7 @@ createInstallationImage() {
   local expanded_size
   local base boot root base_app package_app
   local source_app root_app app_name app_size
-  local label tmp
+  local dmg_size label tmp
 
   rm -rf "$work"
   mkdir -p "$support_dir" "$base_dir" "$payload_dir"
@@ -804,11 +866,11 @@ createInstallationImage() {
   local msg="Extracting macOS installer..."
   info "$msg" && html "$msg"
 
-  package_app=$(extractPackageInstallationApp "$pkg" "$payload_dir" 2>/dev/null || :)
+  package_app=$(extractPackageInstallationApp "$dmg" "$payload_dir" 2>/dev/null || :)
 
   # InstallAssistant.pkg is a XAR/DMG hybrid. Use its DMG side directly for
   # the support data so we do not create another 12-16 GB copy.
-  if ! extractBaseSystem "$pkg" "$support_dir"; then
+  if ! extractBaseSystem "$dmg" "$support_dir"; then
     error "Failed to reconstruct BaseSystem.dmg from the installation files."
     rm -rf "$work"
     return 1
@@ -901,21 +963,13 @@ createInstallationImage() {
     fi
   fi
 
-  # The package Payload is no longer needed after the application has been
-  # copied into the staged installation filesystem.
   rm -rf "$payload_dir"
 
+  # Create the destination directory in the staged tree, but do not copy the
+  # large DMG into it. /boot.dmg may be a read-only bind mount or live on a
+  # different filesystem.
   mkdir -p "$root_app/Contents/SharedSupport"
   rm -f "$root_app/Contents/SharedSupport/SharedSupport.dmg"
-
-  # The downloaded package is itself the hybrid SharedSupport image. Keep the
-  # cached copy until the final installation image is complete, and hard-link
-  # it into the staging tree so this does not consume another 12-16 GB.
-  if ! ln "$pkg" "$root_app/Contents/SharedSupport/SharedSupport.dmg"; then
-    error "Failed to link cached installation data into the macOS application."
-    rm -rf "$work"
-    return 1
-  fi
 
   # Recovery's own installation bundle is normally the process launched at boot.
   # Point it at the same local payload so it cannot fall back to Internet Recovery.
@@ -928,27 +982,40 @@ createInstallationImage() {
 
   touch "$root/.IAPhysicalMedia" "$root/.metadata_never_index"
 
-  label="Install macOS $(getInstallationName "$major")"
+  label="${app_name%.app}"
+  [ -n "$label" ] || label="Install macOS"
+
   tmp="$dest.tmp"
   rm -f "$tmp"
 
-  info "Creating macOS $version installation image..."
-  html "Creating macOS installation image..."
+  local msg="Creating macOS installation image..."
+  info "$msg" && html "$msg"
 
   local partition="$work/installation.hfs"
   local links="$work/symlinks"
   local hfslog="$work/hfsplus.log"
   local link path target
-  local payload_size partition_size disk_size partition_sectors
+  local payload_size staged_size partition_size disk_size partition_sectors
   local mib=$((1024 * 1024))
   local gib=$((1024 * 1024 * 1024))
 
-  if ! payload_size=$(du -sb --apparent-size -- "$root" | awk '{print $1}'); then
+  if ! staged_size=$(du -sb --apparent-size -- "$root" | awk '{print $1}'); then
     rm -f "$tmp"
     rm -rf "$work"
     error "Failed to calculate installation size."
     return 1
   fi
+
+  dmg_size=$(stat -c%s -- "$dmg" 2>/dev/null || :)
+
+  if [[ ! "$dmg_size" =~ ^[0-9]+$ ]] || (( dmg_size <= 0 )); then
+    rm -f "$tmp"
+    rm -rf "$work"
+    error "Failed to determine installation DMG size."
+    return 1
+  fi
+
+  payload_size=$((staged_size + dmg_size))
 
   # Leave 2 GiB of logical free space so the image stays writable for later
   # customization. The sparse file does not allocate that free space on disk.
@@ -957,8 +1024,6 @@ createInstallationImage() {
   disk_size=$((partition_size + (2 * mib)))
   partition_sectors=$((partition_size / 512))
 
-  # Populating HFS+ writes approximately the staged payload again, plus
-  # filesystem metadata. Reserve another 512 MiB for that metadata.
   checkFreeSpace "$work" "$((payload_size + (512 * mib)))" || {
     rm -f "$tmp"
     rm -rf "$work"
@@ -977,8 +1042,6 @@ createInstallationImage() {
     return 1
   fi
 
-  # libdmg-hfsplus addall follows host symlinks. Remove them from the staging
-  # tree first and recreate them explicitly inside HFS+ afterwards.
   : > "$links"
 
   while IFS= read -r -d '' link; do
@@ -1004,6 +1067,18 @@ createInstallationImage() {
     return 1
   fi
 
+  # Add the large source DMG directly to HFS+. This works for both an external
+  # read-only /boot.dmg and the writable $STORAGE/boot.dmg without staging a
+  # second host-side copy.
+  if ! hfsplus "$partition" add "$dmg" \
+      "/$app_name/Contents/SharedSupport/SharedSupport.dmg" >> "$hfslog" 2>&1; then
+    tail -n 20 "$hfslog" >&2 || :
+    rm -f "$tmp" "$partition"
+    rm -rf "$work"
+    error "Failed to copy installation DMG into HFS+ image."
+    return 1
+  fi
+
   while IFS= read -r -d '' path && IFS= read -r -d '' target; do
     if ! hfsplus "$partition" symlink "$path" "$target" >> "$hfslog" 2>&1; then
       tail -n 20 "$hfslog" >&2 || :
@@ -1014,13 +1089,9 @@ createInstallationImage() {
     fi
   done < "$links"
 
-  # The complete staged tree has now been copied into HFS+. Delete it before
-  # creating the raw disk so the final phase does not keep three copies of the
-  # installation data at once.
   rm -rf "$base_dir"
   rm -f "$links" "$hfslog"
 
-  # dd below creates one more physical copy of the populated filesystem.
   checkFreeSpace "$(dirname "$tmp")" "$payload_size" || {
     rm -f "$tmp" "$partition"
     rm -rf "$work"
@@ -1063,10 +1134,6 @@ createInstallationImage() {
     return 1
   fi
 
-  # The final image now contains the installation payload, so the persistent
-  # download checkpoint is no longer needed.
-  rm -f -- "$pkg" "$pkg.aria2"
-
   rm -rf "$work"
   return 0
 }
@@ -1076,16 +1143,9 @@ install() {
   local version="$1"
   local dest="$2"
   local major name release url
-  local pkg="$STORAGE/tmp/InstallAssistant.pkg"
-  local cache="$STORAGE/boot.dmg"
-  local custom_size
-
-  if ! major=$(getInstallationMajor "$version"); then
-    error "Installation files are supported for macOS Big Sur (11) through Tahoe (26)."
-    return 1
-  fi
-
-  name=$(getInstallationName "$major") || return 1
+  local download="$STORAGE/tmp/InstallAssistant.pkg"
+  local stored_dmg="$STORAGE/boot.dmg"
+  local input_dmg=""
 
   if ! makeDir "$STORAGE"; then
     error "Failed to create directory \"$STORAGE\" !"
@@ -1097,12 +1157,11 @@ install() {
     return 1
   fi
 
-  # New installation media invalidates cached firmware state that may still
-  # point at older installation media or an incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
   if [ -f "/boot.img" ]; then
 
+    local custom_size
     info "Using custom macOS installation image from /boot.img..."
 
     custom_size=$(stat -c%s -- "/boot.img" 2>/dev/null || :)
@@ -1120,62 +1179,55 @@ install() {
     fi
 
     checkWritableInstallationImage "$dest" || { rm -f "$dest"; return 1; }
-
     return 0
   fi
 
+  # A user-supplied /boot.dmg always takes precedence. It may be read-only and
+  # must never be renamed, removed, or modified.
   if [ -f "/boot.dmg" ]; then
-
-    custom_size=$(qemu-img info "/boot.dmg" 2>/dev/null |
-      sed -nE 's/.*\(([0-9]+) bytes\).*/\1/p' |
-      head -n 1 || :)
-
-    if [[ ! "$custom_size" =~ ^[0-9]+$ ]]; then
-      error "Failed to determine converted custom image size."
-      return 1
-    fi
-
-    checkFreeSpace "$(dirname "$dest")" "$custom_size" || return 1
-
-    info "Converting custom macOS boot image from dmg to raw format..."
-
-    if ! qemu-img convert -p -O raw "/boot.dmg" "$dest"; then
-      rm -f "$dest"
-      return 1
-    fi
-
-    checkWritableInstallationImage "$dest" || { rm -f "$dest"; return 1; }
-
-    return 0
+    input_dmg="/boot.dmg"
+  elif [ -s "$stored_dmg" ]; then
+    input_dmg="$stored_dmg"
   fi
 
-  # boot.dmg is the persistent checkpoint for a successfully downloaded
-  # InstallAssistant image. Resume from it before touching Apple's catalog.
-  if [ -s "$cache" ]; then
+  if [ -n "$input_dmg" ]; then
 
-    if ! checkInstallationPackage "$cache"; then
-      error "Installation data in $cache is invalid; remove it to download again."
-      return 1
-    fi
+    # XAR identifies InstallAssistant.pkg and compatible hybrid installation
+    # media. Once detected, VERSION is intentionally ignored because the DMG
+    # itself is authoritative.
+    if isXarArchive "$input_dmg"; then
 
-    createInstallationImage "$cache" "$dest" "$version" "$major"
-    return $?
-  fi
-
-  # Promote a successfully completed download from the old temporary name so
-  # upgrades to this code do not force another large download.
-  if [ -s "$pkg" ] && [ ! -e "$pkg.aria2" ]; then
-
-    if checkInstallationPackage "$pkg"; then
-      if ! mv -f "$pkg" "$cache"; then
-        error "Failed to save downloaded installation data to $cache."
+      if ! checkInstallationPackage "$input_dmg"; then
         return 1
       fi
 
-      createInstallationImage "$cache" "$dest" "$version" "$major"
+      if ! createInstallationImage "$input_dmg" "$dest"; then
+        return 1
+      fi
+
+      # Only our persisted $STORAGE/boot.dmg is disposable after success.
+      [ "$input_dmg" != "$stored_dmg" ] || rm -f -- "$stored_dmg"
+
+      return 0
+    fi
+
+    # Non-XAR DMGs keep the existing recovery-image behavior.
+    if checkRecoveryDmg "$input_dmg"; then
+      useRecoveryDmg "$input_dmg" "$dest"
       return $?
     fi
+
+    error "The supplied boot.dmg is neither a bootable recovery image nor supported macOS installation media."
+    return 1
   fi
+
+  # VERSION is used only to select what to download when no DMG was supplied.
+  if ! major=$(getInstallationMajor "$version"); then
+    error "Installation files are supported for macOS Big Sur (11) through Tahoe (26)."
+    return 1
+  fi
+
+  name=$(getInstallationName "$major") || return 1
 
   if ! getInstallationUrl "$major"; then
     return 1
@@ -1191,20 +1243,26 @@ install() {
 
   info "Using macOS $name $release installation files."
 
-  # Keep partial downloads so downloadToFile can resume them on the next run.
-  # Only a fully downloaded and validated file is promoted to boot.dmg.
-  if ! downloadInstallationFiles "$release" "$url" "$pkg" "${CONNECTIONS:-1}"; then
+  if ! downloadInstallationFiles "$release" "$url" "$download" "${CONNECTIONS:-1}"; then
     return 1
   fi
 
-  if ! mv -f "$pkg" "$cache"; then
-    error "Failed to save downloaded installation data to $cache."
+  # A completed, validated download becomes the generic persistent boot.dmg
+  # input for subsequent starts.
+  if ! mv -f "$download" "$stored_dmg"; then
+    rm -f -- "$download" "$download.aria2"
+    error "Failed to save installation media to $stored_dmg."
     return 1
   fi
 
-  rm -f "$pkg.aria2"
+  rm -f "$download.aria2"
 
-  createInstallationImage "$cache" "$dest" "$release" "$major"
+  if ! createInstallationImage "$stored_dmg" "$dest"; then
+    return 1
+  fi
+
+  rm -f -- "$stored_dmg"
+  return 0
 }
 
 generateID() {
