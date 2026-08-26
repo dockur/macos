@@ -23,6 +23,8 @@ HEIGHT=$(strip "$HEIGHT")
 
 BASE_IMG_ID="InstallMedia"
 BASE_IMG="$STORAGE/installer.img"
+INSTALL_MEDIA_FILE=""
+INSTALL_STATE_DIR=""
 
 checkFreeSpace() {
 
@@ -847,6 +849,41 @@ checkWritableInstallationImage() {
   return 0
 }
 
+checkAutomatedRecoveryImage() {
+
+  local file="$1"
+  local listing
+
+  checkWritableInstallationImage "$file" || return 1
+
+  listing=$(mktemp) || return 1
+
+  if ! 7z l -slt "$file" > "$listing" 2>/dev/null; then
+    rm -f "$listing"
+    error "Failed to inspect the automated recovery image."
+    return 1
+  fi
+
+  if ! grep -Eiq \
+      '^Path = (.+[\\/])?usr[\\/]local[\\/]libexec[\\/]dockur-install\.sh$' \
+      "$listing"; then
+    rm -f "$listing"
+    error "Automated recovery image does not contain dockur-install.sh."
+    return 1
+  fi
+
+  if ! grep -Eiq \
+      '^Path = (.+[\\/])?System[\\/]Library[\\/]LaunchDaemons[\\/]com\.dockur\.install\.plist$' \
+      "$listing"; then
+    rm -f "$listing"
+    error "Automated recovery image does not contain its launch daemon."
+    return 1
+  fi
+
+  rm -f "$listing"
+  return 0
+}
+
 extractFileSystemImage() {
 
   local image="$1"
@@ -978,6 +1015,218 @@ extractFileSystemImage() {
   return 0
 }
 
+injectAutomatedInstallation() {
+
+  local root="$1"
+  local script="$root/usr/local/libexec/dockur-install.sh"
+  local plist="$root/System/Library/LaunchDaemons/com.dockur.install.plist"
+
+  mkdir -p "$(dirname "$script")" "$(dirname "$plist")"
+
+  cat > "$script" <<'RECOVERY_SCRIPT'
+#!/bin/bash
+set -u
+
+LOCAL_LOG="/var/log/install.log"
+STATE_DIR="/Volumes/installstate"
+MEDIA_DIR="/Volumes/installmedia"
+STATE_LOG="$STATE_DIR/install.log"
+STARTED="$STATE_DIR/started"
+TARGET_VOLUME="/Volumes/Macintosh HD"
+MIN_TARGET_SIZE=$((16 * 1024 * 1024 * 1024))
+
+exec >> "$LOCAL_LOG" 2>&1
+
+echo "[log] unattended installation starting"
+
+mount_share() {
+
+  local tag="$1"
+  local mode="$2"
+  local mount_point="/Volumes/$tag"
+  local count=0
+
+  while (( count < 120 )); do
+
+    if [ -d "$mount_point" ]; then
+      return 0
+    fi
+
+    if [ "$mode" = "ro" ]; then
+      /sbin/mount_9p -r "$tag" >/dev/null 2>&1 || :
+    else
+      /sbin/mount_9p "$tag" >/dev/null 2>&1 || :
+    fi
+
+    [ -d "$mount_point" ] && return 0
+
+    count=$((count + 1))
+    sleep 1
+  done
+
+  return 1
+}
+
+fail() {
+
+  local message="$1"
+  echo "[log] ERROR: $message"
+  [ -d "$STATE_DIR" ] && rm -f "$STARTED"
+  exit 1
+}
+
+select_target_disk() {
+
+  local disk info size
+  local best=""
+  local best_size=0
+
+  while IFS= read -r disk; do
+
+    [ -n "$disk" ] || continue
+
+    info=$(/usr/sbin/diskutil info "/dev/$disk" 2>/dev/null || :)
+    [ -n "$info" ] || continue
+
+    if printf '%s\n' "$info" | /usr/bin/grep -Eq '^[[:space:]]*Read-Only Media:[[:space:]]*Yes'; then
+      continue
+    fi
+
+    size=$(printf '%s\n' "$info" |
+      /usr/bin/sed -nE 's/^[[:space:]]*Disk Size:.*\(([0-9]+) Bytes\).*/\1/p' |
+      /usr/bin/head -n 1)
+
+    [[ "$size" =~ ^[0-9]+$ ]] || continue
+    (( size >= MIN_TARGET_SIZE )) || continue
+
+    echo "[log] candidate target /dev/$disk ($size bytes)" >&2
+
+    if (( size > best_size )); then
+      best="$disk"
+      best_size="$size"
+    fi
+
+  done < <(
+    /usr/sbin/diskutil list physical 2>/dev/null |
+      /usr/bin/sed -nE 's#^/dev/(disk[0-9]+).*#\1#p'
+  )
+
+  [ -n "$best" ] || return 1
+  printf '/dev/%s\n' "$best"
+}
+
+find_startosinstall() {
+
+  local file
+
+  for file in \
+    /Install\ macOS*.app/Contents/Resources/startosinstall \
+    /Install\ OS\ X*.app/Contents/Resources/startosinstall \
+    /Install\ Mac\ OS\ X*.app/Contents/Resources/startosinstall \
+    /Applications/Install\ macOS*.app/Contents/Resources/startosinstall \
+    /Applications/Install\ OS\ X*.app/Contents/Resources/startosinstall \
+    /Applications/Install\ Mac\ OS\ X*.app/Contents/Resources/startosinstall; do
+
+    if [ -x "$file" ]; then
+      printf '%s\n' "$file"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+if ! mount_share installstate rw; then
+  fail "failed to mount installation state share"
+fi
+
+cat "$LOCAL_LOG" >> "$STATE_LOG" 2>/dev/null || :
+exec >> "$STATE_LOG" 2>&1
+
+echo "[dockur] installation state share mounted"
+
+if [ -e "$STARTED" ]; then
+  echo "[dockur] installation was already started; refusing to erase the target disk again"
+  exit 0
+fi
+
+if ! mount_share installmedia ro; then
+  fail "failed to mount installation media share"
+fi
+
+echo "[dockur] installation media share mounted"
+
+PACKAGE="$MEDIA_DIR/boot.dmg"
+[ -s "$PACKAGE" ] || fail "InstallAssistant package is missing"
+
+STARTOSINSTALL=$(find_startosinstall || :)
+[ -n "$STARTOSINSTALL" ] || fail "startosinstall was not found in the recovery image"
+
+echo "[dockur] using $STARTOSINSTALL"
+
+TARGET_DISK=$(select_target_disk || :)
+[ -n "$TARGET_DISK" ] || fail "no writable installation disk of at least 16 GiB was found"
+
+echo "[dockur] selected $TARGET_DISK"
+
+: > "$STARTED" || fail "failed to create installation guard"
+
+if ! /usr/sbin/diskutil eraseDisk APFS "Macintosh HD" GPT "$TARGET_DISK"; then
+  fail "failed to erase $TARGET_DISK as APFS"
+fi
+
+count=0
+while (( count < 60 )); do
+  [ -d "$TARGET_VOLUME" ] && break
+  count=$((count + 1))
+  sleep 1
+done
+
+[ -d "$TARGET_VOLUME" ] || fail "target APFS volume did not mount"
+
+echo "[dockur] starting macOS installation on $TARGET_VOLUME"
+"$STARTOSINSTALL" \
+  --volume "$TARGET_VOLUME" \
+  --agreetolicense \
+  --nointeraction
+rc=$?
+
+if (( rc != 0 )); then
+  rm -f "$STARTED"
+  echo "[dockur] ERROR: startosinstall exited with status $rc"
+  "$STARTOSINSTALL" --usage >> "$STATE_LOG" 2>&1 || :
+  exit "$rc"
+fi
+
+echo "[dockur] startosinstall completed its prepare phase; waiting for reboot"
+
+while :; do
+  sleep 60
+done
+RECOVERY_SCRIPT
+
+  cat > "$plist" <<'RECOVERY_PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.dockur.install</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/libexec/dockur-install.sh</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+RECOVERY_PLIST
+
+  chmod 0755 "$script"
+  chmod 0644 "$plist"
+  return 0
+}
+
 createInstallationImage() {
 
   local dmg="$1"
@@ -986,21 +1235,27 @@ createInstallationImage() {
   local support_dir="$work/support"
   local base_dir="$work/base"
   local payload_dir="$work/payload"
-  local expanded_size
   local base boot root base_app package_app
-  local source_app root_app app_name app_size
-  local dmg_size label tmp
+  local root_app app_name startosinstall
+  local label tmp msg expanded_size hfslog
+  local partition payload_size staged_size
+  local partition_size disk_size partition_sectors
+  local mib=$((1024 * 1024))
 
   rm -rf "$work"
   mkdir -p "$support_dir" "$base_dir" "$payload_dir"
 
-  local msg="Extracting package..."
+  msg="Extracting macOS installer..."
   info "$msg" && html "$msg"
 
   package_app=$(extractPackageInstallationApp "$dmg" "$payload_dir" 2>/dev/null || :)
 
-  # InstallAssistant.pkg is a XAR/DMG hybrid. Use its DMG side directly for
-  # the support data so we do not create another 12-16 GB copy.
+  if [ ! -d "$package_app" ]; then
+    error "Failed to extract the macOS installation application."
+    rm -rf "$work"
+    return 1
+  fi
+
   if ! extractBaseSystem "$dmg" "$support_dir"; then
     error "Failed to reconstruct BaseSystem.dmg from the installation files."
     rm -rf "$work"
@@ -1037,8 +1292,6 @@ createInstallationImage() {
     return 1
   fi
 
-  # The reconstructed BaseSystem and all support intermediates are no longer
-  # needed after the recovery filesystem has been expanded.
   rm -rf "$support_dir"
 
   boot=$(find "$base_dir" -type f -path '*/System/Library/CoreServices/boot.efi' -print -quit 2>/dev/null || :)
@@ -1050,156 +1303,118 @@ createInstallationImage() {
   fi
 
   root="${boot%/System/Library/CoreServices/boot.efi}"
-  [ -d "$root" ] || {
+
+  if [ ! -d "$root" ]; then
     error "Failed to determine BaseSystem root directory."
-    rm -rf "$work"
-    return 1
-  }
-
-  base_app=$(findInstallationApp "$root" 2>/dev/null || :)
-  source_app="$package_app"
-  [ -d "$source_app" ] || source_app="$base_app"
-
-  if [ ! -d "$source_app" ]; then
-    error "Could not locate the macOS installation application."
     rm -rf "$work"
     return 1
   fi
 
-  app_name="${source_app##*/}"
+  if [ ! -x "$root/sbin/mount_9p" ]; then
+    error "BaseSystem.dmg does not contain mount_9p, which is required for unattended installation media access."
+    rm -rf "$work"
+    return 1
+  fi
+
+  base_app=$(findInstallationApp "$root" 2>/dev/null || :)
+  app_name="${package_app##*/}"
   root_app="$root/$app_name"
 
-  info "Preparing macOS installation files..."
+  msg="Preparing unattended macOS installer..."
+  info "$msg" && html "$msg"
 
-  if [ "$source_app" != "$root_app" ]; then
+  rm -rf "$root_app"
 
-    app_size=$(du -sb --apparent-size -- "$source_app" 2>/dev/null | awk '{print $1}' || :)
-
-    if [[ ! "$app_size" =~ ^[0-9]+$ ]]; then
-      error "Failed to determine installation application size."
-      rm -rf "$work"
-      return 1
-    fi
-
-    checkFreeSpace "$root" "$app_size" || {
-      rm -rf "$work"
-      return 1
-    }
-
-    rm -rf "$root_app"
-
-    if ! cp -a "$source_app" "$root_app"; then
-      error "Failed to place the macOS installation application on the installation volume."
-      rm -rf "$work"
-      return 1
-    fi
+  # Both paths live below the same work directory, so this is a metadata-only
+  # rename rather than another copy of the installer application.
+  if ! mv "$package_app" "$root_app"; then
+    error "Failed to place the macOS installation application in Recovery."
+    rm -rf "$work"
+    return 1
   fi
 
   rm -rf "$payload_dir"
 
-  mkdir -p "$root_app/Contents/SharedSupport"
-  rm -f "$root_app/Contents/SharedSupport/SharedSupport.dmg"
+  startosinstall="$root_app/Contents/Resources/startosinstall"
 
-  dmg_size=$(stat -c%s -- "$dmg" 2>/dev/null || :)
-
-  if [[ ! "$dmg_size" =~ ^[0-9]+$ ]] || (( dmg_size <= 0 )); then
+  if [ ! -f "$startosinstall" ]; then
+    error "The extracted macOS installation application does not contain startosinstall."
     rm -rf "$work"
-    error "Failed to determine installation DMG size."
     return 1
   fi
 
-  # $STORAGE/boot.dmg lives on the same filesystem as the staging tree, so this
-  # normally creates a zero-copy hard link. A user-supplied /boot.dmg may be a
-  # read-only bind mount or live on another filesystem; copy it only then.
-  if ! ln -- "$dmg" "$shared" 2>/dev/null; then
+  chmod 0755 "$startosinstall" 2>/dev/null || :
 
-    checkFreeSpace "$(dirname "$shared")" "$dmg_size" || {
-      rm -rf "$work"
-      return 1
-    }
+  mkdir -p "$root_app/Contents/SharedSupport"
+  rm -f "$root_app/Contents/SharedSupport/SharedSupport.dmg"
 
-    info "Copying installation data..."
+  # InstallAssistant.pkg is a XAR/DMG hybrid. Recovery mounts the original file
+  # from Linux over 9P, so the 12-16 GB payload never has to be copied into this
+  # boot image.
+  ln -s "/Volumes/installmedia/boot.dmg" \
+    "$root_app/Contents/SharedSupport/SharedSupport.dmg"
 
-    if ! cp --sparse=always -- "$dmg" "$shared"; then
-      rm -f "$shared"
-      rm -rf "$work"
-      error "Failed to stage installation DMG."
-      return 1
-    fi
-  fi
-
-  # Recovery's own installation bundle is normally the process launched at boot.
-  # Point it at the same local payload so it cannot fall back to Internet Recovery.
+  # Keep Recovery's own installer pointed at the same local package as a GUI
+  # fallback without adding another payload copy.
   if [ -d "$base_app" ] && [ "$base_app" != "$root_app" ]; then
     mkdir -p "$base_app/Contents/SharedSupport"
     rm -f "$base_app/Contents/SharedSupport/SharedSupport.dmg"
-    ln -s "/$app_name/Contents/SharedSupport/SharedSupport.dmg" \
+    ln -s "/Volumes/installmedia/boot.dmg" \
       "$base_app/Contents/SharedSupport/SharedSupport.dmg"
+  fi
+
+  if ! injectAutomatedInstallation "$root"; then
+    error "Failed to inject unattended installation startup files."
+    rm -rf "$work"
+    return 1
   fi
 
   touch "$root/.IAPhysicalMedia" "$root/.metadata_never_index"
 
-  label="${app_name%.app}"
-  [ -n "$label" ] || label="Install macOS"
-
+  label="macOS Recovery"
   tmp="$dest.tmp"
-  rm -f "$tmp"
+  partition="$work/recovery.hfs"
+  hfslog="$work/hfsplus.log"
 
-  info "Creating macOS installation image..."
-
-  local partition="$work/installation.hfs"
-  local hfslog="$work/hfsplus.log"
-  local shared="$root_app/Contents/SharedSupport/SharedSupport.dmg"
-  local payload_size staged_size partition_size disk_size partition_sectors
-  local mib=$((1024 * 1024))
-  local gib=$((1024 * 1024 * 1024))
+  rm -f "$tmp" "$partition" "$hfslog"
 
   if ! staged_size=$(du -sb --apparent-size -- "$root" | awk '{print $1}'); then
-    rm -f "$tmp"
     rm -rf "$work"
-    error "Failed to calculate installation size."
+    error "Failed to calculate recovery image size."
     return 1
   fi
 
   payload_size="$staged_size"
 
-  # Leave 2 GiB of logical free space so the image stays writable for later
-  # customization. The sparse file does not allocate that free space on disk.
-  partition_size=$((payload_size + (2 * gib)))
+  # The installer payload stays on Linux. Only BaseSystem, the small installer
+  # application, and our startup files need to fit in this HFS+ partition.
+  partition_size=$((payload_size + (512 * mib)))
   partition_size=$((((partition_size + mib - 1) / mib) * mib))
   disk_size=$((partition_size + (2 * mib)))
   partition_sectors=$((partition_size / 512))
 
-  checkFreeSpace "$work" "$((payload_size + (512 * mib)))" || {
-    rm -f "$tmp"
+  checkFreeSpace "$work" "$((payload_size + (256 * mib)))" || {
     rm -rf "$work"
     return 1
   }
 
-  rm -f "$partition" "$hfslog"
   truncate -s "$partition_size" "$partition"
 
-  msg="Creating installation filesystem..."
+  msg="Creating automated recovery filesystem..."
   info "$msg" && html "$msg"
 
   if ! mkfs.hfsplus -v "$label" "$partition" > /dev/null; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to create HFS+ installation filesystem."
+    error "Failed to create HFS+ recovery filesystem."
     return 1
   fi
 
-  msg="Copying macOS installation files..."
-  info "$msg" && html "$msg"
-
-  # Import the complete tree in one hfsplus process. Its addall implementation
-  # preserves symlinks itself. Keeping SharedSupport.dmg in this same import
-  # also avoids reopening the large catalog for a separate add operation.
   if ! hfsplus "$partition" addall "$root" / > "$hfslog" 2>&1; then
     tail -n 20 "$hfslog" >&2 || :
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to copy installation files into HFS+ image."
+    error "Failed to copy recovery files into HFS+ image."
     return 1
   fi
 
@@ -1212,30 +1427,33 @@ createInstallationImage() {
     return 1
   }
 
-  info "Writing installation partition..."
+  msg="Writing automated recovery image..."
+  info "$msg" && html "$msg"
 
   truncate -s "$disk_size" "$tmp"
 
-  if ! printf 'label: gpt\nunit: sectors\n\nstart=2048, size=%s, type=48465300-0000-11AA-AA11-00306543ECAC, name="%s"\n' \
+  if ! printf 'label: gpt
+unit: sectors
+
+start=2048, size=%s, type=48465300-0000-11AA-AA11-00306543ECAC, name="%s"
+' \
       "$partition_sectors" "$label" | sfdisk "$tmp" > /dev/null; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to create GPT installation disk."
+    error "Failed to create GPT recovery disk."
     return 1
   fi
 
   if ! dd if="$partition" of="$tmp" bs=1M seek=1 conv=notrunc,sparse status=none; then
     rm -f "$tmp" "$partition"
     rm -rf "$work"
-    error "Failed to write HFS+ installation partition."
+    error "Failed to write HFS+ recovery partition."
     return 1
   fi
 
   rm -f "$partition"
 
-  info "Finalizing installation image..."
-
-  if ! checkWritableInstallationImage "$tmp"; then
+  if ! checkAutomatedRecoveryImage "$tmp"; then
     rm -f "$tmp"
     rm -rf "$work"
     return 1
@@ -1244,7 +1462,7 @@ createInstallationImage() {
   if ! mv -f "$tmp" "$dest"; then
     rm -f "$tmp"
     rm -rf "$work"
-    error "Failed to move installation image to $dest."
+    error "Failed to move recovery image to $dest."
     return 1
   fi
 
@@ -1315,12 +1533,11 @@ install() {
         return 1
       fi
 
+      INSTALL_MEDIA_FILE="$input_dmg"
+
       if ! createInstallationImage "$input_dmg" "$dest"; then
         return 1
       fi
-
-      # Only our persisted $STORAGE/boot.dmg is disposable after success.
-      [ "$input_dmg" != "$stored_dmg" ] || rm -f -- "$stored_dmg"
 
       return 0
     fi
@@ -1371,11 +1588,12 @@ install() {
 
   rm -f "$download.aria2"
 
+  INSTALL_MEDIA_FILE="$stored_dmg"
+
   if ! createInstallationImage "$stored_dmg" "$dest"; then
     return 1
   fi
 
-  rm -f -- "$stored_dmg"
   return 0
 }
 
@@ -1480,13 +1698,47 @@ if ! generateAddress; then
   error "Failed to generate MAC address!" && exit 37
 fi
 
+# Resolve the package again when reusing an already-built recovery image after
+# a container restart. A user-supplied /boot.dmg remains authoritative.
+if [ -z "$INSTALL_MEDIA_FILE" ]; then
+  if [ -s "/boot.dmg" ] && isXarArchive "/boot.dmg"; then
+    INSTALL_MEDIA_FILE="/boot.dmg"
+  elif [ -s "$STORAGE/boot.dmg" ] && isXarArchive "$STORAGE/boot.dmg"; then
+    INSTALL_MEDIA_FILE="$STORAGE/boot.dmg"
+  fi
+fi
+
+if [ -n "$INSTALL_MEDIA_FILE" ]; then
+  INSTALL_STATE_DIR="$STORAGE/tmp/autoinstall"
+  makeDir "$INSTALL_STATE_DIR" || {
+    error "Failed to create unattended installation state directory."
+    exit 34
+  }
+
+  # A newly blank primary disk means a new installation attempt. Clear only the
+  # small guard file; the downloaded package remains untouched.
+  if ! hasData; then
+    rm -f "$INSTALL_STATE_DIR/started"
+  fi
+fi
+
 DISK_OPTS=""
 
-# Keep the installation media writable so it can be modified in
-# later setup stages without rebuilding or converting the media again.
 if [ -s "$BASE_IMG" ]; then
   DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
   DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=raw,cache=unsafe,if=none"
+fi
+
+if [ -n "$INSTALL_MEDIA_FILE" ]; then
+  media_dir=$(dirname "$INSTALL_MEDIA_FILE")
+
+  # Recovery reads the large InstallAssistant package directly from Linux. The
+  # package export is read-only; a separate tiny writable share stores the guard
+  # and diagnostic log for the unattended startup job.
+  DISK_OPTS+=" -fsdev local,id=installmediafs,path=$media_dir,security_model=none,readonly=on"
+  DISK_OPTS+=" -device virtio-9p-pci,id=installmedia9p,fsdev=installmediafs,mount_tag=installmedia"
+  DISK_OPTS+=" -fsdev local,id=installstatefs,path=$INSTALL_STATE_DIR,security_model=none"
+  DISK_OPTS+=" -device virtio-9p-pci,id=installstate9p,fsdev=installstatefs,mount_tag=installstate"
 fi
 
 return 0
