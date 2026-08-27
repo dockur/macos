@@ -987,6 +987,18 @@ printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--installpackage' ||
 
 echo "[log] account and Setup Assistant packages passed preflight"
 
+count=0
+while (( count < 120 )); do
+  /usr/bin/pgrep -x diskarbitrationd >/dev/null 2>&1 && break
+  count=$((count + 1))
+  sleep 1
+done
+
+/usr/bin/pgrep -x diskarbitrationd >/dev/null 2>&1 ||
+  fail "Disk Arbitration did not become available"
+
+echo "[log] Disk Arbitration is available"
+
 TARGET_DISK=""
 count=0
 while (( count < 120 )); do
