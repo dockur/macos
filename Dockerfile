@@ -25,8 +25,12 @@ RUN <<EOF
 
   apt-get update
   apt-get --no-install-recommends -y install \
+    tar \
+    xar \
+    cpio \
+    gzip \
     mtools \
-    hfsprogs \
+    qemu-img \
     xmlstarlet \
     vulkan-tools \
     libarchive-tools
