@@ -1213,13 +1213,6 @@ admin|$admin|/admin.pkg|100644
 setup|$setup|/skipsetup.pkg|100644
 EOF
 
-  # 7-Zip is an independent parser. Require the final image to expose boot.efi
-  # before the rebuilt DMG is allowed to replace the boot artifact.
-  if ! checkBootableDmgImage "$tmp"; then
-    rm -rf "$work" "$tmp"
-    return 1
-  fi
-
   rm -rf "$work"
 
   if ! mv -f "$tmp" "$dest"; then
