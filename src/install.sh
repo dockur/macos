@@ -22,7 +22,7 @@ WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
 
 BASE_IMG_ID="InstallMedia"
-BASE_IMG="$STORAGE/base.img"
+BASE_IMG="$STORAGE/base.dmg"
 
 # Fixed setup values for the unattended-install proof. These are intentionally
 # not environment variables yet; locale settings will be implemented only
@@ -285,7 +285,7 @@ checkAutomationTools() {
   local tool
   local missing=()
 
-  for tool in qemu-img hfsplus xar cpio gzip tar python3; do
+  for tool in qemu-img dmg hfsplus xar cpio gzip tar python3 7z; do
     command -v "$tool" > /dev/null 2>&1 || missing+=("$tool")
   done
 
@@ -302,16 +302,20 @@ buildProductPackage() {
   local identifier="$1"
   local scripts="$2"
   local dest="$3"
-  local work component component_name listing verify
+  local work component_dir component_name component verify verify_component
+  local outer_listing inner_listing scripts_listing
+  local source_file packaged_file name
 
   work=$(mktemp -d "$STORAGE/tmp/package.XXXXXX") || return 1
   component_name="component.pkg"
+  component_dir="$work/component"
   component="$work/$component_name"
   verify="$work/verify"
+  verify_component="$verify/component"
 
-  mkdir -p "$component" "$verify"
+  mkdir -p "$component_dir" "$verify" "$verify_component"
 
-  cat > "$component/PackageInfo" <<EOF
+  cat > "$component_dir/PackageInfo" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <pkg-info postinstall-action="none" preserve-xattr="false" format-version="2" identifier="$identifier" version="1.0" install-location="/" auth="root">
     <payload numberOfFiles="0" installKBytes="0"/>
@@ -323,10 +327,23 @@ EOF
 
   if ! (
     cd "$scripts"
-    find . -print | cpio -o --format odc --owner 0:80 2>/dev/null | gzip -c > "$component/Scripts"
+    find . -print |
+      cpio -o --format odc --owner 0:80 2>/dev/null |
+      gzip -c > "$component_dir/Scripts"
   ); then
     rm -rf "$work"
     error "Failed to create scripts archive for $identifier."
+    return 1
+  fi
+
+  # pkgbuild produces a flat component package. Reproduce that structure:
+  # the component itself is a XAR containing PackageInfo and Scripts.
+  if ! (
+    cd "$component_dir"
+    xar --compression none -cf "$component" PackageInfo Scripts
+  ); then
+    rm -rf "$work"
+    error "Failed to build component package for $identifier."
     return 1
   fi
 
@@ -350,6 +367,8 @@ EOF
 
   rm -f "$dest"
 
+  # productbuild --package wraps the component package in a second XAR
+  # alongside the Distribution file.
   if ! (
     cd "$work"
     xar --compression none -cf "$dest" Distribution "$component_name"
@@ -359,17 +378,22 @@ EOF
     return 1
   fi
 
-  if ! listing=$(xar -tf "$dest" 2>/dev/null); then
+  if ! outer_listing=$(xar -tf "$dest" 2>/dev/null); then
     rm -rf "$work" "$dest"
     error "Failed to inspect product package $dest."
     return 1
   fi
 
-  if ! grep -qx 'Distribution' <<< "$listing" ||
-     ! grep -qx "$component_name/PackageInfo" <<< "$listing" ||
-     ! grep -qx "$component_name/Scripts" <<< "$listing"; then
+  if ! grep -Fxq 'Distribution' <<< "$outer_listing" ||
+     ! grep -Fxq "$component_name" <<< "$outer_listing"; then
     rm -rf "$work" "$dest"
-    error "Product package $dest is missing required package metadata."
+    error "Product package $dest is missing Distribution or its component package."
+    return 1
+  fi
+
+  if grep -Fq "$component_name/" <<< "$outer_listing"; then
+    rm -rf "$work" "$dest"
+    error "Product package $dest contains a directory component instead of a flat component package."
     return 1
   fi
 
@@ -378,11 +402,42 @@ EOF
     xar -xf "$dest"
   ); then
     rm -rf "$work" "$dest"
-    error "Failed to verify product package $dest."
+    error "Failed to extract product package $dest for verification."
     return 1
   fi
 
-  if ! python3 - "$verify/Distribution" "$verify/$component_name/PackageInfo" "$identifier" <<'PY'
+  if [ ! -f "$verify/$component_name" ]; then
+    rm -rf "$work" "$dest"
+    error "Product package $dest does not contain a flat component package."
+    return 1
+  fi
+
+  if ! inner_listing=$(xar -tf "$verify/$component_name" 2>/dev/null); then
+    rm -rf "$work" "$dest"
+    error "Failed to inspect component package inside $dest."
+    return 1
+  fi
+
+  if ! grep -Fxq 'PackageInfo' <<< "$inner_listing" ||
+     ! grep -Fxq 'Scripts' <<< "$inner_listing"; then
+    rm -rf "$work" "$dest"
+    error "Component package inside $dest is missing PackageInfo or Scripts."
+    return 1
+  fi
+
+  if ! (
+    cd "$verify_component"
+    xar -xf "$verify/$component_name"
+  ); then
+    rm -rf "$work" "$dest"
+    error "Failed to extract component package inside $dest."
+    return 1
+  fi
+
+  if ! python3 - \
+      "$verify/Distribution" \
+      "$verify_component/PackageInfo" \
+      "$identifier" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 
@@ -414,10 +469,8 @@ PY
     return 1
   fi
 
-  local scripts_listing
-
   if ! scripts_listing=$(
-    gzip -dc "$verify/$component_name/Scripts" 2>/dev/null |
+    gzip -dc "$verify_component/Scripts" 2>/dev/null |
       cpio -it 2>/dev/null
   ); then
     rm -rf "$work" "$dest"
@@ -430,6 +483,32 @@ PY
     error "Product package $dest does not contain its postinstall script."
     return 1
   fi
+
+  # Extract the packaged Scripts archive and compare every generated source
+  # file byte-for-byte. This verifies config/user data as well as postinstall.
+  mkdir -p "$verify/scripts"
+
+  if ! (
+    cd "$verify/scripts"
+    gzip -dc "$verify_component/Scripts" 2>/dev/null |
+      cpio -idmu 2>/dev/null
+  ); then
+    rm -rf "$work" "$dest"
+    error "Failed to extract the scripts archive in $dest."
+    return 1
+  fi
+
+  for source_file in "$scripts"/*; do
+    [ -f "$source_file" ] || continue
+    name="${source_file##*/}"
+    packaged_file="$verify/scripts/$name"
+
+    if [ ! -f "$packaged_file" ] || ! cmp -s "$source_file" "$packaged_file"; then
+      rm -rf "$work" "$dest"
+      error "Packaged script data $name failed byte-for-byte validation."
+      return 1
+    fi
+  done
 
   rm -rf "$work"
   return 0
@@ -1039,7 +1118,8 @@ prepareAutomatedRecovery() {
   local source="$1"
   local dest="$2"
   local tmp="$dest.tmp"
-  local work stage archive script plist admin setup verify
+  local work stage archive script plist admin setup verify hfs
+  local item source_file image_path extracted
 
   work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
   stage="$work/root"
@@ -1049,6 +1129,7 @@ prepareAutomatedRecovery() {
   admin="$stage/admin.pkg"
   setup="$stage/skipsetup.pkg"
   verify="$work/verify"
+  hfs="$work/BaseSystem.hfs"
 
   mkdir -p "$stage/System/Library/LaunchDaemons" "$verify"
 
@@ -1084,44 +1165,45 @@ prepareAutomatedRecovery() {
     return 1
   fi
 
-  rm -f "$tmp"
+  rm -f "$tmp" "$hfs"
 
   info "Preparing automated recovery image..."
 
-  if ! qemu-img convert -p -O raw "$source" "$tmp"; then
+  # BaseSystem.dmg is a UDIF device image. Extract the actual Apple_HFS
+  # partition first; qemu-img raw conversion retains the partition map and
+  # therefore does not produce a flat HFS+ volume suitable for hfsplus.
+  if ! dmg extract "$source" "$hfs" > /dev/null 2>&1; then
     rm -rf "$work" "$tmp"
-    error "Failed to convert the recovery image."
+    error "Failed to extract the HFS+ filesystem from the recovery image."
     return 1
   fi
 
-  if ! hfsplus "$tmp" ls / > /dev/null 2>&1; then
+  if [ ! -s "$hfs" ] || ! hfsplus "$hfs" ls / > /dev/null 2>&1; then
     rm -rf "$work" "$tmp"
-    error "Converted recovery image does not expose a writable HFS+ filesystem."
+    error "Recovery image does not contain a usable HFS+ filesystem."
     return 1
   fi
 
-  if ! hfsplus "$tmp" untar "$archive" > /dev/null 2>&1; then
+  if ! hfsplus "$hfs" untar "$archive" > /dev/null 2>&1; then
     rm -rf "$work" "$tmp"
     error "Failed to inject unattended installation files into Recovery."
     return 1
   fi
 
-  # Read every injected file back from the HFS+ image and compare it byte for
-  # byte. This catches path, archive and filesystem-write mistakes before boot.
-  local item source_file image_path extracted
+  # Verify the modified flat HFS+ volume before rebuilding the DMG.
   while IFS='|' read -r item source_file image_path; do
 
-    extracted="$verify/$item"
+    extracted="$verify/flat-$item"
 
-    if ! hfsplus "$tmp" extract "$image_path" "$extracted" > /dev/null 2>&1; then
+    if ! hfsplus "$hfs" extract "$image_path" "$extracted" > /dev/null 2>&1; then
       rm -rf "$work" "$tmp"
-      error "Failed to read back injected Recovery file $image_path."
+      error "Failed to read back injected Recovery file $image_path from HFS+."
       return 1
     fi
 
     if ! cmp -s "$source_file" "$extracted"; then
       rm -rf "$work" "$tmp"
-      error "Injected Recovery file $image_path failed byte-for-byte validation."
+      error "Injected Recovery file $image_path failed HFS+ byte-for-byte validation."
       return 1
     fi
 
@@ -1131,6 +1213,63 @@ plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist
 admin|$admin|/admin.pkg
 setup|$setup|/skipsetup.pkg
 EOF
+
+  # Rebuild a proper UDIF device image, including its Apple partition map.
+  if ! dmg build "$hfs" "$tmp" > /dev/null 2>&1; then
+    rm -rf "$work" "$tmp"
+    error "Failed to rebuild the automated recovery DMG."
+    return 1
+  fi
+
+  if [ ! -s "$tmp" ]; then
+    rm -rf "$work" "$tmp"
+    error "Rebuilt automated recovery DMG is empty."
+    return 1
+  fi
+
+  # Validate the exact artifact QEMU will boot, not merely the intermediate HFS.
+  if ! qemu-img info "$tmp" > /dev/null 2>&1; then
+    rm -rf "$work" "$tmp"
+    error "Rebuilt automated recovery DMG is not recognized by QEMU."
+    return 1
+  fi
+
+  if ! hfsplus "$tmp" ls / > /dev/null 2>&1; then
+    rm -rf "$work" "$tmp"
+    error "Rebuilt automated recovery DMG does not expose its HFS+ filesystem."
+    return 1
+  fi
+
+  # Read all injected files back again from the final rebuilt DMG.
+  while IFS='|' read -r item source_file image_path; do
+
+    extracted="$verify/dmg-$item"
+
+    if ! hfsplus "$tmp" extract "$image_path" "$extracted" > /dev/null 2>&1; then
+      rm -rf "$work" "$tmp"
+      error "Failed to read back injected Recovery file $image_path from rebuilt DMG."
+      return 1
+    fi
+
+    if ! cmp -s "$source_file" "$extracted"; then
+      rm -rf "$work" "$tmp"
+      error "Injected Recovery file $image_path failed rebuilt-DMG byte-for-byte validation."
+      return 1
+    fi
+
+  done <<EOF
+script|$script|/macos-install.sh
+plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist
+admin|$admin|/admin.pkg
+setup|$setup|/skipsetup.pkg
+EOF
+
+  # 7-Zip provides an independent filesystem/container parser. Require the
+  # final image to still expose macOS boot.efi before replacing base.dmg.
+  if ! checkBootableDmgImage "$tmp"; then
+    rm -rf "$work" "$tmp"
+    return 1
+  fi
 
   rm -rf "$work"
 
@@ -1322,7 +1461,7 @@ fi
 # overwriting existing disks or redownloading the installation media again.
 if [ ! -s "$BASE_IMG" ] && ! hasDisk; then
   STORAGE="$STORAGE/${VERSION,,}"
-  BASE_IMG="$STORAGE/base.img"
+  BASE_IMG="$STORAGE/base.dmg"
 fi
 
 # Recovery media is required only while the primary disk is absent or blank.
@@ -1362,7 +1501,7 @@ DISK_OPTS=""
 # pinned at 0x7; the generic disk layer keeps 0xA-0xF for managed disks.
 if [ -s "$BASE_IMG" ]; then
   DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
-  DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=raw,cache=unsafe,readonly=on,if=none"
+  DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"
   DISK_OPTS+=" -fsdev local,id=installstatefs,path=$INSTALL_STATE_DIR,security_model=none"
   DISK_OPTS+=" -device virtio-9p-pci,id=installstate9p,fsdev=installstatefs,mount_tag=installstate,bus=pcie.0,addr=0x7"
 fi
