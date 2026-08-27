@@ -275,16 +275,13 @@ createSkipSetupPackage() {
 createAutomatedInstallationFiles() {
 
   local script="$1"
-  local progress="$2"
 
-  if ! cp -f "$IMAGE_TOOLS/recovery/macos-install.sh" "$script" ||
-     ! cp -f "$IMAGE_TOOLS/recovery/progress-poc.js" "$progress"; then
+  if ! cp -f "$IMAGE_TOOLS/recovery/macos-install.sh" "$script"; then
     error "Failed to prepare automated Recovery files."
     return 1
   fi
 
   chmod 0755 "$script"
-  chmod 0644 "$progress"
 
   return 0
 }
@@ -309,17 +306,16 @@ prepareAutomatedRecovery() {
   local dest="$2"
   local admin="$3"
   local setup="$4"
-  local work script progress state qemu_info
+  local work script state qemu_info
   local msg="Preparing automated installation..."
 
   info "$msg" && html "$msg"
 
   work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
   script="$work/macos-install.sh"
-  progress="$work/progress-poc.js"
   state="$STORAGE/tmp/autoinstall"
 
-  if ! createAutomatedInstallationFiles "$script" "$progress"; then
+  if ! createAutomatedInstallationFiles "$script"; then
     rm -rf "$work"
     return 1
   fi
@@ -343,7 +339,6 @@ prepareAutomatedRecovery() {
   fi
 
   if ! cp -f "$script" "$state/macos-install.sh" ||
-     ! cp -f "$progress" "$state/progress-poc.js" ||
      ! cp -f "$admin" "$state/admin.pkg" ||
      ! cp -f "$setup" "$state/skipsetup.pkg"; then
     rm -rf "$work"
@@ -352,10 +347,9 @@ prepareAutomatedRecovery() {
   fi
 
   chmod 0755 "$state/macos-install.sh"
-  chmod 0644 "$state/progress-poc.js" "$state/admin.pkg" "$state/skipsetup.pkg"
+  chmod 0644 "$state/admin.pkg" "$state/skipsetup.pkg"
 
   if ! cmp -s "$script" "$state/macos-install.sh" ||
-     ! cmp -s "$progress" "$state/progress-poc.js" ||
      ! cmp -s "$admin" "$state/admin.pkg" ||
      ! cmp -s "$setup" "$state/skipsetup.pkg"; then
     rm -rf "$work"
