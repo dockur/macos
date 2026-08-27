@@ -137,31 +137,6 @@ addOvmfOptions() {
   return 0
 }
 
-enableIgnoreMsrs() {
-
-  MSRS="/sys/module/kvm/parameters/ignore_msrs"
-
-  [ -e "$MSRS" ] || return 0
-
-  result=$(<"$MSRS")
-  result="${result//[![:print:]]/}"
-
-  # This host KVM setting is best-effort: unsupported MSR accesses should not
-  # terminate guests, but containers may lack permission to change the module.
-  if [[ "$result" == "0" || "${result^^}" == "N" ]]; then
-    echo 1 | tee "$MSRS" > /dev/null 2>&1 || true
-  fi
-
-  result=$(<"$MSRS")
-  result="${result//[![:print:]]/}"
-
-  if [[ "$result" == "0" || "${result^^}" == "N" ]]; then
-    enabled "$DEBUG" && echo "Failed to set $MSRS to value 1"
-  fi
-
-  return 0
-}
-
 extractOpenCore() {
 
   # OpenCoreBoot
@@ -543,7 +518,6 @@ prepareUefiRom
 prepareUefiVars
 addOvmfOptions
 
-enableIgnoreMsrs
 prepareOpenCoreImage
 
 setOwner "$IMG" || error "Failed to set the owner for \"$IMG\" !"
