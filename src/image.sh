@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-IMAGE_ASSETS="/assets/install"
 IMAGE_TOOLS="/run/install"
+IMAGE_ASSETS="/assets/install"
 
 checkDmgImage() {
 
