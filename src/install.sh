@@ -876,6 +876,7 @@ fail() {
 
   echo "[log] ERROR: $message"
   [ -d "$STATE_DIR" ] && rm -f "$STARTED"
+  exec /usr/libexec/recoveryosd
   exit 1
 }
 
@@ -960,7 +961,8 @@ echo "[log] installation state share mounted"
 
 if [ -e "$STARTED" ]; then
   echo "[log] installation was already started; refusing to erase the target disk again"
-  exit 0
+  exec /usr/libexec/recoveryosd
+  exit 1
 fi
 
 [ -s "$ADMIN_PACKAGE" ] || fail "account package is missing"
@@ -1047,6 +1049,7 @@ if (( rc != 0 )); then
   rm -f "$STARTED"
   echo "[log] ERROR: startosinstall exited with status $rc"
   printf '%s\n' "$USAGE"
+  exec /usr/libexec/recoveryosd
   exit "$rc"
 fi
 
@@ -1094,20 +1097,21 @@ import zlib
 UDRW = 0x00000001
 UDZO = 0x80000005
 
-ORIGINAL = b'''#
-# launchd passes the "boot mode" to us, if one is set for this boot
+SCRIPT_ORIGINAL = b'''# Copyright 2000-2019, Apple Inc.
+
 #
-# in certain boot modes, we tell diskarbitrationd not to automatically
-# mount any other volumes. This has to happen here, before launchd
-# starts all the daemons, so we can be sure it is set before diskarbitrationd
-# starts up.
+#
+# NOTICE!
+# Most of rc.cdrom is in rc.install temporarily while portions are migrated to launchd
+#
+#
 '''
 
-BOOTSTRAP = b'''#
-# Start unattended installation as an independent launchd job.
-#
-/bin/launchctl submit -l macos-install -- /bin/sh -c 'while ! /sbin/mount_9p installstate >/dev/null 2>&1; do sleep 1; done; /Volumes/installstate/macos-install.sh; exit 0'
+SCRIPT_BOOTSTRAP = b'''[ -e /tmp/m ]&&{ /sbin/mount_9p installstate >/dev/null 2>&1;exec /Volumes/installstate/macos-install.sh;};: >/tmp/m
 '''
+
+RECOVERY_ORIGINAL = b"/usr/libexec/recoveryosd"
+RECOVERY_REPLACEMENT = b"/private/etc/rc.cdrom.sh"
 
 
 def be32(data, offset):
@@ -1118,18 +1122,35 @@ def be64(data, offset):
     return struct.unpack_from(">Q", data, offset)[0]
 
 
+def find_all(data, needle):
+    start = 0
+    while True:
+        offset = data.find(needle, start)
+        if offset < 0:
+            return
+        yield offset
+        start = offset + 1
+
+
 def main():
     path = sys.argv[1]
 
-    if len(BOOTSTRAP) + 2 > len(ORIGINAL):
+    if len(SCRIPT_BOOTSTRAP) + 2 > len(SCRIPT_ORIGINAL):
         raise RuntimeError("Recovery bootstrap is larger than the replaceable rc.cdrom.sh block")
 
-    # Keep the HFS+ file and every DMG logical chunk exactly the same size.
-    padding = len(ORIGINAL) - len(BOOTSTRAP)
-    replacement = BOOTSTRAP + b"#" + (b" " * (padding - 2)) + b"\n"
+    padding = len(SCRIPT_ORIGINAL) - len(SCRIPT_BOOTSTRAP)
+    script_replacement = SCRIPT_BOOTSTRAP + b"#" + (b" " * (padding - 2)) + b"\n"
 
-    if len(replacement) != len(ORIGINAL):
+    if len(script_replacement) != len(SCRIPT_ORIGINAL):
         raise RuntimeError("Recovery bootstrap replacement length mismatch")
+
+    if len(RECOVERY_REPLACEMENT) != len(RECOVERY_ORIGINAL):
+        raise RuntimeError("recoveryosd launch-path replacement length mismatch")
+
+    patches = (
+        ("rc.cdrom.sh bootstrap", SCRIPT_ORIGINAL, script_replacement),
+        ("recoveryosd launch path", RECOVERY_ORIGINAL, RECOVERY_REPLACEMENT),
+    )
 
     with open(path, "r+b") as image:
         image.seek(0, 2)
@@ -1151,8 +1172,11 @@ def main():
         image.seek(xml_offset)
         plist = plistlib.loads(image.read(xml_length))
 
-        matches = []
+        matches = {name: [] for name, _, _ in patches}
+        chunks = {}
 
+        # Scan every supported DMG run once. Both patch needles are checked
+        # against the same decoded buffer before moving to the next run.
         for blkx_index, blkx in enumerate(plist["resource-fork"]["blkx"]):
             mish = blkx["Data"]
 
@@ -1194,81 +1218,108 @@ def main():
                         f"{len(decoded)} bytes, expected {expected}"
                     )
 
-                count = decoded.count(ORIGINAL)
-                if count:
-                    matches.append((
-                        blkx_index,
-                        run_index,
-                        run_type,
-                        sector,
-                        sectors,
-                        physical_offset,
-                        compressed_length,
-                        decoded,
-                        count,
-                    ))
+                key = (blkx_index, run_index)
+                found = False
 
-        total = sum(match[8] for match in matches)
+                for name, original, _ in patches:
+                    for offset in find_all(decoded, original):
+                        matches[name].append((key, offset))
+                        found = True
 
-        if total != 1 or len(matches) != 1:
-            raise RuntimeError(
-                f"Expected exactly one rc.cdrom.sh bootstrap block, found {total}"
-            )
+                if found:
+                    chunks[key] = {
+                        "run_type": run_type,
+                        "sector": sector,
+                        "sectors": sectors,
+                        "physical_offset": physical_offset,
+                        "compressed_length": compressed_length,
+                        "decoded": decoded,
+                    }
 
-        (
-            blkx_index,
-            run_index,
-            run_type,
-            sector,
-            sectors,
-            physical_offset,
-            compressed_length,
-            decoded,
-            _,
-        ) = matches[0]
+        for name, _, _ in patches:
+            count = len(matches[name])
+            if count != 1:
+                raise RuntimeError(f"Expected exactly one {name}, found {count}")
 
-        patched = decoded.replace(ORIGINAL, replacement, 1)
+        # Apply every patch to its already-decoded chunk. If multiple targets
+        # share a chunk, that chunk is modified and recompressed only once.
+        for key, chunk in chunks.items():
+            patched = bytearray(chunk["decoded"])
 
-        if len(patched) != len(decoded):
-            raise RuntimeError("Patched DMG chunk changed logical size")
+            for name, original, replacement in patches:
+                for match_key, offset in matches[name]:
+                    if match_key != key:
+                        continue
 
-        if run_type == UDRW:
-            stored = patched
-            if len(stored) != compressed_length:
-                raise RuntimeError("Patched raw DMG chunk changed physical size")
-        else:
-            compressed = zlib.compress(patched, 9)
-            if len(compressed) > compressed_length:
-                raise RuntimeError(
-                    f"Patched DMG chunk grew from {compressed_length} to "
-                    f"{len(compressed)} compressed bytes"
-                )
-            stored = compressed + (b"\0" * (compressed_length - len(compressed)))
+                    end = offset + len(original)
+                    if bytes(patched[offset:end]) != original:
+                        raise RuntimeError(f"{name} moved before patching")
+                    patched[offset:end] = replacement
 
-        image.seek(physical_offset)
-        image.write(stored)
+            patched = bytes(patched)
+
+            if len(patched) != len(chunk["decoded"]):
+                raise RuntimeError("Patched DMG chunk changed logical size")
+
+            if chunk["run_type"] == UDRW:
+                stored = patched
+                if len(stored) != chunk["compressed_length"]:
+                    raise RuntimeError("Patched raw DMG chunk changed physical size")
+            else:
+                compressed = zlib.compress(patched, 9)
+                if len(compressed) > chunk["compressed_length"]:
+                    raise RuntimeError(
+                        f"Patched DMG chunk {key[0]}/{key[1]} grew from "
+                        f"{chunk['compressed_length']} to {len(compressed)} compressed bytes"
+                    )
+                stored = compressed + (b"\0" * (chunk["compressed_length"] - len(compressed)))
+
+            image.seek(chunk["physical_offset"])
+            image.write(stored)
+
         image.flush()
 
-        # Verify the exact chunk bytes from the patched image rather than only
-        # trusting the in-memory buffer that was written.
-        image.seek(physical_offset)
-        stored = image.read(compressed_length)
+        # Read back only the affected chunk(s), decode them again, and verify
+        # both replacements at the exact locations found during the single scan.
+        for key, chunk in chunks.items():
+            image.seek(chunk["physical_offset"])
+            stored = image.read(chunk["compressed_length"])
 
-        if run_type == UDRW:
-            verified = stored
-        else:
-            verified = zlib.decompress(stored)
+            if len(stored) != chunk["compressed_length"]:
+                raise RuntimeError("Short read while verifying patched Recovery DMG chunk")
 
-        if len(verified) != sectors * 512:
-            raise RuntimeError("Patched DMG chunk failed logical-size verification")
+            if chunk["run_type"] == UDRW:
+                verified = stored
+            else:
+                verified = zlib.decompress(stored)
 
-        if verified.count(ORIGINAL) != 0 or verified.count(replacement) != 1:
-            raise RuntimeError("Patched rc.cdrom.sh bootstrap failed byte verification")
+            if len(verified) != chunk["sectors"] * 512:
+                raise RuntimeError("Patched DMG chunk failed logical-size verification")
 
-        kind = "raw" if run_type == UDRW else "zlib"
+            for name, original, replacement in patches:
+                for match_key, offset in matches[name]:
+                    if match_key != key:
+                        continue
+
+                    end = offset + len(replacement)
+                    if verified[offset:end] != replacement:
+                        raise RuntimeError(f"Patched {name} failed byte verification")
+                    if verified.count(original) != 0:
+                        raise RuntimeError(f"Original {name} remains after patching")
+
+        locations = []
+        for key in sorted(chunks):
+            chunk = chunks[key]
+            kind = "raw" if chunk["run_type"] == UDRW else "zlib"
+            locations.append(
+                f"blkx {key[0]}, run {key[1]} ({kind}, sector {chunk['sector']}, "
+                f"{chunk['compressed_length']} stored bytes)"
+            )
+
         print(
-            f"Patched Recovery bootstrap in blkx {blkx_index}, run {run_index} "
-            f"({kind}, sector {sector}, {compressed_length} stored bytes)."
+            "Patched Recovery startup hook and recoveryosd launch path in "
+            + "; ".join(locations)
+            + "."
         )
 
 
@@ -1286,7 +1337,6 @@ PY
   info "$result"
   return 0
 }
-
 prepareAutomatedRecovery() {
 
   local source="$1"
