@@ -30,7 +30,6 @@ RUN <<EOF
     cpio \
     gzip \
     mtools \
-    qemu-img \
     xmlstarlet \
     vulkan-tools \
     libarchive-tools
