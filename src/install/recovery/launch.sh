@@ -198,27 +198,15 @@ ARGS=(
 echo "[log] starting online macOS installation on $TARGET_VOLUME"
 echo "[log] scheduling account and Setup Assistant packages"
 
-INSTALLER_PROGRESS_PLIST="/System/Library/LaunchDaemons/com.apple.InstallerProgress.plist"
-
-if /bin/launchctl print system/com.apple.InstallerProgress >/dev/null 2>&1; then
-  echo "[log] native Installer Progress UI is already loaded"
-elif [ -f "$INSTALLER_PROGRESS_PLIST" ] &&
-     /bin/launchctl bootstrap system "$INSTALLER_PROGRESS_PLIST" >/dev/null 2>&1; then
-  echo "[log] started native Installer Progress UI"
+# Keep Apple's installer diagnostics visible from the host while Recovery is
+# occupied by startosinstall. The stream is diagnostic only and dies naturally
+# when Recovery reboots into the next installation stage.
+APPLE_INSTALL_LOG="$STATE_DIR/apple-install.log"
+if [ -f /var/log/install.log ]; then
+  /usr/bin/tail -n 0 -f /var/log/install.log >> "$APPLE_INSTALL_LOG" 2>&1 &
+  echo "[log] streaming Apple install log to $APPLE_INSTALL_LOG"
 else
-  echo "[log] native Installer Progress UI is unavailable"
-fi
-
-# Proof of concept: drive Apple's existing Installer Progress service directly.
-# This is presentation-only; failure here must never affect installation.
-PROGRESS_POC_LOG="$STATE_DIR/progress-poc.log"
-
-if [ -x /usr/bin/osascript ] && [ -e /usr/lib/libIASUnifiedProgress.dylib ]; then
-  /usr/bin/osascript -l JavaScript "$STATE_DIR/progress-poc.js" >> "$PROGRESS_POC_LOG" 2>&1 &
-
-  echo "[log] started custom Installer Progress POC"
-else
-  echo "[log] custom Installer Progress POC is unavailable"
+  echo "[log] Apple install log is not available"
 fi
 
 "$STARTOSINSTALL" "${ARGS[@]}"
