@@ -841,8 +841,8 @@ STATE_DIR="/Volumes/installstate"
 STATE_LOG="$STATE_DIR/install.log"
 STARTED="$STATE_DIR/started"
 TARGET_VOLUME="/Volumes/Macintosh HD"
-ADMIN_PACKAGE="/admin.pkg"
-SETUP_PACKAGE="/skipsetup.pkg"
+ADMIN_PACKAGE="$STATE_DIR/admin.pkg"
+SETUP_PACKAGE="$STATE_DIR/skipsetup.pkg"
 MIN_TARGET_SIZE=$((16 * 1024 * 1024 * 1024))
 
 exec >> "$LOCAL_LOG" 2>&1
@@ -966,7 +966,15 @@ fi
 [ -s "$ADMIN_PACKAGE" ] || fail "account package is missing"
 [ -s "$SETUP_PACKAGE" ] || fail "Setup Assistant package is missing"
 
-STARTOSINSTALL=$(find_startosinstall || :)
+STARTOSINSTALL=""
+count=0
+while (( count < 120 )); do
+  STARTOSINSTALL=$(find_startosinstall || :)
+  [ -n "$STARTOSINSTALL" ] && break
+  count=$((count + 1))
+  sleep 1
+done
+
 [ -n "$STARTOSINSTALL" ] || fail "startosinstall was not found in the recovery image"
 
 echo "[log] using $STARTOSINSTALL"
@@ -1052,29 +1060,232 @@ RECOVERY_PLIST
   return 0
 }
 
+patchRecoveryBootstrap() {
+
+  local image="$1"
+  local result
+
+  if ! result=$(python3 - "$image" <<'PY'
+import plistlib
+import struct
+import sys
+import zlib
+
+UDRW = 0x00000001
+UDZO = 0x80000005
+
+ORIGINAL = b'''#
+# launchd passes the "boot mode" to us, if one is set for this boot
+#
+# in certain boot modes, we tell diskarbitrationd not to automatically
+# mount any other volumes. This has to happen here, before launchd
+# starts all the daemons, so we can be sure it is set before diskarbitrationd
+# starts up.
+'''
+
+BOOTSTRAP = b'''#
+# Start unattended installation from the host state share.
+#
+(
+  while ! /sbin/mount_9p installstate >/dev/null 2>&1; do sleep 1; done
+  /Volumes/installstate/macos-install.sh
+) &
+'''
+
+
+def be32(data, offset):
+    return struct.unpack_from(">I", data, offset)[0]
+
+
+def be64(data, offset):
+    return struct.unpack_from(">Q", data, offset)[0]
+
+
+def main():
+    path = sys.argv[1]
+
+    if len(BOOTSTRAP) + 2 > len(ORIGINAL):
+        raise RuntimeError("Recovery bootstrap is larger than the replaceable rc.cdrom.sh block")
+
+    # Keep the HFS+ file and every DMG logical chunk exactly the same size.
+    padding = len(ORIGINAL) - len(BOOTSTRAP)
+    replacement = BOOTSTRAP + b"#" + (b" " * (padding - 2)) + b"\n"
+
+    if len(replacement) != len(ORIGINAL):
+        raise RuntimeError("Recovery bootstrap replacement length mismatch")
+
+    with open(path, "r+b") as image:
+        image.seek(0, 2)
+        size = image.tell()
+
+        if size < 512:
+            raise RuntimeError("Recovery image is too small to be a DMG")
+
+        image.seek(size - 512)
+        koly = image.read(512)
+
+        if koly[:4] != b"koly":
+            raise RuntimeError("Recovery image has no UDIF koly trailer")
+
+        data_fork_offset = be64(koly, 24)
+        xml_offset = be64(koly, 216)
+        xml_length = be64(koly, 224)
+
+        image.seek(xml_offset)
+        plist = plistlib.loads(image.read(xml_length))
+
+        matches = []
+
+        for blkx_index, blkx in enumerate(plist["resource-fork"]["blkx"]):
+            mish = blkx["Data"]
+
+            if mish[:4] != b"mish":
+                continue
+
+            first_sector = be64(mish, 8)
+            mish_data_offset = be64(mish, 24)
+            run_count = (len(mish) - 204) // 40
+
+            for run_index in range(run_count):
+                entry = 204 + run_index * 40
+                run_type = be32(mish, entry)
+
+                if run_type not in (UDRW, UDZO):
+                    continue
+
+                sector = first_sector + be64(mish, entry + 8)
+                sectors = be64(mish, entry + 16)
+                compressed_offset = be64(mish, entry + 24)
+                compressed_length = be64(mish, entry + 32)
+                physical_offset = data_fork_offset + mish_data_offset + compressed_offset
+
+                image.seek(physical_offset)
+                stored = image.read(compressed_length)
+
+                if len(stored) != compressed_length:
+                    raise RuntimeError("Short read while scanning Recovery DMG chunk")
+
+                if run_type == UDRW:
+                    decoded = stored
+                else:
+                    decoded = zlib.decompress(stored)
+
+                expected = sectors * 512
+                if len(decoded) != expected:
+                    raise RuntimeError(
+                        f"DMG chunk {blkx_index}/{run_index} expands to "
+                        f"{len(decoded)} bytes, expected {expected}"
+                    )
+
+                count = decoded.count(ORIGINAL)
+                if count:
+                    matches.append((
+                        blkx_index,
+                        run_index,
+                        run_type,
+                        sector,
+                        sectors,
+                        physical_offset,
+                        compressed_length,
+                        decoded,
+                        count,
+                    ))
+
+        total = sum(match[8] for match in matches)
+
+        if total != 1 or len(matches) != 1:
+            raise RuntimeError(
+                f"Expected exactly one rc.cdrom.sh bootstrap block, found {total}"
+            )
+
+        (
+            blkx_index,
+            run_index,
+            run_type,
+            sector,
+            sectors,
+            physical_offset,
+            compressed_length,
+            decoded,
+            _,
+        ) = matches[0]
+
+        patched = decoded.replace(ORIGINAL, replacement, 1)
+
+        if len(patched) != len(decoded):
+            raise RuntimeError("Patched DMG chunk changed logical size")
+
+        if run_type == UDRW:
+            stored = patched
+            if len(stored) != compressed_length:
+                raise RuntimeError("Patched raw DMG chunk changed physical size")
+        else:
+            compressed = zlib.compress(patched, 9)
+            if len(compressed) > compressed_length:
+                raise RuntimeError(
+                    f"Patched DMG chunk grew from {compressed_length} to "
+                    f"{len(compressed)} compressed bytes"
+                )
+            stored = compressed + (b"\0" * (compressed_length - len(compressed)))
+
+        image.seek(physical_offset)
+        image.write(stored)
+        image.flush()
+
+        # Verify the exact chunk bytes from the patched image rather than only
+        # trusting the in-memory buffer that was written.
+        image.seek(physical_offset)
+        stored = image.read(compressed_length)
+
+        if run_type == UDRW:
+            verified = stored
+        else:
+            verified = zlib.decompress(stored)
+
+        if len(verified) != sectors * 512:
+            raise RuntimeError("Patched DMG chunk failed logical-size verification")
+
+        if verified.count(ORIGINAL) != 0 or verified.count(replacement) != 1:
+            raise RuntimeError("Patched rc.cdrom.sh bootstrap failed byte verification")
+
+        kind = "raw" if run_type == UDRW else "zlib"
+        print(
+            f"Patched Recovery bootstrap in blkx {blkx_index}, run {run_index} "
+            f"({kind}, sector {sector}, {compressed_length} stored bytes)."
+        )
+
+
+try:
+    main()
+except Exception as exc:
+    print(f"Recovery bootstrap patch failed: {exc}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+  ); then
+    error "Failed to patch the Recovery startup hook."
+    return 1
+  fi
+
+  info "$result"
+  return 0
+}
+
 prepareAutomatedRecovery() {
 
   local source="$1"
   local dest="$2"
   local admin="$3"
   local setup="$4"
-  local tmp="$dest.tmp"
-  local work qemu_info listing item source_file
-  local image_path chmod_mode expected_mode actual_mode
 
-  work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
-
-  local stage="$work/root"
-  local script="$stage/macos-install.sh"
-  local plist="$stage/System/Library/LaunchDaemons/com.macos.install.plist"
-  local verify="$work/verify"
-  local hfs="$work/BaseSystem.hfs"
-  local roundtrip="$work/BaseSystem.roundtrip.hfs"
+  local work qemu_info
 
   local msg="Preparing automated installation..."
   info "$msg" && html "$msg"
 
-  mkdir -p "$stage/System/Library/LaunchDaemons" "$verify"
+  work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
+  local script="$work/macos-install.sh"
+  local plist="$work/com.macos.install.plist"
+  local state="$STORAGE/tmp/autoinstall"
 
   createAutomatedInstallationFiles "$script" "$plist"
 
@@ -1090,83 +1301,41 @@ prepareAutomatedRecovery() {
     return 1
   }
 
-  rm -f "$tmp" "$hfs" "$roundtrip"
-
-  # dmg extract selects the Apple_HFS partition from the UDIF image and writes
-  # it as a flat filesystem, which is the layout hfsplus expects.
-  if ! dmg extract "$source" "$hfs" > /dev/null 2>&1; then
-    rm -rf "$work" "$tmp"
-    error "Failed to extract the HFS+ filesystem from the recovery image."
+  if ! makeDir "$state"; then
+    rm -rf "$work"
+    error "Failed to create unattended installation state directory."
     return 1
   fi
 
-  if [ ! -s "$hfs" ] || ! hfsplus "$hfs" ls / > /dev/null 2>&1; then
-    rm -rf "$work" "$tmp"
-    error "Recovery image does not contain a usable HFS+ filesystem."
+  if ! cp -f "$script" "$state/macos-install.sh" ||
+     ! cp -f "$admin" "$state/admin.pkg" ||
+     ! cp -f "$setup" "$state/skipsetup.pkg"; then
+    rm -rf "$work"
+    error "Failed to stage unattended installation files."
     return 1
   fi
 
-  # hfsplus can return success for operations that did not do what was asked,
-  # so every write is followed by byte-for-byte content and mode verification.
-  while IFS='|' read -r item source_file image_path chmod_mode expected_mode; do
+  chmod 0755 "$state/macos-install.sh"
+  chmod 0644 "$state/admin.pkg" "$state/skipsetup.pkg"
 
-    if ! hfsplus "$hfs" add "$source_file" "$image_path" > /dev/null 2>&1; then
-      rm -rf "$work" "$tmp"
-      error "Failed to add Recovery file $image_path."
-      return 1
-    fi
-
-    if ! hfsplus "$hfs" chmod "$chmod_mode" "$image_path" > /dev/null 2>&1; then
-      rm -rf "$work" "$tmp"
-      error "Failed to set permissions on Recovery file $image_path."
-      return 1
-    fi
-
-    if ! hfsplus "$hfs" cat "$image_path" > "$verify/flat-$item" 2>/dev/null ||
-       ! cmp -s "$source_file" "$verify/flat-$item"; then
-      rm -rf "$work" "$tmp"
-      error "Injected Recovery file $image_path failed HFS+ byte-for-byte validation."
-      return 1
-    fi
-
-    listing=$(hfsplus "$hfs" ls "$image_path" 2>/dev/null || :)
-    actual_mode=$(printf '%s\n' "$listing" |
-      sed -nE 's/^([0-7]{6})[[:space:]]+.*/\1/p' |
-      head -n 1)
-
-    if [ "$actual_mode" != "$expected_mode" ]; then
-      rm -rf "$work" "$tmp"
-      error "Injected Recovery file $image_path has mode ${actual_mode:-unknown}, expected $expected_mode."
-      return 1
-    fi
-
-  done <<EOF
-script|$script|/macos-install.sh|0755|100755
-plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist|0644|100644
-admin|$admin|/admin.pkg|0644|100644
-setup|$setup|/skipsetup.pkg|0644|100644
-EOF
-
-  msg="Building installation media..."
-  info "$msg" && html "$msg"
-
-  if ! dmg build "$hfs" "$tmp" > /dev/null 2>&1; then
-    rm -rf "$work" "$tmp"
-    error "Failed to rebuild the automated recovery DMG."
+  if ! cmp -s "$script" "$state/macos-install.sh" ||
+     ! cmp -s "$admin" "$state/admin.pkg" ||
+     ! cmp -s "$setup" "$state/skipsetup.pkg"; then
+    rm -rf "$work"
+    error "Staged unattended installation files failed byte-for-byte validation."
     return 1
   fi
 
-  if [ ! -s "$tmp" ]; then
-    rm -rf "$work" "$tmp"
-    error "Rebuilt automated recovery DMG is empty."
+  if ! patchRecoveryBootstrap "$source"; then
+    rm -rf "$work"
     return 1
   fi
 
-  # Require QEMU to identify the exact final artifact as a DMG rather than
-  # merely accepting it as an arbitrary/raw image.
-  if ! qemu_info=$(qemu-img info --output=json "$tmp" 2>/dev/null); then
-    rm -rf "$work" "$tmp"
-    error "Rebuilt automated recovery DMG is not recognized by QEMU."
+  # The source keeps its .dmg suffix while being patched, so QEMU can probe
+  # the exact final bytes using its DMG driver before the file is moved.
+  if ! qemu_info=$(qemu-img info --output=json "$source" 2>/dev/null); then
+    rm -rf "$work"
+    error "Patched recovery image is not recognized by QEMU."
     return 1
   fi
 
@@ -1175,56 +1344,14 @@ import json, sys
 info = json.load(sys.stdin)
 raise SystemExit(0 if info.get("format") == "dmg" else 1)
 ' <<< "$qemu_info"; then
-    rm -rf "$work" "$tmp"
-    error "QEMU did not identify the rebuilt recovery image as DMG."
+    rm -rf "$work"
+    error "QEMU did not identify the patched recovery image as DMG."
     return 1
   fi
-
-  # Round-trip the exact final DMG back to HFS+. dmg build must not alter even
-  # one byte of the filesystem that was already verified before the rebuild.
-  if ! dmg extract "$tmp" "$roundtrip" > /dev/null 2>&1; then
-    rm -rf "$work" "$tmp"
-    error "Failed to extract the rebuilt automated recovery DMG."
-    return 1
-  fi
-
-  if [ ! -s "$roundtrip" ] || ! cmp -s "$hfs" "$roundtrip"; then
-    rm -rf "$work" "$tmp"
-    error "Rebuilt automated recovery DMG failed HFS+ round-trip validation."
-    return 1
-  fi
-
-  while IFS='|' read -r item source_file image_path expected_mode; do
-
-    if ! hfsplus "$roundtrip" cat "$image_path" > "$verify/final-$item" 2>/dev/null ||
-       ! cmp -s "$source_file" "$verify/final-$item"; then
-      rm -rf "$work" "$tmp"
-      error "Injected Recovery file $image_path failed final-DMG byte-for-byte validation."
-      return 1
-    fi
-
-    listing=$(hfsplus "$roundtrip" ls "$image_path" 2>/dev/null || :)
-    actual_mode=$(printf '%s\n' "$listing" |
-      sed -nE 's/^([0-7]{6})[[:space:]]+.*/\1/p' |
-      head -n 1)
-
-    if [ "$actual_mode" != "$expected_mode" ]; then
-      rm -rf "$work" "$tmp"
-      error "Final Recovery file $image_path has mode ${actual_mode:-unknown}, expected $expected_mode."
-      return 1
-    fi
-
-  done <<EOF
-script|$script|/macos-install.sh|100755
-plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist|100644
-admin|$admin|/admin.pkg|100644
-setup|$setup|/skipsetup.pkg|100644
-EOF
 
   rm -rf "$work"
 
-  if ! mv -f "$tmp" "$dest"; then
-    rm -f "$tmp"
+  if ! mv -f "$source" "$dest"; then
     error "Failed to save automated recovery image to $dest."
     return 1
   fi
