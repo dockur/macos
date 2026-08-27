@@ -225,7 +225,7 @@ def main():
             )
 
         print(
-            "Patched Recovery startup hook and recoveryosd launch path in "
+            "Patched launch path in "
             + "; ".join(locations)
             + "."
         )
