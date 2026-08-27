@@ -21,8 +21,7 @@ MODEL=$(strip "$MODEL")
 WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
 
-BASE_IMG_ID="InstallMedia"
-BASE_IMG="$STORAGE/base.dmg"
+BASE_IMG="$STORAGE/setup.dmg"
 
 # Fixed setup values for the unattended-install proof. These are intentionally
 # not environment variables yet; locale settings will be implemented only
@@ -237,90 +236,36 @@ checkDmgImage() {
   return 0
 }
 
-checkBootableDmgImage() {
-
-  local file="$1"
-  local listing
-
-  if ! listing=$(mktemp); then
-    error "Failed to create temporary file for custom image inspection."
-    return 1
-  fi
-
-  if ! 7z l -slt "$file" > "$listing" 2>/dev/null; then
-    rm -f "$listing"
-    error "Failed to inspect the contents of the custom recovery image."
-    return 1
-  fi
-
-  # A directly bootable macOS or recovery image must expose boot.efi.
-  if grep -Eiq \
-    '^Path = (.+[\\/])?(System[\\/]Library[\\/]CoreServices[\\/]boot\.efi|com\.apple\.recovery\.boot[\\/]boot\.efi)$' \
-    "$listing"; then
-
-    rm -f "$listing"
-    return 0
-  fi
-
-  # These files identify installer distribution media rather than an image
-  # that OpenCore can boot directly.
-  if grep -Eiq \
-    '^Path = (.+[\\/])?(InstallAssistant\.pkg|SharedSupport\.dmg|BaseSystem\.dmg)$|^Path = .*Install macOS .*\.app([\\/]|$)' \
-    "$listing"; then
-
-    rm -f "$listing"
-    error "The custom DMG contains macOS installer files, but is not itself a bootable recovery image."
-    error "Provide the bootable BaseSystem.dmg or RecoveryImage.dmg as /boot.dmg."
-    return 1
-  fi
-
-  rm -f "$listing"
-  error "The custom DMG is a valid disk image, but no macOS boot loader was found."
-  return 1
-}
-
-
-checkAutomationTools() {
-
-  local tool
-  local missing=()
-
-  for tool in qemu-img dmg hfsplus xar cpio gzip tar python3 7z; do
-    command -v "$tool" > /dev/null 2>&1 || missing+=("$tool")
-  done
-
-  if (( ${#missing[@]} != 0 )); then
-    error "Missing tools required for unattended macOS installation: ${missing[*]}"
-    return 1
-  fi
-
-  return 0
-}
-
 buildProductPackage() {
 
   local identifier="$1"
   local scripts="$2"
   local dest="$3"
-  local work component_dir component_name component verify verify_component
-  local outer_listing inner_listing scripts_listing
-  local source_file packaged_file name
+  local work source_file
+  local outer_listing scripts_listing
 
   work=$(mktemp -d "$STORAGE/tmp/package.XXXXXX") || return 1
-  component_name="component.pkg"
-  component_dir="$work/component"
-  component="$work/$component_name"
-  verify="$work/verify"
-  verify_component="$verify/component"
 
-  mkdir -p "$component_dir" "$verify" "$verify_component"
+  local component_name="component.pkg"
+  local component="$work/$component_name"
+  local verify="$work/verify"
 
-  cat > "$component_dir/PackageInfo" <<EOF
+  mkdir -p "$component" "$verify"
+
+  # Match the payload-free component layout produced by Linux macOS package
+  # generators: PackageInfo and Scripts live below component.pkg in the same
+  # outer XAR as Distribution. component.pkg is not a nested XAR.
+  cat > "$component/PackageInfo" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
-<pkg-info postinstall-action="none" preserve-xattr="false" format-version="2" identifier="$identifier" version="1.0" install-location="/" auth="root">
-    <payload numberOfFiles="0" installKBytes="0"/>
+<pkg-info postinstall-action="none" preserve-xattr="false" format-version="2" identifier="$identifier" version="1.0" auth="root">
+    <bundle-version/>
+    <upgrade-bundle/>
+    <update-bundle/>
+    <atomic-update-bundle/>
+    <strict-identifier/>
+    <relocate/>
     <scripts>
-        <postinstall file="./postinstall" timeout="600"/>
+        <postinstall file="./postinstall"/>
     </scripts>
 </pkg-info>
 EOF
@@ -329,28 +274,20 @@ EOF
     cd "$scripts"
     find . -print |
       cpio -o --format odc --owner 0:80 2>/dev/null |
-      gzip -c > "$component_dir/Scripts"
+      gzip -c > "$component/Scripts"
   ); then
     rm -rf "$work"
     error "Failed to create scripts archive for $identifier."
     return 1
   fi
 
-  # pkgbuild produces a flat component package. Reproduce that structure:
-  # the component itself is a XAR containing PackageInfo and Scripts.
-  if ! (
-    cd "$component_dir"
-    xar --compression none -cf "$component" PackageInfo Scripts
-  ); then
-    rm -rf "$work"
-    error "Failed to build component package for $identifier."
-    return 1
-  fi
-
   cat > "$work/Distribution" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="1">
-    <options customize="never" require-scripts="false" hostArchitectures="x86_64"/>
+    <pkg-ref id="$identifier">
+        <bundle-version/>
+    </pkg-ref>
+    <options customize="never" require-scripts="false"/>
     <choices-outline>
         <line choice="default">
             <line choice="$identifier"/>
@@ -360,15 +297,13 @@ EOF
     <choice id="$identifier" visible="false">
         <pkg-ref id="$identifier"/>
     </choice>
-    <pkg-ref id="$identifier" version="1.0" onConclusion="none" installKBytes="0" updateKBytes="0">#$component_name</pkg-ref>
+    <pkg-ref id="$identifier" version="1.0" onConclusion="none" installKBytes="0">#$component_name</pkg-ref>
     <product id="$identifier" version="1.0"/>
 </installer-gui-script>
 EOF
 
   rm -f "$dest"
 
-  # productbuild --package wraps the component package in a second XAR
-  # alongside the Distribution file.
   if ! (
     cd "$work"
     xar --compression none -cf "$dest" Distribution "$component_name"
@@ -384,18 +319,17 @@ EOF
     return 1
   fi
 
-  if ! grep -Fxq 'Distribution' <<< "$outer_listing" ||
-     ! grep -Fxq "$component_name" <<< "$outer_listing"; then
-    rm -rf "$work" "$dest"
-    error "Product package $dest is missing Distribution or its component package."
-    return 1
-  fi
+  for name in \
+    Distribution \
+    "$component_name/PackageInfo" \
+    "$component_name/Scripts"; do
 
-  if grep -Fq "$component_name/" <<< "$outer_listing"; then
-    rm -rf "$work" "$dest"
-    error "Product package $dest contains a directory component instead of a flat component package."
-    return 1
-  fi
+    if ! grep -Fxq "$name" <<< "$outer_listing"; then
+      rm -rf "$work" "$dest"
+      error "Product package $dest is missing $name."
+      return 1
+    fi
+  done
 
   if ! (
     cd "$verify"
@@ -406,37 +340,9 @@ EOF
     return 1
   fi
 
-  if [ ! -f "$verify/$component_name" ]; then
-    rm -rf "$work" "$dest"
-    error "Product package $dest does not contain a flat component package."
-    return 1
-  fi
-
-  if ! inner_listing=$(xar -tf "$verify/$component_name" 2>/dev/null); then
-    rm -rf "$work" "$dest"
-    error "Failed to inspect component package inside $dest."
-    return 1
-  fi
-
-  if ! grep -Fxq 'PackageInfo' <<< "$inner_listing" ||
-     ! grep -Fxq 'Scripts' <<< "$inner_listing"; then
-    rm -rf "$work" "$dest"
-    error "Component package inside $dest is missing PackageInfo or Scripts."
-    return 1
-  fi
-
-  if ! (
-    cd "$verify_component"
-    xar -xf "$verify/$component_name"
-  ); then
-    rm -rf "$work" "$dest"
-    error "Failed to extract component package inside $dest."
-    return 1
-  fi
-
   if ! python3 - \
       "$verify/Distribution" \
-      "$verify_component/PackageInfo" \
+      "$verify/$component_name/PackageInfo" \
       "$identifier" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
@@ -455,6 +361,13 @@ refs = [
 if len(refs) != 1 or refs[0].get("id") != expected:
     raise SystemExit("Distribution component reference is missing or incorrect")
 
+metadata_refs = [
+    element for element in droot.findall("pkg-ref")
+    if element.find("bundle-version") is not None
+]
+if len(metadata_refs) != 1 or metadata_refs[0].get("id") != expected:
+    raise SystemExit("Distribution bundle metadata reference is missing")
+
 proot = ET.parse(package_info).getroot()
 if proot.get("identifier") != expected:
     raise SystemExit("PackageInfo identifier is incorrect")
@@ -470,7 +383,7 @@ PY
   fi
 
   if ! scripts_listing=$(
-    gzip -dc "$verify_component/Scripts" 2>/dev/null |
+    gzip -dc "$verify/$component_name/Scripts" 2>/dev/null |
       cpio -it 2>/dev/null
   ); then
     rm -rf "$work" "$dest"
@@ -484,13 +397,11 @@ PY
     return 1
   fi
 
-  # Extract the packaged Scripts archive and compare every generated source
-  # file byte-for-byte. This verifies config/user data as well as postinstall.
   mkdir -p "$verify/scripts"
 
   if ! (
     cd "$verify/scripts"
-    gzip -dc "$verify_component/Scripts" 2>/dev/null |
+    gzip -dc "$verify/$component_name/Scripts" 2>/dev/null |
       cpio -idmu 2>/dev/null
   ); then
     rm -rf "$work" "$dest"
@@ -499,15 +410,27 @@ PY
   fi
 
   for source_file in "$scripts"/*; do
+
     [ -f "$source_file" ] || continue
-    name="${source_file##*/}"
-    packaged_file="$verify/scripts/$name"
+
+    local name="${source_file##*/}"
+    local packaged_file="$verify/scripts/$name"
 
     if [ ! -f "$packaged_file" ] || ! cmp -s "$source_file" "$packaged_file"; then
       rm -rf "$work" "$dest"
       error "Packaged script data $name failed byte-for-byte validation."
       return 1
     fi
+
+    local source_mode=$(stat -c '%a' "$source_file")
+    local packaged_mode=$(stat -c '%a' "$packaged_file")
+
+    if [ "$source_mode" != "$packaged_mode" ]; then
+      rm -rf "$work" "$dest"
+      error "Packaged script data $name has mode $packaged_mode instead of $source_mode."
+      return 1
+    fi
+
   done
 
   rm -rf "$work"
@@ -612,6 +535,9 @@ PY
 #!/bin/bash
 set -u
 
+PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
+
 MYDIR="${0%/*}"
 . "$MYDIR/config"
 
@@ -644,7 +570,7 @@ plist_array_add() {
   if [ -z "$current" ]; then
     "$PLISTBUDDY" -c "Add :$array array" "$plist" >/dev/null ||
       fail "failed to create $array in $plist"
-  elif printf '%s\n' "$current" | awk -v wanted="$value" '
+  elif printf '%s\n' "$current" | /usr/bin/awk -v wanted="$value" '
     {
       line=$0
       sub(/^[[:space:]]+/, "", line)
@@ -664,11 +590,11 @@ plist_array_add() {
 [ -f "$ADMIN_PLIST" ] || fail "admin group database is missing"
 [ -f "$MYDIR/user.plist" ] || fail "user plist is missing"
 
-cp "$MYDIR/user.plist" "$USER_DIR/$USERNAME.plist" ||
+/bin/cp "$MYDIR/user.plist" "$USER_DIR/$USERNAME.plist" ||
   fail "failed to install local user record"
-chown 0:0 "$USER_DIR/$USERNAME.plist" ||
+/usr/sbin/chown 0:0 "$USER_DIR/$USERNAME.plist" ||
   fail "failed to set local user ownership"
-chmod 0600 "$USER_DIR/$USERNAME.plist" ||
+/bin/chmod 0600 "$USER_DIR/$USERNAME.plist" ||
   fail "failed to set local user permissions"
 
 plist_array_add "$ADMIN_PLIST" users "$USERNAME"
@@ -676,13 +602,13 @@ plist_array_add "$ADMIN_PLIST" groupmembers "$UUID"
 
 if [ "$AUTOLOGIN" = "Y" ]; then
   [ -f "$MYDIR/kcpassword" ] || fail "kcpassword is missing"
-  mkdir -p "$PREFIX/private/etc" ||
+  /bin/mkdir -p "$PREFIX/private/etc" ||
     fail "failed to create private/etc"
-  cp "$MYDIR/kcpassword" "$PREFIX/private/etc/kcpassword" ||
+  /bin/cp "$MYDIR/kcpassword" "$PREFIX/private/etc/kcpassword" ||
     fail "failed to install kcpassword"
-  chown 0:0 "$PREFIX/private/etc/kcpassword" ||
+  /usr/sbin/chown 0:0 "$PREFIX/private/etc/kcpassword" ||
     fail "failed to set kcpassword ownership"
-  chmod 0600 "$PREFIX/private/etc/kcpassword" ||
+  /bin/chmod 0600 "$PREFIX/private/etc/kcpassword" ||
     fail "failed to set kcpassword permissions"
 
   /usr/bin/defaults write "$LOGIN_PLIST" autoLoginUser "$USERNAME" ||
@@ -752,6 +678,9 @@ createSkipSetupPackage() {
 #!/bin/bash
 set -u
 
+PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
+
 TARGET="${3:-/}"
 if [ "$TARGET" = "/" ]; then
   PREFIX=""
@@ -776,17 +705,17 @@ OS_BUILD=$("$PLISTBUDDY" -c 'Print :ProductBuildVersion' "$SYSTEM_PLIST" 2>/dev/
 [ -n "$OS_VERSION" ] || fail "target ProductVersion is missing"
 [ -n "$OS_BUILD" ] || fail "target ProductBuildVersion is missing"
 
-mkdir -p "$PREFIX/private/var/db" ||
+/bin/mkdir -p "$PREFIX/private/var/db" ||
   fail "failed to create setup state directory"
-touch "$PREFIX/private/var/db/.AppleSetupDone" ||
+/usr/bin/touch "$PREFIX/private/var/db/.AppleSetupDone" ||
   fail "failed to mark system Setup Assistant complete"
 
-mkdir -p "$PREFIX/Library/User Template/English.lproj" ||
+/bin/mkdir -p "$PREFIX/Library/User Template/English.lproj" ||
   fail "failed to create English user template"
-touch "$PREFIX/Library/User Template/English.lproj/.skipbuddy" ||
+/usr/bin/touch "$PREFIX/Library/User Template/English.lproj/.skipbuddy" ||
   fail "failed to create first-login skip marker"
 
-mkdir -p "${SETUP_PLIST%/*}" ||
+/bin/mkdir -p "${SETUP_PLIST%/*}" ||
   fail "failed to create Setup Assistant preference directory"
 
 cat > "$SETUP_PLIST" <<EOF
@@ -859,13 +788,13 @@ EOF
 /usr/bin/plutil -lint "$SETUP_PLIST" >/dev/null ||
   fail "generated Setup Assistant plist is invalid"
 
-chown 0:0 \
+/usr/sbin/chown 0:0 \
   "$PREFIX/private/var/db/.AppleSetupDone" \
   "$PREFIX/Library/User Template/English.lproj/.skipbuddy" \
   "$SETUP_PLIST" ||
   fail "failed to set setup file ownership"
 
-chmod 0644 \
+/bin/chmod 0644 \
   "$PREFIX/private/var/db/.AppleSetupDone" \
   "$PREFIX/Library/User Template/English.lproj/.skipbuddy" \
   "$SETUP_PLIST" ||
@@ -899,6 +828,9 @@ createAutomatedInstallationFiles() {
   cat > "$script" <<'RECOVERY_SCRIPT'
 #!/bin/bash
 set -u
+
+PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
 
 LOCAL_LOG="/var/log/macos-install.log"
 STATE_DIR="/Volumes/installstate"
@@ -957,7 +889,7 @@ select_target_disk() {
     [ -n "$info" ] || continue
 
     if printf '%s\n' "$info" |
-       /usr/bin/grep -Eq '^[[:space:]]*Read-Only Media:[[:space:]]*Yes'; then
+       /usr/bin/grep -Eq '^[[:space:]]*(Media|Device) Read-Only:[[:space:]]*Yes'; then
       continue
     fi
 
@@ -989,6 +921,9 @@ find_startosinstall() {
   local file
 
   for file in \
+    /Volumes/*/Install\ macOS*.app/Contents/Resources/startosinstall \
+    /Volumes/*/Install\ OS\ X*.app/Contents/Resources/startosinstall \
+    /Volumes/*/Install\ Mac\ OS\ X*.app/Contents/Resources/startosinstall \
     /Install\ macOS*.app/Contents/Resources/startosinstall \
     /Install\ OS\ X*.app/Contents/Resources/startosinstall \
     /Install\ Mac\ OS\ X*.app/Contents/Resources/startosinstall \
@@ -1008,6 +943,11 @@ find_startosinstall() {
 if ! mount_state_share; then
   fail "failed to mount installation state share"
 fi
+
+if ! : > "$STATE_DIR/.write-test" 2>/dev/null; then
+  fail "installation state share is not writable"
+fi
+rm -f "$STATE_DIR/.write-test"
 
 cat "$LOCAL_LOG" >> "$STATE_LOG" 2>/dev/null || :
 exec >> "$STATE_LOG" 2>&1
@@ -1032,8 +972,6 @@ USAGE=$("$STARTOSINSTALL" --usage 2>&1 || :)
 
 printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--installpackage' ||
   fail "startosinstall does not support --installpackage"
-printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--volume' ||
-  fail "startosinstall does not support --volume"
 
 echo "[log] account and Setup Assistant packages passed preflight"
 
@@ -1062,13 +1000,10 @@ done
 ARGS=(
   --volume "$TARGET_VOLUME"
   --agreetolicense
+  --nointeraction
   --installpackage "$ADMIN_PACKAGE"
   --installpackage "$SETUP_PACKAGE"
 )
-
-if printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--nointeraction'; then
-  ARGS+=(--nointeraction)
-fi
 
 echo "[log] starting online macOS installation on $TARGET_VOLUME"
 echo "[log] scheduling account and Setup Assistant packages"
@@ -1117,61 +1052,43 @@ prepareAutomatedRecovery() {
 
   local source="$1"
   local dest="$2"
+  local admin="$3"
+  local setup="$4"
   local tmp="$dest.tmp"
-  local work stage archive script plist admin setup verify hfs
-  local item source_file image_path extracted
+  local work qemu_info listing item source_file
+  local image_path chmod_mode expected_mode actual_mode
 
   work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
-  stage="$work/root"
-  archive="$work/injection.tar"
-  script="$stage/macos-install.sh"
-  plist="$stage/System/Library/LaunchDaemons/com.macos.install.plist"
-  admin="$stage/admin.pkg"
-  setup="$stage/skipsetup.pkg"
-  verify="$work/verify"
-  hfs="$work/BaseSystem.hfs"
+
+  local stage="$work/root"
+  local script="$stage/macos-install.sh"
+  local plist="$stage/System/Library/LaunchDaemons/com.macos.install.plist"
+  local verify="$work/verify"
+  local hfs="$work/BaseSystem.hfs"
+  local roundtrip="$work/BaseSystem.roundtrip.hfs"
 
   mkdir -p "$stage/System/Library/LaunchDaemons" "$verify"
 
   createAutomatedInstallationFiles "$script" "$plist"
 
-  info "Building unattended setup packages..."
-
-  if ! createAdminPackage "$admin"; then
+  [ -s "$admin" ] || {
     rm -rf "$work"
+    error "Prebuilt account package is missing."
     return 1
-  fi
+  }
 
-  if ! createSkipSetupPackage "$setup"; then
+  [ -s "$setup" ] || {
     rm -rf "$work"
+    error "Prebuilt Setup Assistant package is missing."
     return 1
-  fi
+  }
 
-  chmod 0755 "$script"
-  chmod 0644 "$plist" "$admin" "$setup"
-
-  if ! tar \
-      --owner=0 \
-      --group=0 \
-      --numeric-owner \
-      -C "$stage" \
-      -cf "$archive" \
-      macos-install.sh \
-      admin.pkg \
-      skipsetup.pkg \
-      System/Library/LaunchDaemons/com.macos.install.plist; then
-    rm -rf "$work"
-    error "Failed to create recovery injection archive."
-    return 1
-  fi
-
-  rm -f "$tmp" "$hfs"
+  rm -f "$tmp" "$hfs" "$roundtrip"
 
   info "Preparing automated recovery image..."
 
-  # BaseSystem.dmg is a UDIF device image. Extract the actual Apple_HFS
-  # partition first; qemu-img raw conversion retains the partition map and
-  # therefore does not produce a flat HFS+ volume suitable for hfsplus.
+  # dmg extract selects the Apple_HFS partition from the UDIF image and writes
+  # it as a flat filesystem, which is the layout hfsplus expects.
   if ! dmg extract "$source" "$hfs" > /dev/null 2>&1; then
     rm -rf "$work" "$tmp"
     error "Failed to extract the HFS+ filesystem from the recovery image."
@@ -1184,37 +1101,47 @@ prepareAutomatedRecovery() {
     return 1
   fi
 
-  if ! hfsplus "$hfs" untar "$archive" > /dev/null 2>&1; then
-    rm -rf "$work" "$tmp"
-    error "Failed to inject unattended installation files into Recovery."
-    return 1
-  fi
+  # hfsplus can return success for operations that did not do what was asked,
+  # so every write is followed by byte-for-byte content and mode verification.
+  while IFS='|' read -r item source_file image_path chmod_mode expected_mode; do
 
-  # Verify the modified flat HFS+ volume before rebuilding the DMG.
-  while IFS='|' read -r item source_file image_path; do
-
-    extracted="$verify/flat-$item"
-
-    if ! hfsplus "$hfs" extract "$image_path" "$extracted" > /dev/null 2>&1; then
+    if ! hfsplus "$hfs" add "$source_file" "$image_path" > /dev/null 2>&1; then
       rm -rf "$work" "$tmp"
-      error "Failed to read back injected Recovery file $image_path from HFS+."
+      error "Failed to add Recovery file $image_path."
       return 1
     fi
 
-    if ! cmp -s "$source_file" "$extracted"; then
+    if ! hfsplus "$hfs" chmod "$chmod_mode" "$image_path" > /dev/null 2>&1; then
+      rm -rf "$work" "$tmp"
+      error "Failed to set permissions on Recovery file $image_path."
+      return 1
+    fi
+
+    if ! hfsplus "$hfs" cat "$image_path" > "$verify/flat-$item" 2>/dev/null ||
+       ! cmp -s "$source_file" "$verify/flat-$item"; then
       rm -rf "$work" "$tmp"
       error "Injected Recovery file $image_path failed HFS+ byte-for-byte validation."
       return 1
     fi
 
+    listing=$(hfsplus "$hfs" ls "$image_path" 2>/dev/null || :)
+    actual_mode=$(printf '%s\n' "$listing" |
+      sed -nE 's/^([0-7]{6})[[:space:]]+.*/\1/p' |
+      head -n 1)
+
+    if [ "$actual_mode" != "$expected_mode" ]; then
+      rm -rf "$work" "$tmp"
+      error "Injected Recovery file $image_path has mode ${actual_mode:-unknown}, expected $expected_mode."
+      return 1
+    fi
+
   done <<EOF
-script|$script|/macos-install.sh
-plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist
-admin|$admin|/admin.pkg
-setup|$setup|/skipsetup.pkg
+script|$script|/macos-install.sh|0755|100755
+plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist|0644|100644
+admin|$admin|/admin.pkg|0644|100644
+setup|$setup|/skipsetup.pkg|0644|100644
 EOF
 
-  # Rebuild a proper UDIF device image, including its Apple partition map.
   if ! dmg build "$hfs" "$tmp" > /dev/null 2>&1; then
     rm -rf "$work" "$tmp"
     error "Failed to rebuild the automated recovery DMG."
@@ -1227,45 +1154,67 @@ EOF
     return 1
   fi
 
-  # Validate the exact artifact QEMU will boot, not merely the intermediate HFS.
-  if ! qemu-img info "$tmp" > /dev/null 2>&1; then
+  # Require QEMU to identify the exact final artifact as a DMG rather than
+  # merely accepting it as an arbitrary/raw image.
+  if ! qemu_info=$(qemu-img info --output=json "$tmp" 2>/dev/null); then
     rm -rf "$work" "$tmp"
     error "Rebuilt automated recovery DMG is not recognized by QEMU."
     return 1
   fi
 
-  if ! hfsplus "$tmp" ls / > /dev/null 2>&1; then
+  if ! python3 -c '
+import json, sys
+info = json.load(sys.stdin)
+raise SystemExit(0 if info.get("format") == "dmg" else 1)
+' <<< "$qemu_info"; then
     rm -rf "$work" "$tmp"
-    error "Rebuilt automated recovery DMG does not expose its HFS+ filesystem."
+    error "QEMU did not identify the rebuilt recovery image as DMG."
     return 1
   fi
 
-  # Read all injected files back again from the final rebuilt DMG.
-  while IFS='|' read -r item source_file image_path; do
+  # Round-trip the exact final DMG back to HFS+. dmg build must not alter even
+  # one byte of the filesystem that was already verified before the rebuild.
+  if ! dmg extract "$tmp" "$roundtrip" > /dev/null 2>&1; then
+    rm -rf "$work" "$tmp"
+    error "Failed to extract the rebuilt automated recovery DMG."
+    return 1
+  fi
 
-    extracted="$verify/dmg-$item"
+  if [ ! -s "$roundtrip" ] || ! cmp -s "$hfs" "$roundtrip"; then
+    rm -rf "$work" "$tmp"
+    error "Rebuilt automated recovery DMG failed HFS+ round-trip validation."
+    return 1
+  fi
 
-    if ! hfsplus "$tmp" extract "$image_path" "$extracted" > /dev/null 2>&1; then
+  while IFS='|' read -r item source_file image_path expected_mode; do
+
+    if ! hfsplus "$roundtrip" cat "$image_path" > "$verify/final-$item" 2>/dev/null ||
+       ! cmp -s "$source_file" "$verify/final-$item"; then
       rm -rf "$work" "$tmp"
-      error "Failed to read back injected Recovery file $image_path from rebuilt DMG."
+      error "Injected Recovery file $image_path failed final-DMG byte-for-byte validation."
       return 1
     fi
 
-    if ! cmp -s "$source_file" "$extracted"; then
+    listing=$(hfsplus "$roundtrip" ls "$image_path" 2>/dev/null || :)
+    actual_mode=$(printf '%s\n' "$listing" |
+      sed -nE 's/^([0-7]{6})[[:space:]]+.*/\1/p' |
+      head -n 1)
+
+    if [ "$actual_mode" != "$expected_mode" ]; then
       rm -rf "$work" "$tmp"
-      error "Injected Recovery file $image_path failed rebuilt-DMG byte-for-byte validation."
+      error "Final Recovery file $image_path has mode ${actual_mode:-unknown}, expected $expected_mode."
       return 1
     fi
 
   done <<EOF
-script|$script|/macos-install.sh
-plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist
-admin|$admin|/admin.pkg
-setup|$setup|/skipsetup.pkg
+script|$script|/macos-install.sh|100755
+plist|$plist|/System/Library/LaunchDaemons/com.macos.install.plist|100644
+admin|$admin|/admin.pkg|100644
+setup|$setup|/skipsetup.pkg|100644
 EOF
 
-  # 7-Zip provides an independent filesystem/container parser. Require the
-  # final image to still expose macOS boot.efi before replacing base.dmg.
+  # 7-Zip is an independent parser. Require the final image to expose boot.efi
+  # before the rebuilt DMG is allowed to replace the boot artifact.
   if ! checkBootableDmgImage "$tmp"; then
     rm -rf "$work" "$tmp"
     return 1
@@ -1287,6 +1236,9 @@ install() {
   local version="$1"
   local dest="$2"
   local file="$STORAGE/tmp/recovery.dmg"
+  local payload="$STORAGE/tmp/setup-payload"
+  local admin="$payload/admin.pkg"
+  local setup="$payload/skipsetup.pkg"
 
   # Apple recovery catalogs are selected by board identifier, so each macOS
   # generation maps to a model known to receive that release.
@@ -1322,27 +1274,24 @@ install() {
     return 1
   fi
 
-  # Fail before downloading or booting if the host image cannot build and
-  # inject valid macOS product packages.
-  checkAutomationTools || return 1
+  rm -rf "$payload"
+  mkdir -p "$payload" || {
+    error "Failed to create unattended setup payload directory."
+    return 1
+  }
+
+  # Build and fully validate the actual account and Setup Assistant packages
+  # before spending time or bandwidth on the Recovery download.
+  info "Building unattended setup packages..."
+
+  if ! createAdminPackage "$admin" || ! createSkipSetupPackage "$setup"; then
+    rm -rf "$payload"
+    return 1
+  fi
 
   # New recovery media invalidates cached firmware state that may still point
   # at an older installer or incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
-
-  # A bundled recovery image takes precedence over network retrieval. It is
-  # inspected and converted directly; /boot.dmg itself is never modified.
-  if [ -f "/boot.dmg" ]; then
-
-    info "Using custom macOS recovery image from /boot.dmg..."
-
-    if ! checkDmgImage "/boot.dmg" || ! checkBootableDmgImage "/boot.dmg"; then
-      return 1
-    fi
-
-    prepareAutomatedRecovery "/boot.dmg" "$dest"
-    return $?
-  fi
 
   rm -f -- "$file" "$file.aria2"
 
@@ -1359,6 +1308,7 @@ install() {
     # second transport attempt cannot recover it.
     if (( rc == 2 )); then
       rm -f -- "$file" "$file.aria2"
+      rm -rf "$payload"
       exit 60
     fi
 
@@ -1367,17 +1317,20 @@ install() {
     # Obtain a fresh Apple session and retry with single-connection Wget.
     if ! download "$file" "$board" "$version" "1"; then
       rm -f -- "$file" "$file.aria2"
+      rm -rf "$payload"
       exit 60
     fi
 
   fi
 
-  if ! prepareAutomatedRecovery "$file" "$dest"; then
+  if ! prepareAutomatedRecovery "$file" "$dest" "$admin" "$setup"; then
     rm -f -- "$file" "$file.aria2"
+    rm -rf "$payload"
     return 1
   fi
 
   rm -f -- "$file" "$file.aria2"
+  rm -rf "$payload"
   return 0
 }
 
@@ -1461,7 +1414,7 @@ fi
 # overwriting existing disks or redownloading the installation media again.
 if [ ! -s "$BASE_IMG" ] && ! hasDisk; then
   STORAGE="$STORAGE/${VERSION,,}"
-  BASE_IMG="$STORAGE/base.dmg"
+  BASE_IMG="$STORAGE/setup.dmg"
 fi
 
 # Recovery media is required only while the primary disk is absent or blank.
@@ -1497,12 +1450,10 @@ fi
 
 DISK_OPTS=""
 
-# OpenCore uses PCI 0x5. Recovery stays at 0x6, while the state/log share is
-# pinned at 0x7; the generic disk layer keeps 0xA-0xF for managed disks.
+# OpenCore uses PCI 0x5. The generic disk layer attaches setup.dmg at 0x6,
+# while the state/log share is pinned at 0x7 and managed disks use 0xA-0xF.
 if [ -s "$BASE_IMG" ]; then
-  DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
-  DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"
-  DISK_OPTS+=" -fsdev local,id=installstatefs,path=$INSTALL_STATE_DIR,security_model=none"
+  DISK_OPTS="-fsdev local,id=installstatefs,path=$INSTALL_STATE_DIR,security_model=none"
   DISK_OPTS+=" -device virtio-9p-pci,id=installstate9p,fsdev=installstatefs,mount_tag=installstate,bus=pcie.0,addr=0x7"
 fi
 
