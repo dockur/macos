@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<pkg-info postinstall-action="none" preserve-xattr="false" format-version="2" identifier="@IDENTIFIER@" version="1.0" auth="root">
+    <bundle-version/>
+    <upgrade-bundle/>
+    <update-bundle/>
+    <atomic-update-bundle/>
+    <strict-identifier/>
+    <relocate/>
+    <scripts>
+        <postinstall file="./postinstall"/>
+    </scripts>
+</pkg-info>
