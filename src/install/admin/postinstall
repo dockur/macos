@@ -18,11 +18,38 @@ USER_DIR="$PREFIX/private/var/db/dslocal/nodes/Default/users"
 ADMIN_PLIST="$PREFIX/private/var/db/dslocal/nodes/Default/groups/admin.plist"
 LOGIN_PLIST="$PREFIX/Library/Preferences/com.apple.loginwindow"
 PLISTBUDDY="/usr/libexec/PlistBuddy"
+STATE_DIR="/Volumes/installstate"
+LOCAL_LOG="$PREFIX/private/var/log/macos-unattended-packages.log"
+
+/bin/mkdir -p "${LOCAL_LOG%/*}" 2>/dev/null || :
+
+mount_state_share() {
+
+  [ -d "$STATE_DIR" ] && return 0
+  [ -x /sbin/mount_9p ] || return 1
+
+  /sbin/mount_9p installstate >/dev/null 2>&1 || :
+  [ -d "$STATE_DIR" ]
+}
+
+log() {
+
+  local message="[admin] $1"
+
+  printf '%s\n' "$message" >> "$LOCAL_LOG" 2>/dev/null || :
+
+  if mount_state_share; then
+    printf '%s\n' "$message" >> "$STATE_DIR/packages.log" 2>/dev/null || :
+  fi
+}
 
 fail() {
+  log "ERROR: $1"
   echo "account package: $1" >&2
   exit 1
 }
+
+log "postinstall started (target=$TARGET)"
 
 plist_array_add() {
 
@@ -65,6 +92,7 @@ plist_array_add() {
 
 plist_array_add "$ADMIN_PLIST" users "$USERNAME"
 plist_array_add "$ADMIN_PLIST" groupmembers "$UUID"
+log "administrator account record installed"
 
 if [ "$AUTOLOGIN" = "Y" ]; then
   [ -f "$MYDIR/kcpassword" ] || fail "kcpassword is missing"
@@ -79,6 +107,8 @@ if [ "$AUTOLOGIN" = "Y" ]; then
 
   /usr/bin/defaults write "$LOGIN_PLIST" autoLoginUser "$USERNAME" ||
     fail "failed to configure automatic login"
+  log "automatic login configured"
 fi
 
+log "postinstall completed"
 exit 0
