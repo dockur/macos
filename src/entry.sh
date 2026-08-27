@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 : "${VGA:="vmware"}"
 : "${SHUTDOWN:="Y"}"
-: "${TIMEOUT:="105"}"
+: "${TIMEOUT:="13"}"
 : "${DISK_TYPE:="blk"}"
 : "${RAM_MINIMUM:="4G"}"
 : "${DISK_MINIMUM:="32G"}"
