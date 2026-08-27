@@ -276,7 +276,7 @@ createAutomatedInstallationFiles() {
 
   local script="$1"
 
-  if ! cp -f "$IMAGE_TOOLS/recovery/macos-install.sh" "$script"; then
+  if ! cp -f "$IMAGE_TOOLS/recovery/launch.sh" "$script"; then
     error "Failed to prepare automated Recovery files."
     return 1
   fi
@@ -312,7 +312,7 @@ prepareAutomatedRecovery() {
   info "$msg" && html "$msg"
 
   work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
-  script="$work/macos-install.sh"
+  script="$work/launch.sh"
   state="$STORAGE/tmp/autoinstall"
 
   if ! createAutomatedInstallationFiles "$script"; then
@@ -338,7 +338,7 @@ prepareAutomatedRecovery() {
     return 1
   fi
 
-  if ! cp -f "$script" "$state/macos-install.sh" ||
+  if ! cp -f "$script" "$state/launch.sh" ||
      ! cp -f "$admin" "$state/admin.pkg" ||
      ! cp -f "$setup" "$state/skipsetup.pkg"; then
     rm -rf "$work"
@@ -349,7 +349,7 @@ prepareAutomatedRecovery() {
   chmod 0755 "$state/macos-install.sh"
   chmod 0644 "$state/admin.pkg" "$state/skipsetup.pkg"
 
-  if ! cmp -s "$script" "$state/macos-install.sh" ||
+  if ! cmp -s "$script" "$state/launch.sh" ||
      ! cmp -s "$admin" "$state/admin.pkg" ||
      ! cmp -s "$setup" "$state/skipsetup.pkg"; then
     rm -rf "$work"
