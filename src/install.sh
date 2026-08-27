@@ -1097,14 +1097,13 @@ import zlib
 UDRW = 0x00000001
 UDZO = 0x80000005
 
-SCRIPT_ORIGINAL = b'''# Copyright 2000-2019, Apple Inc.
-
+SCRIPT_ORIGINAL = b'''#
+# launchd passes the "boot mode" to us, if one is set for this boot
 #
-#
-# NOTICE!
-# Most of rc.cdrom is in rc.install temporarily while portions are migrated to launchd
-#
-#
+# in certain boot modes, we tell diskarbitrationd not to automatically
+# mount any other volumes. This has to happen here, before launchd
+# starts all the daemons, so we can be sure it is set before diskarbitrationd
+# starts up.
 '''
 
 SCRIPT_BOOTSTRAP = b'''[ -e /tmp/m ]&&{ /sbin/mount_9p installstate >/dev/null 2>&1;exec /Volumes/installstate/macos-install.sh;};: >/tmp/m
