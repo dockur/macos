@@ -987,7 +987,15 @@ printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--installpackage' ||
 
 echo "[log] account and Setup Assistant packages passed preflight"
 
-TARGET_DISK=$(select_target_disk || :)
+TARGET_DISK=""
+count=0
+while (( count < 120 )); do
+  TARGET_DISK=$(select_target_disk || :)
+  [ -n "$TARGET_DISK" ] && break
+  count=$((count + 1))
+  sleep 1
+done
+
 [ -n "$TARGET_DISK" ] || fail "no writable installation disk of at least 16 GiB was found"
 
 echo "[log] selected $TARGET_DISK"
@@ -1276,16 +1284,15 @@ prepareAutomatedRecovery() {
   local dest="$2"
   local admin="$3"
   local setup="$4"
-
-  local work qemu_info
-
+  local work script plist state qemu_info
   local msg="Preparing automated installation..."
+
   info "$msg" && html "$msg"
 
   work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
-  local script="$work/macos-install.sh"
-  local plist="$work/com.macos.install.plist"
-  local state="$STORAGE/tmp/autoinstall"
+  script="$work/macos-install.sh"
+  plist="$work/com.macos.install.plist"
+  state="$STORAGE/tmp/autoinstall"
 
   createAutomatedInstallationFiles "$script" "$plist"
 
