@@ -23,14 +23,12 @@ RUN <<EOF
 
   apt-get update
   apt-get --no-install-recommends -y install \
-    tar \
     xar \
     cpio \
     gzip \
     mtools \
     xmlstarlet \
-    vulkan-tools \
-    libarchive-tools
+    vulkan-tools
 
   apt-get clean
 
@@ -55,9 +53,6 @@ ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1024x768.fd \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_VARS-1920x1080.fd /usr/share/OVMF/
-
-ADD --chmod=755 https://github.com/dockur/macos/releases/download/v3.12/dmg.bin /usr/local/bin/dmg
-ADD --chmod=755 https://github.com/dockur/macos/releases/download/v3.12/hfsplus.bin /usr/local/bin/hfsplus
 
 ADD $REPO_VM_HIDE/releases/download/$VERSION_VM_HIDE/VMHide-$VERSION_VM_HIDE-RELEASE.zip /vmh.zip
 ADD $REPO_KVM_OPENCORE/releases/download/v$VERSION_KVM_OPENCORE/LongQT-OpenCore-v$VERSION_KVM_OPENCORE.iso /opencore.iso
