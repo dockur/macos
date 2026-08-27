@@ -1067,6 +1067,9 @@ prepareAutomatedRecovery() {
   local hfs="$work/BaseSystem.hfs"
   local roundtrip="$work/BaseSystem.roundtrip.hfs"
 
+  msg="Preparing automated installation 0..."
+  info "$msg" && html "$msg"
+
   mkdir -p "$stage/System/Library/LaunchDaemons" "$verify"
 
   createAutomatedInstallationFiles "$script" "$plist"
@@ -1085,7 +1088,8 @@ prepareAutomatedRecovery() {
 
   rm -f "$tmp" "$hfs" "$roundtrip"
 
-  info "Preparing automated recovery image..."
+  msg="Preparing automated installation 1..."
+  info "$msg" && html "$msg"
 
   # dmg extract selects the Apple_HFS partition from the UDIF image and writes
   # it as a flat filesystem, which is the layout hfsplus expects.
@@ -1100,6 +1104,9 @@ prepareAutomatedRecovery() {
     error "Recovery image does not contain a usable HFS+ filesystem."
     return 1
   fi
+
+  msg="Preparing automated installation 2..."
+  info "$msg" && html "$msg"
 
   # hfsplus can return success for operations that did not do what was asked,
   # so every write is followed by byte-for-byte content and mode verification.
@@ -1142,6 +1149,9 @@ admin|$admin|/admin.pkg|0644|100644
 setup|$setup|/skipsetup.pkg|0644|100644
 EOF
 
+  msg="Preparing automated installation 3..."
+  info "$msg" && html "$msg"
+
   if ! dmg build "$hfs" "$tmp" > /dev/null 2>&1; then
     rm -rf "$work" "$tmp"
     error "Failed to rebuild the automated recovery DMG."
@@ -1161,6 +1171,9 @@ EOF
     error "Rebuilt automated recovery DMG is not recognized by QEMU."
     return 1
   fi
+
+  msg="Preparing automated installation 4..."
+  info "$msg" && html "$msg"
 
   if ! python3 -c '
 import json, sys
@@ -1185,6 +1198,9 @@ raise SystemExit(0 if info.get("format") == "dmg" else 1)
     error "Rebuilt automated recovery DMG failed HFS+ round-trip validation."
     return 1
   fi
+
+  msg="Preparing automated installation 5..."
+  info "$msg" && html "$msg"
 
   while IFS='|' read -r item source_file image_path expected_mode; do
 
