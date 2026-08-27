@@ -14,29 +14,81 @@ fi
 SYSTEM_PLIST="$PREFIX/System/Library/CoreServices/SystemVersion.plist"
 SETUP_PLIST="$PREFIX/Library/User Template/Non_localized/Library/Preferences/com.apple.SetupAssistant.plist"
 PLISTBUDDY="/usr/libexec/PlistBuddy"
+STATE_DIR="/Volumes/installstate"
+LOCAL_LOG="$PREFIX/private/var/log/macos-unattended-packages.log"
+
+/bin/mkdir -p "${LOCAL_LOG%/*}" 2>/dev/null || :
+
+mount_state_share() {
+
+  [ -d "$STATE_DIR" ] && return 0
+  [ -x /sbin/mount_9p ] || return 1
+
+  /sbin/mount_9p installstate >/dev/null 2>&1 || :
+  [ -d "$STATE_DIR" ]
+}
+
+log() {
+
+  local message="[setup] $1"
+
+  printf '%s\n' "$message" >> "$LOCAL_LOG" 2>/dev/null || :
+
+  if mount_state_share; then
+    printf '%s\n' "$message" >> "$STATE_DIR/packages.log" 2>/dev/null || :
+  fi
+}
 
 fail() {
+  log "ERROR: $1"
   echo "setup package: $1" >&2
   exit 1
 }
 
-[ -f "$SYSTEM_PLIST" ] || fail "target SystemVersion.plist is missing"
+log "postinstall started (target=$TARGET)"
 
-OS_VERSION=$("$PLISTBUDDY" -c 'Print :ProductVersion' "$SYSTEM_PLIST" 2>/dev/null || :)
-OS_BUILD=$("$PLISTBUDDY" -c 'Print :ProductBuildVersion' "$SYSTEM_PLIST" 2>/dev/null || :)
-
-[ -n "$OS_VERSION" ] || fail "target ProductVersion is missing"
-[ -n "$OS_BUILD" ] || fail "target ProductBuildVersion is missing"
-
+# The primary job of this package is to prevent Setup Assistant from launching.
+# Do that before optional preference generation so missing version metadata can
+# never leave an otherwise completed installation at the country picker.
 /bin/mkdir -p "$PREFIX/private/var/db" ||
   fail "failed to create setup state directory"
 /usr/bin/touch "$PREFIX/private/var/db/.AppleSetupDone" ||
   fail "failed to mark system Setup Assistant complete"
+/usr/sbin/chown 0:0 "$PREFIX/private/var/db/.AppleSetupDone" ||
+  fail "failed to set Setup Assistant marker ownership"
+/bin/chmod 0644 "$PREFIX/private/var/db/.AppleSetupDone" ||
+  fail "failed to set Setup Assistant marker permissions"
+
+log "Setup Assistant completion marker created"
 
 /bin/mkdir -p "$PREFIX/Library/User Template/English.lproj" ||
   fail "failed to create English user template"
 /usr/bin/touch "$PREFIX/Library/User Template/English.lproj/.skipbuddy" ||
   fail "failed to create first-login skip marker"
+/usr/sbin/chown 0:0 "$PREFIX/Library/User Template/English.lproj/.skipbuddy" ||
+  fail "failed to set first-login skip marker ownership"
+/bin/chmod 0644 "$PREFIX/Library/User Template/English.lproj/.skipbuddy" ||
+  fail "failed to set first-login skip marker permissions"
+
+log "first-login skip marker created"
+
+# The preference template is supplemental. Older/newer installer stages can
+# expose the final SystemVersion metadata at different times, but that must not
+# undo the core Setup Assistant suppression above.
+if [ ! -f "$SYSTEM_PLIST" ]; then
+  log "SystemVersion.plist unavailable; skipping Setup Assistant preferences"
+  log "postinstall completed"
+  exit 0
+fi
+
+OS_VERSION=$("$PLISTBUDDY" -c 'Print :ProductVersion' "$SYSTEM_PLIST" 2>/dev/null || :)
+OS_BUILD=$("$PLISTBUDDY" -c 'Print :ProductBuildVersion' "$SYSTEM_PLIST" 2>/dev/null || :)
+
+if [ -z "$OS_VERSION" ] || [ -z "$OS_BUILD" ]; then
+  log "system version metadata incomplete; skipping Setup Assistant preferences"
+  log "postinstall completed"
+  exit 0
+fi
 
 /bin/mkdir -p "${SETUP_PLIST%/*}" ||
   fail "failed to create Setup Assistant preference directory"
@@ -52,17 +104,11 @@ SETUP_TEMPLATE="${0%/*}/com.apple.SetupAssistant.plist"
 
 /usr/bin/plutil -lint "$SETUP_PLIST" >/dev/null ||
   fail "generated Setup Assistant plist is invalid"
+/usr/sbin/chown 0:0 "$SETUP_PLIST" ||
+  fail "failed to set Setup Assistant preference ownership"
+/bin/chmod 0644 "$SETUP_PLIST" ||
+  fail "failed to set Setup Assistant preference permissions"
 
-/usr/sbin/chown 0:0 \
-  "$PREFIX/private/var/db/.AppleSetupDone" \
-  "$PREFIX/Library/User Template/English.lproj/.skipbuddy" \
-  "$SETUP_PLIST" ||
-  fail "failed to set setup file ownership"
-
-/bin/chmod 0644 \
-  "$PREFIX/private/var/db/.AppleSetupDone" \
-  "$PREFIX/Library/User Template/English.lproj/.skipbuddy" \
-  "$SETUP_PLIST" ||
-  fail "failed to set setup file permissions"
-
+log "Setup Assistant preferences installed"
+log "postinstall completed"
 exit 0
