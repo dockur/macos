@@ -346,7 +346,7 @@ prepareAutomatedRecovery() {
     return 1
   fi
 
-  chmod 0755 "$state/macos-install.sh"
+  chmod 0755 "$state/launch.sh"
   chmod 0644 "$state/admin.pkg" "$state/skipsetup.pkg"
 
   if ! cmp -s "$script" "$state/launch.sh" ||
