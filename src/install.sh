@@ -1067,7 +1067,7 @@ prepareAutomatedRecovery() {
   local hfs="$work/BaseSystem.hfs"
   local roundtrip="$work/BaseSystem.roundtrip.hfs"
 
-  msg="Preparing automated installation 0..."
+  local msg="Preparing automated installation 0..."
   info "$msg" && html "$msg"
 
   mkdir -p "$stage/System/Library/LaunchDaemons" "$verify"
@@ -1291,7 +1291,8 @@ install() {
 
   # Build and fully validate the actual account and Setup Assistant packages
   # before spending time or bandwidth on the Recovery download.
-  info "Building unattended setup packages..."
+  local msg="Building unattended setup packages..."
+  info "$msg" && html "$msg"
 
   if ! createAdminPackage "$admin" || ! createSkipSetupPackage "$setup"; then
     rm -rf "$payload"
