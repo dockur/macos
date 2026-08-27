@@ -522,11 +522,6 @@ prepareOpenCoreImage
 
 setOwner "$IMG" || error "Failed to set the owner for \"$IMG\" !"
 
-BOOT_DRIVE_ID="OpenCore"
-
-# OpenCore is immutable at runtime; persistent boot choices live in OVMF
-# NVRAM, so attach the generated boot disk read-only.
-DISK_OPTS+=" -device virtio-blk-pci,drive=${BOOT_DRIVE_ID},bus=pcie.0,addr=0x5,bootindex=$BOOT_INDEX"
-DISK_OPTS+=" -drive file=$IMG,id=$BOOT_DRIVE_ID,format=raw,cache=unsafe,readonly=on,if=none"
+DISK_OPTS+=$(createDevice "$IMG" "blk" "$BOOT_INDEX" "0x5" "raw" "" "" "OpenCore")
 
 return 0
