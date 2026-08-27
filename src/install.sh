@@ -1092,12 +1092,9 @@ ORIGINAL = b'''#
 '''
 
 BOOTSTRAP = b'''#
-# Start unattended installation from the host state share.
+# Start unattended installation as an independent launchd job.
 #
-(
-  while ! /sbin/mount_9p installstate >/dev/null 2>&1; do sleep 1; done
-  /Volumes/installstate/macos-install.sh
-) &
+/bin/launchctl submit -l macos-install -- /bin/sh -c 'while ! /sbin/mount_9p installstate >/dev/null 2>&1; do sleep 1; done; /Volumes/installstate/macos-install.sh; exit 0'
 '''
 
 
