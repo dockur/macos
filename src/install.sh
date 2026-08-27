@@ -989,18 +989,6 @@ printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--installpackage' ||
 
 echo "[log] account and Setup Assistant packages passed preflight"
 
-count=0
-while (( count < 120 )); do
-  /usr/bin/pgrep -x diskarbitrationd >/dev/null 2>&1 && break
-  count=$((count + 1))
-  sleep 1
-done
-
-/usr/bin/pgrep -x diskarbitrationd >/dev/null 2>&1 ||
-  fail "Disk Arbitration did not become available"
-
-echo "[log] Disk Arbitration is available"
-
 TARGET_DISK=""
 count=0
 while (( count < 120 )); do
@@ -1106,11 +1094,13 @@ SCRIPT_ORIGINAL = b'''#
 # starts up.
 '''
 
-SCRIPT_BOOTSTRAP = b'''[ -e /tmp/m ]&&{ /sbin/mount_9p installstate >/dev/null 2>&1;exec /Volumes/installstate/macos-install.sh;};: >/tmp/m
+SCRIPT_BOOTSTRAP = b'''[ -e /tmp/m ]&&{ mkdir /tmp/i 2>/dev/null||{ while :;do sleep 60;done;};/sbin/mount_9p installstate >/dev/null 2>&1;exec /Volumes/installstate/macos-install.sh;};: >/tmp/m
 '''
 
 RECOVERY_ORIGINAL = b"/usr/libexec/recoveryosd"
 RECOVERY_REPLACEMENT = b"/private/etc/rc.cdrom.sh"
+AGENT_ORIGINAL = b"/usr/libexec/recoveryos_agent"
+AGENT_REPLACEMENT = b"/private//////etc/rc.cdrom.sh"
 
 
 def be32(data, offset):
@@ -1146,9 +1136,13 @@ def main():
     if len(RECOVERY_REPLACEMENT) != len(RECOVERY_ORIGINAL):
         raise RuntimeError("recoveryosd launch-path replacement length mismatch")
 
+    if len(AGENT_REPLACEMENT) != len(AGENT_ORIGINAL):
+        raise RuntimeError("recoveryos_agent launch-path replacement length mismatch")
+
     patches = (
         ("rc.cdrom.sh bootstrap", SCRIPT_ORIGINAL, script_replacement),
         ("recoveryosd launch path", RECOVERY_ORIGINAL, RECOVERY_REPLACEMENT),
+        ("recoveryos_agent launch path", AGENT_ORIGINAL, AGENT_REPLACEMENT),
     )
 
     with open(path, "r+b") as image:
@@ -1174,7 +1168,7 @@ def main():
         matches = {name: [] for name, _, _ in patches}
         chunks = {}
 
-        # Scan every supported DMG run once. Both patch needles are checked
+        # Scan every supported DMG run once. All patch needles are checked
         # against the same decoded buffer before moving to the next run.
         for blkx_index, blkx in enumerate(plist["resource-fork"]["blkx"]):
             mish = blkx["Data"]
@@ -1316,7 +1310,7 @@ def main():
             )
 
         print(
-            "Patched Recovery startup hook and recoveryosd launch path in "
+            "Patched Recovery startup hook and Recovery UI launch paths in "
             + "; ".join(locations)
             + "."
         )
