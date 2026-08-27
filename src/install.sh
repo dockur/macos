@@ -1041,6 +1041,41 @@ else
   echo "[log] native Installer Progress UI is unavailable"
 fi
 
+# Proof of concept: drive Apple's existing Installer Progress service directly.
+# This is presentation-only; failure here must never affect installation.
+PROGRESS_POC_LOG="$STATE_DIR/progress-poc.log"
+
+if [ -x /usr/bin/osascript ] && [ -e /usr/lib/libIASUnifiedProgress.dylib ]; then
+  /usr/bin/osascript -l JavaScript <<'PROGRESS_JXA' >> "$PROGRESS_POC_LOG" 2>&1 &
+ObjC.import('Foundation')
+ObjC.import('/usr/lib/libIASUnifiedProgress.dylib')
+
+var stateFile = '/Volumes/installstate/started'
+var fm = $.NSFileManager.defaultManager
+var client = $.IASUnifiedProgressClient.alloc.initWithPhaseName($('macOSInstall'))
+
+client.showProgressUI
+client.setStatus($('Preparing macOS installation...'))
+client.setProgressAnimate(0, false)
+
+while (fm.fileExistsAtPath($(stateFile))) {
+  for (var progress = 0; progress <= 100; progress += 2) {
+    if (!fm.fileExistsAtPath($(stateFile))) {
+      break
+    }
+    client.setProgressAnimate(progress, true)
+    $.NSThread.sleepForTimeInterval(0.5)
+  }
+}
+
+client.hideProgressUI
+PROGRESS_JXA
+
+  echo "[log] started custom Installer Progress POC"
+else
+  echo "[log] custom Installer Progress POC is unavailable"
+fi
+
 "$STARTOSINSTALL" "${ARGS[@]}"
 rc=$?
 
