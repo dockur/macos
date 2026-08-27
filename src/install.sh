@@ -414,9 +414,18 @@ PY
     return 1
   fi
 
-  if ! gzip -dc "$verify/$component_name/Scripts" 2>/dev/null |
-       cpio -it 2>/dev/null |
-       grep -qx './postinstall'; then
+  local scripts_listing
+
+  if ! scripts_listing=$(
+    gzip -dc "$verify/$component_name/Scripts" 2>/dev/null |
+      cpio -it 2>/dev/null
+  ); then
+    rm -rf "$work" "$dest"
+    error "Failed to inspect the scripts archive in $dest."
+    return 1
+  fi
+
+  if ! grep -Fxq 'postinstall' <<< "$scripts_listing"; then
     rm -rf "$work" "$dest"
     error "Product package $dest does not contain its postinstall script."
     return 1
@@ -586,7 +595,7 @@ chmod 0600 "$USER_DIR/$USERNAME.plist" ||
 plist_array_add "$ADMIN_PLIST" users "$USERNAME"
 plist_array_add "$ADMIN_PLIST" groupmembers "$UUID"
 
-if [ "${AUTOLOGIN^^}" = "Y" ]; then
+if [ "$AUTOLOGIN" = "Y" ]; then
   [ -f "$MYDIR/kcpassword" ] || fail "kcpassword is missing"
   mkdir -p "$PREFIX/private/etc" ||
     fail "failed to create private/etc"
