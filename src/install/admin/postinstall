@@ -1,0 +1,84 @@
+#!/bin/bash
+set -u
+
+PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
+
+MYDIR="${0%/*}"
+. "$MYDIR/config"
+
+TARGET="${3:-/}"
+if [ "$TARGET" = "/" ]; then
+  PREFIX=""
+else
+  PREFIX="${TARGET%/}"
+fi
+
+USER_DIR="$PREFIX/private/var/db/dslocal/nodes/Default/users"
+ADMIN_PLIST="$PREFIX/private/var/db/dslocal/nodes/Default/groups/admin.plist"
+LOGIN_PLIST="$PREFIX/Library/Preferences/com.apple.loginwindow"
+PLISTBUDDY="/usr/libexec/PlistBuddy"
+
+fail() {
+  echo "account package: $1" >&2
+  exit 1
+}
+
+plist_array_add() {
+
+  local plist="$1"
+  local array="$2"
+  local value="$3"
+  local current
+
+  current=$("$PLISTBUDDY" -c "Print :$array" "$plist" 2>/dev/null || :)
+
+  if [ -z "$current" ]; then
+    "$PLISTBUDDY" -c "Add :$array array" "$plist" >/dev/null ||
+      fail "failed to create $array in $plist"
+  elif printf '%s\n' "$current" | /usr/bin/awk -v wanted="$value" '
+    {
+      line=$0
+      sub(/^[[:space:]]+/, "", line)
+      sub(/[[:space:]]+$/, "", line)
+      if (line == wanted) found=1
+    }
+    END { exit(found ? 0 : 1) }
+  '; then
+    return 0
+  fi
+
+  "$PLISTBUDDY" -c "Add :$array: string \"$value\"" "$plist" >/dev/null ||
+    fail "failed to add $value to $array"
+}
+
+[ -d "$USER_DIR" ] || fail "local user database is missing"
+[ -f "$ADMIN_PLIST" ] || fail "admin group database is missing"
+[ -f "$MYDIR/user.plist" ] || fail "user plist is missing"
+
+/bin/cp "$MYDIR/user.plist" "$USER_DIR/$USERNAME.plist" ||
+  fail "failed to install local user record"
+/usr/sbin/chown 0:0 "$USER_DIR/$USERNAME.plist" ||
+  fail "failed to set local user ownership"
+/bin/chmod 0600 "$USER_DIR/$USERNAME.plist" ||
+  fail "failed to set local user permissions"
+
+plist_array_add "$ADMIN_PLIST" users "$USERNAME"
+plist_array_add "$ADMIN_PLIST" groupmembers "$UUID"
+
+if [ "$AUTOLOGIN" = "Y" ]; then
+  [ -f "$MYDIR/kcpassword" ] || fail "kcpassword is missing"
+  /bin/mkdir -p "$PREFIX/private/etc" ||
+    fail "failed to create private/etc"
+  /bin/cp "$MYDIR/kcpassword" "$PREFIX/private/etc/kcpassword" ||
+    fail "failed to install kcpassword"
+  /usr/sbin/chown 0:0 "$PREFIX/private/etc/kcpassword" ||
+    fail "failed to set kcpassword ownership"
+  /bin/chmod 0600 "$PREFIX/private/etc/kcpassword" ||
+    fail "failed to set kcpassword permissions"
+
+  /usr/bin/defaults write "$LOGIN_PLIST" autoLoginUser "$USERNAME" ||
+    fail "failed to configure automatic login"
+fi
+
+exit 0
