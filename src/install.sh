@@ -1030,6 +1030,17 @@ ARGS=(
 echo "[log] starting online macOS installation on $TARGET_VOLUME"
 echo "[log] scheduling account and Setup Assistant packages"
 
+INSTALLER_PROGRESS_PLIST="/System/Library/LaunchDaemons/com.apple.InstallerProgress.plist"
+
+if /bin/launchctl print system/com.apple.InstallerProgress >/dev/null 2>&1; then
+  echo "[log] native Installer Progress UI is already loaded"
+elif [ -f "$INSTALLER_PROGRESS_PLIST" ] &&
+     /bin/launchctl bootstrap system "$INSTALLER_PROGRESS_PLIST" >/dev/null 2>&1; then
+  echo "[log] started native Installer Progress UI"
+else
+  echo "[log] native Installer Progress UI is unavailable"
+fi
+
 "$STARTOSINSTALL" "${ARGS[@]}"
 rc=$?
 
