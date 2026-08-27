@@ -17,8 +17,7 @@ MacOS inside a Docker container.
 ## Features ✨
 
 - Runs macOS inside a Docker container
-- Automatic download of the installation files
-- Web-based viewer for controlling the VM
+- Automatic download and hands-free installation
 - Near-native performance with KVM acceleration
 - Customizable CPU, memory, and storage allocation
 - Hardware-accelerated graphics via [Reims vGPU](https://github.com/steelbrain/reims-vgpu)
