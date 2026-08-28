@@ -286,6 +286,40 @@ createAutomatedInstallationFiles() {
   return 0
 }
 
+prepareInstallationState() {
+
+  local state="$1"
+  local script="$state/launch.sh"
+  local admin="$state/admin.pkg"
+  local setup="$state/skipsetup.pkg"
+
+  rm -rf "$state"
+
+  if ! makeDir "$state"; then
+    error "Failed to create unattended installation state directory."
+    return 1
+  fi
+
+  if ! createAutomatedInstallationFiles "$script" ||
+     ! createAdminPackage "$admin" ||
+     ! createSkipSetupPackage "$setup"; then
+    rm -rf "$state"
+    return 1
+  fi
+
+  chmod 0755 "$script"
+  chmod 0644 "$admin" "$setup"
+
+  if ! cmp -s "$IMAGE_TOOLS/recovery/launch.sh" "$script" ||
+     [ ! -s "$admin" ] || [ ! -s "$setup" ]; then
+    rm -rf "$state"
+    error "Staged unattended installation files failed validation."
+    return 1
+  fi
+
+  return 0
+}
+
 patchRecoveryBootstrap() {
 
   local image="$1"
@@ -304,68 +338,18 @@ prepareAutomatedRecovery() {
 
   local source="$1"
   local dest="$2"
-  local admin="$3"
-  local setup="$4"
-  local work script state qemu_info
+  local qemu_info
   local msg="Preparing automated installation..."
 
   info "$msg" && html "$msg"
 
-  work=$(mktemp -d "$STORAGE/tmp/recovery.XXXXXX") || return 1
-  script="$work/launch.sh"
-  state="$STORAGE/tmp/autoinstall"
-
-  if ! createAutomatedInstallationFiles "$script"; then
-    rm -rf "$work"
-    return 1
-  fi
-
-  [ -s "$admin" ] || {
-    rm -rf "$work"
-    error "Prebuilt account package is missing."
-    return 1
-  }
-
-  [ -s "$setup" ] || {
-    rm -rf "$work"
-    error "Prebuilt Setup Assistant package is missing."
-    return 1
-  }
-
-  if ! makeDir "$state"; then
-    rm -rf "$work"
-    error "Failed to create unattended installation state directory."
-    return 1
-  fi
-
-  if ! cp -f "$script" "$state/launch.sh" ||
-     ! cp -f "$admin" "$state/admin.pkg" ||
-     ! cp -f "$setup" "$state/skipsetup.pkg"; then
-    rm -rf "$work"
-    error "Failed to stage unattended installation files."
-    return 1
-  fi
-
-  chmod 0755 "$state/launch.sh"
-  chmod 0644 "$state/admin.pkg" "$state/skipsetup.pkg"
-
-  if ! cmp -s "$script" "$state/launch.sh" ||
-     ! cmp -s "$admin" "$state/admin.pkg" ||
-     ! cmp -s "$setup" "$state/skipsetup.pkg"; then
-    rm -rf "$work"
-    error "Staged unattended installation files failed byte-for-byte validation."
-    return 1
-  fi
-
   if ! patchRecoveryBootstrap "$source"; then
-    rm -rf "$work"
     return 1
   fi
 
   # The source keeps its .dmg suffix while being patched, so QEMU can probe
   # the exact final bytes using its DMG driver before the file is moved.
   if ! qemu_info=$(qemu-img info --output=json "$source" 2>/dev/null); then
-    rm -rf "$work"
     error "Patched recovery image is not recognized by QEMU."
     return 1
   fi
@@ -375,12 +359,9 @@ import json, sys
 info = json.load(sys.stdin)
 raise SystemExit(0 if info.get("format") == "dmg" else 1)
 ' <<< "$qemu_info"; then
-    rm -rf "$work"
     error "QEMU did not identify the patched recovery image as DMG."
     return 1
   fi
-
-  rm -rf "$work"
 
   if ! mv -f "$source" "$dest"; then
     error "Failed to save automated recovery image to $dest."
