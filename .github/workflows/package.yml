@@ -1,0 +1,93 @@
+name: Build reference package
+
+on:
+  workflow_dispatch:
+
+jobs:
+  reference:
+    runs-on: macos-15
+
+    steps:
+      - name: Build reference package
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          mkdir -p reference/scripts reference/output
+
+          cat > reference/scripts/postinstall <<'EOF'
+          #!/bin/bash
+          echo "reference package executed" >> /var/log/reference-package.log
+          exit 0
+          EOF
+
+          chmod 755 reference/scripts/postinstall
+
+          pkgbuild \
+            --nopayload \
+            --identifier com.macos.install.reference \
+            --version 1.0 \
+            --scripts reference/scripts \
+            reference/component.pkg
+
+          productbuild \
+            --package reference/component.pkg \
+            --identifier com.macos.install.reference \
+            --version 1.0 \
+            reference/reference.pkg
+
+      - name: Inspect packages
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          cd reference
+          mkdir -p output/outer output/component
+
+          echo "===== FILE TYPES =====" | tee output/file-types.txt
+          file component.pkg reference.pkg | tee -a output/file-types.txt
+
+          echo "===== COMPONENT XAR TOC =====" | tee output/component-toc.txt
+          xar -tf component.pkg | tee -a output/component-toc.txt
+
+          echo "===== PRODUCT XAR TOC =====" | tee output/product-toc.txt
+          xar -tf reference.pkg | tee -a output/product-toc.txt
+
+          (
+            cd output/outer
+            xar -xf ../../reference.pkg
+          )
+
+          (
+            cd output/component
+            xar -xf ../../component.pkg
+          )
+
+          echo "===== OUTER EXTRACTED TREE =====" | tee output/outer-tree.txt
+          find output/outer -printf '%y %m %s %p\n' | sort | tee -a output/outer-tree.txt
+
+          echo "===== COMPONENT EXTRACTED TREE =====" | tee output/component-tree.txt
+          find output/component -printf '%y %m %s %p\n' | sort | tee -a output/component-tree.txt
+
+          echo "===== PACKAGEINFO =====" | tee output/PackageInfo.txt
+          cat output/component/PackageInfo | tee -a output/PackageInfo.txt
+
+          if [ -f output/outer/Distribution ]; then
+            echo "===== DISTRIBUTION =====" | tee output/Distribution.txt
+            cat output/outer/Distribution | tee -a output/Distribution.txt
+          fi
+
+          echo "===== SCRIPTS ARCHIVE =====" | tee output/scripts.txt
+          file output/component/Scripts | tee -a output/scripts.txt
+          gzip -dc output/component/Scripts |
+            cpio -itv 2>&1 |
+            tee -a output/scripts.txt
+
+          cp component.pkg output/
+          cp reference.pkg output/
+
+      - name: Upload comparison bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-reference-package
+          path: reference/output/
