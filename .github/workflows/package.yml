@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - dev
+
 jobs:
   reference:
     runs-on: macos-15
@@ -66,24 +67,53 @@ jobs:
           )
 
           echo "===== OUTER EXTRACTED TREE =====" | tee output/outer-tree.txt
-          find output/outer -printf '%y %m %s %p\n' | sort | tee -a output/outer-tree.txt
+          find output/outer -exec stat -f '%Sp %u:%g %z %N' {} \; \
+            | sort \
+            | tee -a output/outer-tree.txt
 
           echo "===== COMPONENT EXTRACTED TREE =====" | tee output/component-tree.txt
-          find output/component -printf '%y %m %s %p\n' | sort | tee -a output/component-tree.txt
+          find output/component -exec stat -f '%Sp %u:%g %z %N' {} \; \
+            | sort \
+            | tee -a output/component-tree.txt
 
           echo "===== PACKAGEINFO =====" | tee output/PackageInfo.txt
           cat output/component/PackageInfo | tee -a output/PackageInfo.txt
 
-          if [ -f output/outer/Distribution ]; then
-            echo "===== DISTRIBUTION =====" | tee output/Distribution.txt
-            cat output/outer/Distribution | tee -a output/Distribution.txt
-          fi
+          echo "===== DISTRIBUTION =====" | tee output/Distribution.txt
+          cat output/outer/Distribution | tee -a output/Distribution.txt
 
-          echo "===== SCRIPTS ARCHIVE =====" | tee output/scripts.txt
+          echo "===== SCRIPTS ARCHIVE FILE TYPE =====" | tee output/scripts.txt
           file output/component/Scripts | tee -a output/scripts.txt
-          gzip -dc output/component/Scripts |
-            cpio -itv 2>&1 |
-            tee -a output/scripts.txt
+
+          echo "===== SCRIPTS ARCHIVE CONTENTS =====" | tee -a output/scripts.txt
+          gzip -dc output/component/Scripts \
+            | cpio -itv 2>&1 \
+            | tee -a output/scripts.txt
+
+          mkdir -p output/scripts-extracted
+
+          (
+            cd output/scripts-extracted
+            gzip -dc ../component/Scripts | cpio -idmu
+          )
+
+          echo "===== EXTRACTED SCRIPTS TREE =====" | tee output/scripts-tree.txt
+          find output/scripts-extracted -exec stat -f '%Sp %u:%g %z %N' {} \; \
+            | sort \
+            | tee -a output/scripts-tree.txt
+
+          echo "===== POSTINSTALL =====" | tee output/postinstall.txt
+          cat output/scripts-extracted/postinstall | tee -a output/postinstall.txt
+
+          echo "===== CHECKSUMS =====" | tee output/checksums.txt
+          shasum -a 256 \
+            component.pkg \
+            reference.pkg \
+            output/component/PackageInfo \
+            output/component/Scripts \
+            output/outer/Distribution \
+            output/scripts-extracted/postinstall \
+            | tee -a output/checksums.txt
 
           cp component.pkg output/
           cp reference.pkg output/
