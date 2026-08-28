@@ -1,125 +1,110 @@
-name: Build reference package
+name: Build install packages
 
 on:
   workflow_dispatch:
   push:
     branches:
       - dev
+    paths:
+      - '.github/workflows/package.yml'
+      - 'src/install/admin/**'
+      - 'src/install/setup/**'
+      - 'assets/install/setup/**'
 
 jobs:
-  reference:
+  package:
     runs-on: macos-15
 
     steps:
-      - name: Build reference package
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build install packages
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          mkdir -p reference/scripts reference/output
+          work="$RUNNER_TEMP/macos-packages"
+          rm -rf "$work"
+          mkdir -p "$work/admin/scripts" "$work/setup/scripts" assets/install/package
 
-          cat > reference/scripts/postinstall <<'EOF'
-          #!/bin/bash
-          echo "reference package executed" >> /var/log/reference-package.log
-          exit 0
-          EOF
+          python3 src/install/admin/create.py \
+            "$work/admin/scripts" \
+            admin \
+            admin \
+            Y
 
-          chmod 755 reference/scripts/postinstall
+          cp src/install/admin/postinstall "$work/admin/scripts/postinstall"
+          chmod 0755 "$work/admin/scripts/postinstall" "$work/admin/scripts/config"
+          chmod 0600 "$work/admin/scripts/user.plist"
+          [ ! -f "$work/admin/scripts/kcpassword" ] || chmod 0600 "$work/admin/scripts/kcpassword"
+
+          python3 src/install/admin/validate.py \
+            "$work/admin/scripts/user.plist" \
+            admin
 
           pkgbuild \
             --nopayload \
-            --identifier com.macos.install.reference \
+            --identifier com.macos.install.admin \
             --version 1.0 \
-            --scripts reference/scripts \
-            reference/component.pkg
+            --scripts "$work/admin/scripts" \
+            "$work/admin-component.pkg"
 
           productbuild \
-            --package reference/component.pkg \
-            --identifier com.macos.install.reference \
+            --package "$work/admin-component.pkg" \
+            --identifier com.macos.install.admin \
             --version 1.0 \
-            reference/reference.pkg
+            assets/install/package/admin.pkg
 
-      - name: Inspect packages
+          cp src/install/setup/postinstall "$work/setup/scripts/postinstall"
+          cp assets/install/setup/com.apple.SetupAssistant.plist \
+            "$work/setup/scripts/com.apple.SetupAssistant.plist"
+          chmod 0755 "$work/setup/scripts/postinstall"
+          chmod 0644 "$work/setup/scripts/com.apple.SetupAssistant.plist"
+
+          bash -n "$work/setup/scripts/postinstall"
+
+          pkgbuild \
+            --nopayload \
+            --identifier com.macos.install.skipsetup \
+            --version 1.0 \
+            --scripts "$work/setup/scripts" \
+            "$work/skipsetup-component.pkg"
+
+          productbuild \
+            --package "$work/skipsetup-component.pkg" \
+            --identifier com.macos.install.skipsetup \
+            --version 1.0 \
+            assets/install/package/skipsetup.pkg
+
+      - name: Verify install packages
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          cd reference
-          mkdir -p output/outer output/component
+          for package in admin skipsetup; do
+            file="assets/install/package/$package.pkg"
+            [ -s "$file" ]
 
-          echo "===== FILE TYPES =====" | tee output/file-types.txt
-          file component.pkg reference.pkg | tee -a output/file-types.txt
+            listing=$(xar -tf "$file")
+            grep -Fxq Distribution <<< "$listing"
+            grep -Fxq component.pkg/PackageInfo <<< "$listing"
+            grep -Fxq component.pkg/Scripts <<< "$listing"
 
-          echo "===== COMPONENT XAR TOC =====" | tee output/component-toc.txt
-          xar -tf component.pkg | tee -a output/component-toc.txt
+            dir="$RUNNER_TEMP/verify-$package"
+            rm -rf "$dir"
+            mkdir -p "$dir"
+            (cd "$dir" && xar -xf "$GITHUB_WORKSPACE/$file")
 
-          echo "===== PRODUCT XAR TOC =====" | tee output/product-toc.txt
-          xar -tf reference.pkg | tee -a output/product-toc.txt
+            gzip -dc "$dir/component.pkg/Scripts" | cpio -it 2>/dev/null | grep -Fxq postinstall
+          done
 
-          (
-            cd output/outer
-            xar -xf ../../reference.pkg
-          )
+          shasum -a 256 assets/install/package/admin.pkg assets/install/package/skipsetup.pkg
 
-          (
-            cd output/component
-            xar -xf ../../component.pkg
-          )
-
-          echo "===== OUTER EXTRACTED TREE =====" | tee output/outer-tree.txt
-          find output/outer -exec stat -f '%Sp %u:%g %z %N' {} \; \
-            | sort \
-            | tee -a output/outer-tree.txt
-
-          echo "===== COMPONENT EXTRACTED TREE =====" | tee output/component-tree.txt
-          find output/component -exec stat -f '%Sp %u:%g %z %N' {} \; \
-            | sort \
-            | tee -a output/component-tree.txt
-
-          echo "===== PACKAGEINFO =====" | tee output/PackageInfo.txt
-          cat output/component/PackageInfo | tee -a output/PackageInfo.txt
-
-          echo "===== DISTRIBUTION =====" | tee output/Distribution.txt
-          cat output/outer/Distribution | tee -a output/Distribution.txt
-
-          echo "===== SCRIPTS ARCHIVE FILE TYPE =====" | tee output/scripts.txt
-          file output/component/Scripts | tee -a output/scripts.txt
-
-          echo "===== SCRIPTS ARCHIVE CONTENTS =====" | tee -a output/scripts.txt
-          gzip -dc output/component/Scripts \
-            | cpio -itv 2>&1 \
-            | tee -a output/scripts.txt
-
-          mkdir -p output/scripts-extracted
-
-          (
-            cd output/scripts-extracted
-            gzip -dc ../component/Scripts | cpio -idmu
-          )
-
-          echo "===== EXTRACTED SCRIPTS TREE =====" | tee output/scripts-tree.txt
-          find output/scripts-extracted -exec stat -f '%Sp %u:%g %z %N' {} \; \
-            | sort \
-            | tee -a output/scripts-tree.txt
-
-          echo "===== POSTINSTALL =====" | tee output/postinstall.txt
-          cat output/scripts-extracted/postinstall | tee -a output/postinstall.txt
-
-          echo "===== CHECKSUMS =====" | tee output/checksums.txt
-          shasum -a 256 \
-            component.pkg \
-            reference.pkg \
-            output/component/PackageInfo \
-            output/component/Scripts \
-            output/outer/Distribution \
-            output/scripts-extracted/postinstall \
-            | tee -a output/checksums.txt
-
-          cp component.pkg output/
-          cp reference.pkg output/
-
-      - name: Upload comparison bundle
+      - name: Upload install packages
         uses: actions/upload-artifact@v4
         with:
-          name: apple-reference-package
-          path: reference/output/
+          name: macos-install-packages
+          path: |
+            assets/install/package/admin.pkg
+            assets/install/package/skipsetup.pkg
