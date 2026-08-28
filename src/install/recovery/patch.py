@@ -15,7 +15,7 @@ SCRIPT_ORIGINAL = b'''#
 # starts up.
 '''
 
-SCRIPT_BOOTSTRAP = b'''[ -e /tmp/m ]&&{ /sbin/mount_9p installstate >/dev/null 2>&1;exec /Volumes/installstate/macos-install.sh;};: >/tmp/m
+SCRIPT_BOOTSTRAP = b'''[ -e /tmp/m ]&&{ /sbin/mount_9p installstate >/dev/null 2>&1;exec /Volumes/installstate/launch.sh;};: >/tmp/m
 '''
 
 RECOVERY_ORIGINAL = b"/usr/libexec/recoveryosd"
