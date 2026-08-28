@@ -7,6 +7,9 @@ export PATH
 LOCAL_LOG="/var/log/launch.log"
 STATE_DIR="/Volumes/installstate"
 STATE_LOG="$STATE_DIR/install.log"
+APPLE_INSTALL_LOG="$STATE_DIR/apple.log"
+STATE_LOG_LIMIT=$((1 * 1024 * 1024))
+APPLE_INSTALL_LOG_LIMIT=$((4 * 1024 * 1024))
 STARTED="$STATE_DIR/started"
 TARGET_VOLUME="/Volumes/Macintosh HD"
 ADMIN_PACKAGE="$STATE_DIR/admin.pkg"
@@ -38,12 +41,39 @@ mount_state_share() {
   return 1
 }
 
+snapshot_log() {
+
+  local source="$1"
+  local dest="$2"
+  local limit="$3"
+
+  [ -f "$source" ] || return 0
+  /usr/bin/tail -c "$limit" "$source" > "$dest" 2>/dev/null || :
+  return 0
+}
+
+mirror_log() {
+
+  local source="$1"
+  local dest="$2"
+  local limit="$3"
+
+  while :; do
+    snapshot_log "$source" "$dest" "$limit"
+    sleep 2
+  done
+}
+
 fail() {
 
   local message="$1"
 
   echo "[log] ERROR: $message"
-  [ -d "$STATE_DIR" ] && rm -f "$STARTED"
+  if [ -d "$STATE_DIR" ]; then
+    snapshot_log "$LOCAL_LOG" "$STATE_LOG" "$STATE_LOG_LIMIT"
+    snapshot_log "/var/log/install.log" "$APPLE_INSTALL_LOG" "$APPLE_INSTALL_LOG_LIMIT"
+    rm -f "$STARTED"
+  fi
   exec /usr/libexec/recoveryosd
   exit 1
 }
@@ -122,8 +152,8 @@ if ! : > "$STATE_DIR/.write-test" 2>/dev/null; then
 fi
 rm -f "$STATE_DIR/.write-test"
 
-cat "$LOCAL_LOG" >> "$STATE_LOG" 2>/dev/null || :
-exec >> "$STATE_LOG" 2>&1
+snapshot_log "$LOCAL_LOG" "$STATE_LOG" "$STATE_LOG_LIMIT"
+mirror_log "$LOCAL_LOG" "$STATE_LOG" "$STATE_LOG_LIMIT" &
 
 echo "[log] installation state share mounted"
 
@@ -199,12 +229,12 @@ echo "[log] starting online macOS installation on $TARGET_VOLUME"
 echo "[log] scheduling account and Setup Assistant packages"
 
 # Keep Apple's installer diagnostics visible from the host while Recovery is
-# occupied by startosinstall. The stream is diagnostic only and dies naturally
-# when Recovery reboots into the next installation stage.
-APPLE_INSTALL_LOG="$STATE_DIR/apple.log"
+# occupied by startosinstall. Both host-visible logs are rolling snapshots so
+# the 9p-backed shared-memory state can never grow without bound.
 if [ -f /var/log/install.log ]; then
-  /usr/bin/tail -n 0 -f /var/log/install.log >> "$APPLE_INSTALL_LOG" 2>&1 &
-  echo "[log] streaming Apple install log to $APPLE_INSTALL_LOG"
+  snapshot_log "/var/log/install.log" "$APPLE_INSTALL_LOG" "$APPLE_INSTALL_LOG_LIMIT"
+  mirror_log "/var/log/install.log" "$APPLE_INSTALL_LOG" "$APPLE_INSTALL_LOG_LIMIT" &
+  echo "[log] mirroring Apple install log to $APPLE_INSTALL_LOG"
 else
   echo "[log] Apple install log is not available"
 fi
@@ -215,6 +245,8 @@ rc=$?
 if (( rc != 0 )); then
   rm -f "$STARTED"
   echo "[log] ERROR: startosinstall exited with status $rc"
+  snapshot_log "$LOCAL_LOG" "$STATE_LOG" "$STATE_LOG_LIMIT"
+  snapshot_log "/var/log/install.log" "$APPLE_INSTALL_LOG" "$APPLE_INSTALL_LOG_LIMIT"
   printf '%s\n' "$USAGE"
   exec /usr/libexec/recoveryosd
   exit "$rc"
