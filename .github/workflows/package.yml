@@ -26,7 +26,10 @@ jobs:
 
           work="$RUNNER_TEMP/macos-packages"
           rm -rf "$work"
-          mkdir -p "$work/admin/scripts" "$work/setup/scripts" assets/install/package
+          mkdir -p \
+            "$work/admin/scripts" \
+            "$work/setup/scripts" \
+            assets/install/package
 
           python3 src/install/admin/create.py \
             "$work/admin/scripts" \
@@ -48,10 +51,10 @@ jobs:
             --identifier com.macos.install.admin \
             --version 1.0 \
             --scripts "$work/admin/scripts" \
-            "$work/admin-component.pkg"
+            "$work/admin/component.pkg"
 
           productbuild \
-            --package "$work/admin-component.pkg" \
+            --package "$work/admin/component.pkg" \
             --identifier com.macos.install.admin \
             --version 1.0 \
             assets/install/package/admin.pkg
@@ -69,10 +72,10 @@ jobs:
             --identifier com.macos.install.skipsetup \
             --version 1.0 \
             --scripts "$work/setup/scripts" \
-            "$work/skipsetup-component.pkg"
+            "$work/setup/component.pkg"
 
           productbuild \
-            --package "$work/skipsetup-component.pkg" \
+            --package "$work/setup/component.pkg" \
             --identifier com.macos.install.skipsetup \
             --version 1.0 \
             assets/install/package/skipsetup.pkg
@@ -99,12 +102,14 @@ jobs:
             gzip -dc "$dir/component.pkg/Scripts" | cpio -it 2>/dev/null | grep -Fxq postinstall
           done
 
-          shasum -a 256 assets/install/package/admin.pkg assets/install/package/skipsetup.pkg
+          shasum -a 256 \
+            assets/install/package/admin.pkg \
+            assets/install/package/skipsetup.pkg
 
       - name: Upload install packages
         uses: actions/upload-artifact@v4
         with:
-          name: macos-install-packages
+          name: macos-install-packages-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             assets/install/package/admin.pkg
             assets/install/package/skipsetup.pkg
