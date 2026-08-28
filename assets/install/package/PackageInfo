@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<pkg-info postinstall-action="none" preserve-xattr="false" format-version="2" identifier="@IDENTIFIER@" version="1.0" auth="root">
+<pkg-info postinstall-action="none" preserve-xattr="false" format-version="2" identifier="@IDENTIFIER@" version="1.0" install-location="/" auth="root">
+    <payload installKBytes="0" numberOfFiles="0"/>
     <bundle-version/>
     <upgrade-bundle/>
     <update-bundle/>
