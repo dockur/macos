@@ -137,34 +137,59 @@ addOvmfOptions() {
   return 0
 }
 
+openCoreSource() {
+
+  local flavour="release"
+  enabled "$OPENCORE_DEBUG" && flavour="debug"
+
+  echo "/opencore/$flavour/EFI"
+  return 0
+}
+
 extractOpenCore() {
 
-  # OpenCoreBoot
   ISO="/opencore.iso"
   OUT="/tmp/extract"
 
+  local source template
+  source=$(openCoreSource)
+  template="$OUT/template/EFI_RELEASE/EFI"
+
   rm -rf "$OUT"
-  mkdir -p "$OUT"
+  mkdir -p "$OUT/template"
 
   msg="Extracting OpenCore boot image"
   info "$msg..." && html "$msg..."
 
-  # Extract image file
+  if [ ! -d "$source" ]; then
+    error "Could not find official OpenCore EFI tree \"$source\"." && exit 10
+  fi
+
   if [ ! -s "$ISO" ]; then
     error "Could not find image file \"$ISO\"." && exit 10
   fi
 
-  if ! 7z x "$ISO" -o"$OUT" > /dev/null; then
+  if ! 7z x "$ISO" -o"$OUT/template" > /dev/null; then
     error "Failed to extract archive!" && exit 11
   fi
 
-  # The bundled image supplies OpenCore binaries, but its config is replaced
-  # with the project template containing this VM's generated identity.
-  # Overwrite extracted OpenCore config with our own
-  CFG="$(find "$OUT" -type f -path '*/EFI/OC/config.plist' -print -quit)"
-  [ -z "${CFG:-}" ] && error "Could not locate extracted OpenCore config.plist under \"$OUT\"." && exit 12
+  if [ ! -d "$template/OC/ACPI" ] ||
+     [ ! -d "$template/OC/Kexts" ] ||
+     [ ! -d "$template/OC/Resources" ]; then
+    error "LongQT OpenCore template does not contain the expected EFI_RELEASE tree!" && exit 12
+  fi
 
-  EFI_DIR="${CFG%/OC/config.plist}"
+  EFI_DIR="$OUT/EFI"
+  cp -a "$source" "$EFI_DIR"
+
+  # Never mix old OpenCore executables/drivers with the official tree.
+  # Only carry over VM-specific data that OpenCore itself does not provide.
+  rm -rf "$EFI_DIR/OC/ACPI" "$EFI_DIR/OC/Kexts" "$EFI_DIR/OC/Resources"
+  cp -a "$template/OC/ACPI" "$EFI_DIR/OC/"
+  cp -a "$template/OC/Kexts" "$EFI_DIR/OC/"
+  cp -a "$template/OC/Resources" "$EFI_DIR/OC/"
+
+  CFG="$EFI_DIR/OC/config.plist"
 
   return 0
 }
@@ -179,16 +204,16 @@ checkOpenCoreFiles() {
     error "Missing OpenCore.efi!" && exit 12
   fi
 
-  if [ ! -s "$EFI_DIR/OC/config.plist" ]; then
-    error "Missing OpenCore config.plist!" && exit 12
-  fi
-
   if [ ! -d "$EFI_DIR/OC/Drivers" ]; then
     error "Missing OpenCore Drivers directory!" && exit 12
   fi
 
   if [ ! -d "$EFI_DIR/OC/Kexts" ]; then
     error "Missing OpenCore Kexts directory!" && exit 12
+  fi
+
+  if [ ! -d "$EFI_DIR/OC/Resources" ]; then
+    error "Missing OpenCore Resources directory!" && exit 12
   fi
 
   return 0
@@ -213,6 +238,7 @@ configureOpenCorePlist() {
   local generic="/plist/dict/key[.='PlatformInfo']/following-sibling::dict[1]/key[.='Generic']/following-sibling::dict[1]"
   local output="/plist/dict/key[.='UEFI']/following-sibling::dict[1]/key[.='Output']/following-sibling::dict[1]"
   local boot="/plist/dict/key[.='Misc']/following-sibling::dict[1]/key[.='Boot']/following-sibling::dict[1]"
+  local debug="/plist/dict/key[.='Misc']/following-sibling::dict[1]/key[.='Debug']/following-sibling::dict[1]"
 
   xmlstarlet ed -P -L \
     -u "$generic/key[.='ROM']/following-sibling::data[1]" -v "$brom" \
@@ -222,6 +248,15 @@ configureOpenCorePlist() {
     -u "$generic/key[.='SystemUUID']/following-sibling::string[1]" -v "$UUID" \
     -u "$output/key[.='Resolution']/following-sibling::string[1]" -v "$resolution" \
     "$CFG"
+
+  # DEBUG logging goes only to the OpenCore log file on the EFI partition.
+  # Target 65 = logging (0x01) + file (0x40), deliberately excluding screen.
+  if enabled "$OPENCORE_DEBUG"; then
+    xmlstarlet ed -P -L \
+      -u "$debug/key[.='DisplayLevel']/following-sibling::integer[1]" -v 2147483714 \
+      -u "$debug/key[.='Target']/following-sibling::integer[1]" -v 65 \
+      "$CFG"
+  fi
 
   # Show boot picker if requested
   # Showing the picker also exposes auxiliary entries and extends the timeout
@@ -402,12 +437,14 @@ printMachineDetails() {
 
 openCoreSignature() {
 
-  local opencore config vmhide
+  local opencore template config vmhide source
   local plist="/assets/config.plist"
 
   [ -f "/custom.plist" ] && plist="/custom.plist"
+  source=$(openCoreSource)
 
-  opencore=$(sha256sum /opencore.iso | awk '{print $1}') || return 1
+  opencore=$(find "$source" -type f -exec sha256sum {} + | sort | sha256sum | awk '{print $1}') || return 1
+  template=$(sha256sum /opencore.iso | awk '{print $1}') || return 1
   config=$(sha256sum "$plist" | awk '{print $1}') || return 1
   vmhide=$(sha256sum /vmh.zip | awk '{print $1}') || return 1
 
@@ -423,6 +460,8 @@ openCoreSignature() {
     echo "HEIGHT=$HEIGHT"
     echo "PICKER=$PICKER"
     echo "OPENCORE=$opencore"
+    echo "TEMPLATE=$template"
+    echo "DEBUG=$OPENCORE_DEBUG"
     echo "PLIST=$config"
     echo "VMHIDE=$vmhide"
   } | sha256sum | awk '{print $1}'
@@ -434,6 +473,8 @@ prepareOpenCoreImage() {
 
   local target="$STORAGE/boot.img"
   local current previous signature
+
+  OPENCORE_DEBUG="$DEBUG"
 
   signature=$(stateFile "sig" "boot") || exit 11
   current=$(openCoreSignature)
