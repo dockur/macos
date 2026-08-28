@@ -174,9 +174,9 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
 > [!IMPORTANT]  
-> On AMD systems, avoid assigning multiple CPU cores or more than 8 GB of RAM initially. Depending on the specific AMD CPU model, multiple cores may reduce performance or cause instability, while more than 8 GB of RAM may cause the installation to freeze at the country selection step. Increase the RAM only after installation, and the core count only after macOS has been running reliably for several hours.
+> On AMD systems, avoid assigning multiple CPU cores or more than 8 GB of RAM initially. Depending on the specific AMD CPU model, multiple cores may reduce performance or cause instability, while more than 8 GB of RAM may cause the installation to freeze at the country selection step. Increase the RAM or core count only after macOS has been running reliably for several hours.
 >
-> Intel processors offer much better macOS compatibility, so multiple cores and more RAM can be assigned from the start without causing these issues.
+> Intel processors offer much better macOS compatibility, so multiple cores and more RAM can be assigned from the start without  issues.
 
 ### How do I enable audio?
 
