@@ -4,7 +4,7 @@ set -u
 PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 export PATH
 
-LOCAL_LOG="/var/log/macos-install.log"
+LOCAL_LOG="/var/log/launch.log"
 STATE_DIR="/Volumes/installstate"
 STATE_LOG="$STATE_DIR/install.log"
 STARTED="$STATE_DIR/started"
