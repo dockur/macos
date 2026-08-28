@@ -32,10 +32,28 @@ RUN <<EOF
 
   apt-get clean
 
-  # Extract macserial
-  wget "$REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip" -O /tmp/opencore.zip -q --timeout=30
-  unzip -p /tmp/opencore.zip Utilities/macserial/macserial.linux > /usr/local/bin/macserial
+  # Keep matching official RELEASE and DEBUG EFI trees so runtime can switch
+  # between normal booting and OpenCore diagnostics without another image build.
+  for build in RELEASE DEBUG; do
+    flavour=$(printf '%s' "$build" | tr '[:upper:]' '[:lower:]')
+    archive="/tmp/opencore-$flavour.zip"
+    extract="/tmp/opencore-$flavour"
+
+    wget "$REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-$build.zip" \
+      -O "$archive" -q --timeout=30
+
+    unzip -q "$archive" 'X64/EFI/*' -d "$extract"
+    mkdir -p "/opencore/$flavour"
+    cp -a "$extract/X64/EFI" "/opencore/$flavour/EFI"
+
+    [ -s "/opencore/$flavour/EFI/BOOT/BOOTx64.efi" ]
+    [ -s "/opencore/$flavour/EFI/OC/OpenCore.efi" ]
+  done
+
+  # Extract macserial from the matching official release.
+  unzip -p /tmp/opencore-release.zip Utilities/macserial/macserial.linux > /usr/local/bin/macserial
   chmod 755 /usr/local/bin/macserial
+  printf '%s\n' "$VERSION_OPENCORE" > /opencore/version
 
   # Set version file
   echo "$VERSION_ARG" > /etc/version
