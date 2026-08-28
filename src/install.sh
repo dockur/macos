@@ -213,9 +213,6 @@ install() {
   local dest="$2"
 
   local file="$STORAGE/tmp/recovery.dmg"
-  local payload="$STORAGE/tmp/setup-payload"
-  local admin="$payload/admin.pkg"
-  local setup="$payload/skipsetup.pkg"
 
   # Apple recovery catalogs are selected by board identifier, so each macOS
   # generation maps to a model known to receive that release.
@@ -251,12 +248,6 @@ install() {
     return 1
   fi
 
-  rm -rf "$payload"
-  mkdir -p "$payload" || {
-    error "Failed to create unattended setup payload directory."
-    return 1
-  }
-
   # New recovery media invalidates cached firmware state that may still point
   # at an older installer or incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
@@ -276,7 +267,6 @@ install() {
     # second transport attempt cannot recover it.
     if (( rc == 2 )); then
       rm -f -- "$file" "$file.aria2"
-      rm -rf "$payload"
       exit 60
     fi
 
@@ -285,26 +275,17 @@ install() {
     # Obtain a fresh Apple session and retry with single-connection Wget.
     if ! download "$file" "$board" "$version" "1"; then
       rm -f -- "$file" "$file.aria2"
-      rm -rf "$payload"
       exit 60
     fi
 
   fi
 
-  # Build and validate the actual account and Setup Assistant packages
-  if ! createAdminPackage "$admin" || ! createSkipSetupPackage "$setup"; then
-    rm -rf "$payload"
-    return 1
-  fi
-
-  if ! prepareAutomatedRecovery "$file" "$dest" "$admin" "$setup"; then
+  if ! prepareAutomatedRecovery "$file" "$dest"; then
     rm -f -- "$file" "$file.aria2"
-    rm -rf "$payload"
     return 1
   fi
 
   rm -f -- "$file" "$file.aria2"
-  rm -rf "$payload"
   return 0
 }
 
@@ -409,17 +390,27 @@ if ! generateAddress; then
   error "Failed to generate MAC address!" && exit 37
 fi
 
-INSTALL_STATE_DIR="$STORAGE/tmp/autoinstall"
+INSTALL_STATE_DIR="$QEMU_DIR/installstate"
+rm -rf "$INSTALL_STATE_DIR"
 
-if ! makeDir "$INSTALL_STATE_DIR"; then
-  error "Failed to create unattended installation state directory."
-  exit 34
+if [ -s "$BASE_IMG" ]; then
+
+  if ! makeDir "$STORAGE/tmp"; then
+    error "Failed to create temporary installation directory."
+    exit 34
+  fi
+
+  if ! prepareInstallationState "$INSTALL_STATE_DIR"; then
+    exit 34
+  fi
+
 fi
 
-# A blank primary disk represents a new installation attempt. Keep prior logs,
-# but clear the destructive-operation guard for the new target.
-if ! hasData; then
-  rm -f "$INSTALL_STATE_DIR/started"
+# All installation preparation is complete at this point. Nothing below needs
+# persistent scratch data, so never carry version-specific tmp files into QEMU.
+if ! rm -rf "$STORAGE/tmp"; then
+  error "Failed to remove temporary installation files."
+  exit 34
 fi
 
 DISK_OPTS=""
