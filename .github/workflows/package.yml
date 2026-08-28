@@ -2,7 +2,9 @@ name: Build reference package
 
 on:
   workflow_dispatch:
-
+  push:
+    branches:
+      - dev
 jobs:
   reference:
     runs-on: macos-15
