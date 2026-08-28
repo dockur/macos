@@ -97,7 +97,7 @@ jobs:
             (cd "$dir" && xar -xf "$GITHUB_WORKSPACE/$file")
 
             scripts_listing=$(gzip -dc "$dir/component.pkg/Scripts" | cpio -it 2>/dev/null)
-            grep -Fxq 'postinstall' <<< "$scripts_listing"
+            grep -Fxq './postinstall' <<< "$scripts_listing"
           done
 
           shasum -a 256 \
@@ -105,7 +105,6 @@ jobs:
             assets/install/package/skipsetup.pkg
 
       - name: Upload install packages
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: macos-install-packages-${{ github.run_id }}-${{ github.run_attempt }}
