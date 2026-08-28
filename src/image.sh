@@ -301,8 +301,8 @@ prepareInstallationState() {
   fi
 
   if ! createAutomatedInstallationFiles "$script" ||
-     ! createAdminPackage "$admin" ||
-     ! createSkipSetupPackage "$setup"; then
+     ! cp -f "$IMAGE_ASSETS/package/admin.pkg" "$admin" ||
+     ! cp -f "$IMAGE_ASSETS/package/skipsetup.pkg" "$setup"; then
     rm -rf "$state"
     return 1
   fi
