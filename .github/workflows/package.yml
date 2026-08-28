@@ -26,7 +26,17 @@ jobs:
 
           work="$RUNNER_TEMP/macos-packages"
           rm -rf "$work"
-          mkdir -p "$work/admin/scripts" "$work/setup/scripts" assets/install/package
+          mkdir -p \
+            "$work/admin/root/private/tmp" \
+            "$work/admin/scripts" \
+            "$work/setup/root/private/var/db" \
+            "$work/setup/root/Library/User Template/English.lproj" \
+            "$work/setup/scripts" \
+            assets/install/package
+
+          # Match pycreateuserpkg's known-working startosinstall layout:
+          # a real (but effectively empty) payload plus the account logic in scripts.
+          chmod 1777 "$work/admin/root/private/tmp"
 
           python3 src/install/admin/create.py \
             "$work/admin/scripts" \
@@ -44,7 +54,8 @@ jobs:
             admin
 
           pkgbuild \
-            --nopayload \
+            --root "$work/admin/root" \
+            --ownership recommended \
             --identifier com.macos.install.admin \
             --version 1.0 \
             --scripts "$work/admin/scripts" \
@@ -56,6 +67,15 @@ jobs:
             --version 1.0 \
             assets/install/package/admin.pkg
 
+          # Put the two critical Setup Assistant markers in the payload itself.
+          # The postinstall remains responsible for generating the version-specific
+          # SetupAssistant preference plist.
+          touch "$work/setup/root/private/var/db/.AppleSetupDone"
+          touch "$work/setup/root/Library/User Template/English.lproj/.skipbuddy"
+          chmod 0644 \
+            "$work/setup/root/private/var/db/.AppleSetupDone" \
+            "$work/setup/root/Library/User Template/English.lproj/.skipbuddy"
+
           cp src/install/setup/postinstall "$work/setup/scripts/postinstall"
           cp assets/install/setup/com.apple.SetupAssistant.plist \
             "$work/setup/scripts/com.apple.SetupAssistant.plist"
@@ -65,7 +85,8 @@ jobs:
           bash -n "$work/setup/scripts/postinstall"
 
           pkgbuild \
-            --nopayload \
+            --root "$work/setup/root" \
+            --ownership recommended \
             --identifier com.macos.install.skipsetup \
             --version 1.0 \
             --scripts "$work/setup/scripts" \
@@ -89,6 +110,7 @@ jobs:
             listing=$(xar -tf "$file")
             grep -Fxq 'Distribution' <<< "$listing"
             grep -Fxq 'component.pkg/PackageInfo' <<< "$listing"
+            grep -Fxq 'component.pkg/Payload' <<< "$listing"
             grep -Fxq 'component.pkg/Scripts' <<< "$listing"
 
             dir="$RUNNER_TEMP/verify-$package"
@@ -96,8 +118,23 @@ jobs:
             mkdir -p "$dir"
             (cd "$dir" && xar -xf "$GITHUB_WORKSPACE/$file")
 
+            grep -Fq "<product id=\"com.macos.install.$package\"" \
+              "$dir/Distribution"
+
             scripts_listing=$(gzip -dc "$dir/component.pkg/Scripts" | cpio -it 2>/dev/null)
             grep -Fxq './postinstall' <<< "$scripts_listing"
+
+            payload_listing=$(gzip -dc "$dir/component.pkg/Payload" | cpio -it 2>/dev/null)
+
+            case "$package" in
+              admin)
+                grep -Fxq './private/tmp' <<< "$payload_listing"
+                ;;
+              skipsetup)
+                grep -Fxq './private/var/db/.AppleSetupDone' <<< "$payload_listing"
+                grep -Fxq './Library/User Template/English.lproj/.skipbuddy' <<< "$payload_listing"
+                ;;
+            esac
           done
 
           shasum -a 256 \
