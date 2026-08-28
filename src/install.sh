@@ -34,8 +34,6 @@ SETUP_REGION="US"
 SETUP_KEYBOARD="U.S."
 SETUP_TIMEZONE="Etc/UTC"
 
-INSTALL_STATE_DIR=""
-
 function getRandom() {
 
   local length="${1}"
