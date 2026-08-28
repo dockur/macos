@@ -201,7 +201,7 @@ echo "[log] scheduling account and Setup Assistant packages"
 # Keep Apple's installer diagnostics visible from the host while Recovery is
 # occupied by startosinstall. The stream is diagnostic only and dies naturally
 # when Recovery reboots into the next installation stage.
-APPLE_INSTALL_LOG="$STATE_DIR/apple-install.log"
+APPLE_INSTALL_LOG="$STATE_DIR/apple.log"
 if [ -f /var/log/install.log ]; then
   /usr/bin/tail -n 0 -f /var/log/install.log >> "$APPLE_INSTALL_LOG" 2>&1 &
   echo "[log] streaming Apple install log to $APPLE_INSTALL_LOG"
