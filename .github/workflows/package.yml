@@ -26,10 +26,7 @@ jobs:
 
           work="$RUNNER_TEMP/macos-packages"
           rm -rf "$work"
-          mkdir -p \
-            "$work/admin/scripts" \
-            "$work/setup/scripts" \
-            assets/install/package
+          mkdir -p "$work/admin/scripts" "$work/setup/scripts" assets/install/package
 
           python3 src/install/admin/create.py \
             "$work/admin/scripts" \
@@ -90,16 +87,17 @@ jobs:
             [ -s "$file" ]
 
             listing=$(xar -tf "$file")
-            grep -Fxq Distribution <<< "$listing"
-            grep -Fxq component.pkg/PackageInfo <<< "$listing"
-            grep -Fxq component.pkg/Scripts <<< "$listing"
+            grep -Fxq 'Distribution' <<< "$listing"
+            grep -Fxq 'component.pkg/PackageInfo' <<< "$listing"
+            grep -Fxq 'component.pkg/Scripts' <<< "$listing"
 
             dir="$RUNNER_TEMP/verify-$package"
             rm -rf "$dir"
             mkdir -p "$dir"
             (cd "$dir" && xar -xf "$GITHUB_WORKSPACE/$file")
 
-            gzip -dc "$dir/component.pkg/Scripts" | cpio -it 2>/dev/null | grep -Fxq postinstall
+            scripts_listing=$(gzip -dc "$dir/component.pkg/Scripts" | cpio -it 2>/dev/null)
+            grep -Fxq 'postinstall' <<< "$scripts_listing"
           done
 
           shasum -a 256 \
@@ -107,9 +105,11 @@ jobs:
             assets/install/package/skipsetup.pkg
 
       - name: Upload install packages
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: macos-install-packages-${{ github.run_id }}-${{ github.run_attempt }}
+          if-no-files-found: error
           path: |
             assets/install/package/admin.pkg
             assets/install/package/skipsetup.pkg
