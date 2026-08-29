@@ -8,19 +8,19 @@ LOCAL_LOG="/var/log/launch.log"
 STATE_DIR="/Volumes/installstate"
 STATE_LOG="$STATE_DIR/install.log"
 APPLE_INSTALL_LOG="$STATE_DIR/apple.log"
-INSTALL_INFO_SNAPSHOT="$STATE_DIR/InstallInfo.plist"
-INSTALLERS_SNAPSHOT="$STATE_DIR/installers.txt"
 STATE_LOG_LIMIT=$((1 * 1024 * 1024))
 APPLE_INSTALL_LOG_LIMIT=$((4 * 1024 * 1024))
 STARTED="$STATE_DIR/started"
 TARGET_VOLUME="/Volumes/Macintosh HD"
 ADMIN_PACKAGE="$STATE_DIR/admin.pkg"
 SETUP_PACKAGE="$STATE_DIR/skipsetup.pkg"
+FIRSTBOOT_SCRIPT="$STATE_DIR/firstboot.sh"
+FIRSTBOOT_PLIST="$STATE_DIR/com.dockur.macos.firstboot.plist"
 MIN_TARGET_SIZE=$((16 * 1024 * 1024 * 1024))
 
-INJECTION_READY="$STATE_DIR/injection.ready"
-INJECTION_DONE="$STATE_DIR/injection.done"
-INJECTION_FAILED="$STATE_DIR/injection.failed"
+BOOTSTRAP_READY="$STATE_DIR/bootstrap.ready"
+BOOTSTRAP_DONE="$STATE_DIR/bootstrap.done"
+BOOTSTRAP_FAILED="$STATE_DIR/bootstrap.failed"
 
 exec >> "$LOCAL_LOG" 2>&1
 
@@ -149,106 +149,74 @@ find_startosinstall() {
   return 1
 }
 
-inject_packages() {
+install_bootstrap() {
 
-  local install_data="$TARGET_VOLUME/macOS Install Data"
-  local plist="$install_data/InstallInfo.plist"
-  local admin_rel="UnwrappedInstallers/unattended-admin/admin.pkg"
-  local setup_rel="UnwrappedInstallers/unattended-setup/skipsetup.pkg"
-  local admin_dest="$install_data/$admin_rel"
-  local setup_dest="$install_data/$setup_rel"
-  local count=0
+  local support_dir="$TARGET_VOLUME/Library/Application Support/macos-unattended"
+  local daemon_dir="$TARGET_VOLUME/Library/LaunchDaemons"
+  local staged_admin="$support_dir/admin.pkg"
+  local staged_script="$support_dir/firstboot.sh"
+  local staged_plist="$daemon_dir/com.dockur.macos.firstboot.plist"
 
-  echo "[log] prepare phase completed; injecting unattended packages directly"
+  echo "[log] prepare phase completed; installing unattended bootstrap"
 
-  while (( count < 60 )); do
-    [ -f "$plist" ] && break
-    count=$((count + 1))
-    sleep 1
-  done
-
-  if [ ! -f "$plist" ]; then
-    echo "[log] ERROR: $plist did not appear after prepare phase"
+  if ! /usr/sbin/installer \
+      -pkg "$SETUP_PACKAGE" \
+      -target "$TARGET_VOLUME" \
+      -verboseR; then
+    echo "[log] ERROR: failed to install prebuilt Setup Assistant package"
     return 1
   fi
 
-  if ! /usr/bin/plutil -lint "$plist" >/dev/null 2>&1; then
-    echo "[log] ERROR: InstallInfo.plist is invalid before injection"
+  echo "[log] prebuilt Setup Assistant package installed successfully"
+
+  if ! /bin/mkdir -p "$support_dir" "$daemon_dir"; then
+    echo "[log] ERROR: failed to create first-boot staging directories"
     return 1
   fi
 
-  if ! /bin/mkdir -p "${admin_dest%/*}" "${setup_dest%/*}"; then
-    echo "[log] ERROR: failed to create UnwrappedInstallers directories"
+  if ! /bin/cp -f "$ADMIN_PACKAGE" "$staged_admin" ||
+     ! /bin/cp -f "$FIRSTBOOT_SCRIPT" "$staged_script" ||
+     ! /bin/cp -f "$FIRSTBOOT_PLIST" "$staged_plist"; then
+    echo "[log] ERROR: failed to stage first-boot files"
     return 1
   fi
 
-  if ! /bin/cp -f "$ADMIN_PACKAGE" "$admin_dest" ||
-     ! /bin/cp -f "$SETUP_PACKAGE" "$setup_dest"; then
-    echo "[log] ERROR: failed to copy unattended packages into macOS Install Data"
+  /usr/sbin/chown 0:0 "$staged_admin" "$staged_script" "$staged_plist" 2>/dev/null || :
+
+  if ! /bin/chmod 0644 "$staged_admin" "$staged_plist" ||
+     ! /bin/chmod 0755 "$staged_script"; then
+    echo "[log] ERROR: failed to set first-boot file permissions"
     return 1
   fi
 
-  /usr/sbin/chown 0:0 "$admin_dest" "$setup_dest" 2>/dev/null || :
-  /bin/chmod 0644 "$admin_dest" "$setup_dest" || return 1
-
-  if [ ! -s "$admin_dest" ] || ! /usr/bin/cmp -s "$ADMIN_PACKAGE" "$admin_dest"; then
-    echo "[log] ERROR: injected admin.pkg failed byte-for-byte validation"
+  if ! /usr/bin/cmp -s "$ADMIN_PACKAGE" "$staged_admin" ||
+     ! /usr/bin/cmp -s "$FIRSTBOOT_SCRIPT" "$staged_script" ||
+     ! /usr/bin/cmp -s "$FIRSTBOOT_PLIST" "$staged_plist"; then
+    echo "[log] ERROR: staged first-boot files failed byte-for-byte validation"
     return 1
   fi
 
-  if [ ! -s "$setup_dest" ] || ! /usr/bin/cmp -s "$SETUP_PACKAGE" "$setup_dest"; then
-    echo "[log] ERROR: injected skipsetup.pkg failed byte-for-byte validation"
+  if ! /usr/bin/plutil -lint "$staged_plist" >/dev/null 2>&1; then
+    echo "[log] ERROR: staged first-boot LaunchDaemon plist is invalid"
     return 1
   fi
 
-  if ! /usr/libexec/PlistBuddy -c "Print :'Additional Installers'" "$plist" >/dev/null 2>&1; then
-    if ! /usr/libexec/PlistBuddy -c "Add :'Additional Installers' array" "$plist"; then
-      echo "[log] ERROR: failed to create Additional Installers array"
-      return 1
-    fi
-  fi
-
-  if ! /usr/libexec/PlistBuddy -c "Add :'Additional Installers': string '$admin_rel'" "$plist" ||
-     ! /usr/libexec/PlistBuddy -c "Add :'Additional Installers': string '$setup_rel'" "$plist"; then
-    echo "[log] ERROR: failed to add unattended package paths to InstallInfo.plist"
-    return 1
-  fi
-
-  if ! /usr/bin/plutil -lint "$plist" >/dev/null 2>&1; then
-    echo "[log] ERROR: InstallInfo.plist is invalid after injection"
-    return 1
-  fi
-
-  echo "[log] Additional Installers after direct injection:"
-  /usr/libexec/PlistBuddy -c "Print :'Additional Installers'" "$plist" || return 1
-
-  if ! /bin/cp -f "$plist" "$INSTALL_INFO_SNAPSHOT"; then
-    echo "[log] ERROR: failed to save injected InstallInfo.plist snapshot"
-    return 1
-  fi
-
-  {
-    echo "$admin_rel"
-    echo "$setup_rel"
-    /bin/ls -ln "$admin_dest" "$setup_dest"
-  } > "$INSTALLERS_SNAPSHOT" 2>/dev/null || :
-
-  echo "[log] direct package injection completed"
+  echo "[log] unattended bootstrap installed successfully"
   return 0
 }
 
-run_injector() {
+run_bootstrapper() {
 
   trap '
-    if inject_packages; then
-      : > "$INJECTION_DONE"
+    if install_bootstrap; then
+      : > "$BOOTSTRAP_DONE"
     else
-      : > "$INJECTION_FAILED"
+      : > "$BOOTSTRAP_FAILED"
     fi
     exit 0
   ' USR1
 
-  : > "$INJECTION_READY"
+  : > "$BOOTSTRAP_READY"
 
   while :; do
     sleep 60
@@ -277,7 +245,11 @@ fi
 
 [ -s "$ADMIN_PACKAGE" ] || fail "account package is missing"
 [ -s "$SETUP_PACKAGE" ] || fail "Setup Assistant package is missing"
-[ -x /usr/libexec/PlistBuddy ] || fail "PlistBuddy is not available in Recovery"
+[ -s "$FIRSTBOOT_SCRIPT" ] || fail "first-boot script is missing"
+[ -s "$FIRSTBOOT_PLIST" ] || fail "first-boot LaunchDaemon plist is missing"
+[ -x /usr/sbin/installer ] || fail "installer is not available in Recovery"
+/usr/bin/plutil -lint "$FIRSTBOOT_PLIST" >/dev/null 2>&1 ||
+  fail "first-boot LaunchDaemon plist is invalid"
 
 STARTOSINSTALL=""
 count=0
@@ -301,7 +273,7 @@ printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--rebootdelay' ||
 printf '%s\n' "$USAGE" | /usr/bin/grep -q -- '--pidtosignal' ||
   fail "startosinstall does not support --pidtosignal"
 
-echo "[log] direct package injection preflight passed"
+echo "[log] unattended bootstrap preflight passed"
 
 TARGET_DISK=""
 count=0
@@ -334,29 +306,27 @@ done
 [ -d "$TARGET_VOLUME" ] || fail "target APFS volume did not mount"
 
 rm -f \
-  "$INJECTION_READY" \
-  "$INJECTION_DONE" \
-  "$INJECTION_FAILED" \
-  "$INSTALL_INFO_SNAPSHOT" \
-  "$INSTALLERS_SNAPSHOT"
+  "$BOOTSTRAP_READY" \
+  "$BOOTSTRAP_DONE" \
+  "$BOOTSTRAP_FAILED"
 
-# startosinstall normally owns the Additional Installers staging operation.
-# For this test it prepares macOS without --installpackage. At the end of the
-# prepare phase it signals our helper, which writes the known-good product
-# packages and their paths into macOS Install Data itself before reboot.
-run_injector &
-INJECTOR_PID=$!
+# startosinstall prepares macOS without --installpackage. At the end of the
+# prepare phase it signals our helper while the target is still mounted. The
+# helper installs the known-good Setup Assistant package directly and stages
+# the known-good account package for a LaunchDaemon to run on first real boot.
+run_bootstrapper &
+BOOTSTRAPPER_PID=$!
 
 count=0
 while (( count < 10 )); do
-  [ -e "$INJECTION_READY" ] && break
+  [ -e "$BOOTSTRAP_READY" ] && break
   count=$((count + 1))
   sleep 1
 done
 
-[ -e "$INJECTION_READY" ] || {
-  /bin/kill "$INJECTOR_PID" 2>/dev/null || :
-  fail "package injector failed to initialize"
+[ -e "$BOOTSTRAP_READY" ] || {
+  /bin/kill "$BOOTSTRAPPER_PID" 2>/dev/null || :
+  fail "bootstrap helper failed to initialize"
 }
 
 ARGS=(
@@ -364,11 +334,11 @@ ARGS=(
   --agreetolicense
   --nointeraction
   --rebootdelay 300
-  --pidtosignal "$INJECTOR_PID"
+  --pidtosignal "$BOOTSTRAPPER_PID"
 )
 
 echo "[log] starting online macOS installation on $TARGET_VOLUME"
-echo "[log] packages will be injected directly after startosinstall prepare phase"
+echo "[log] bootstrap will be installed directly after startosinstall prepare phase"
 
 # Keep Apple's installer diagnostics visible from the host while Recovery is
 # occupied by startosinstall. Both host-visible logs are rolling snapshots so
@@ -386,18 +356,18 @@ STARTOSINSTALL_PID=$!
 
 while /bin/kill -0 "$STARTOSINSTALL_PID" 2>/dev/null; do
 
-  if [ -e "$INJECTION_DONE" ]; then
-    echo "[log] package injection succeeded; releasing startosinstall reboot delay"
+  if [ -e "$BOOTSTRAP_DONE" ]; then
+    echo "[log] bootstrap installation succeeded; releasing startosinstall reboot delay"
     /bin/kill -USR1 "$STARTOSINSTALL_PID" 2>/dev/null || :
     break
   fi
 
-  if [ -e "$INJECTION_FAILED" ]; then
-    echo "[log] ERROR: direct package injection failed; cancelling prepared install"
+  if [ -e "$BOOTSTRAP_FAILED" ]; then
+    echo "[log] ERROR: bootstrap installation failed; cancelling prepared install"
     /bin/kill "$STARTOSINSTALL_PID" 2>/dev/null || :
     wait "$STARTOSINSTALL_PID" 2>/dev/null || :
-    /bin/kill "$INJECTOR_PID" 2>/dev/null || :
-    fail "direct package injection failed"
+    /bin/kill "$BOOTSTRAPPER_PID" 2>/dev/null || :
+    fail "bootstrap installation failed"
   fi
 
   sleep 1
@@ -406,7 +376,7 @@ done
 wait "$STARTOSINSTALL_PID"
 rc=$?
 
-/bin/kill "$INJECTOR_PID" 2>/dev/null || :
+/bin/kill "$BOOTSTRAPPER_PID" 2>/dev/null || :
 
 if (( rc != 0 )); then
   rm -f "$STARTED"
