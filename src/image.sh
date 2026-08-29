@@ -292,6 +292,8 @@ prepareInstallationState() {
   local script="$state/launch.sh"
   local admin="$state/admin.pkg"
   local setup="$state/skipsetup.pkg"
+  local firstboot="$state/firstboot.sh"
+  local daemon="$state/com.dockur.macos.firstboot.plist"
 
   rm -rf "$state"
 
@@ -302,18 +304,36 @@ prepareInstallationState() {
 
   if ! createAutomatedInstallationFiles "$script" ||
      ! cp -f "$IMAGE_ASSETS/package/admin.pkg" "$admin" ||
-     ! cp -f "$IMAGE_ASSETS/package/skipsetup.pkg" "$setup"; then
+     ! cp -f "$IMAGE_ASSETS/package/skipsetup.pkg" "$setup" ||
+     ! cp -f "$IMAGE_TOOLS/firstboot/launch.sh" "$firstboot" ||
+     ! cp -f "$IMAGE_TOOLS/firstboot/com.dockur.macos.firstboot.plist" "$daemon"; then
     rm -rf "$state"
     return 1
   fi
 
-  chmod 0755 "$script"
-  chmod 0644 "$admin" "$setup"
+  chmod 0755 "$script" "$firstboot"
+  chmod 0644 "$admin" "$setup" "$daemon"
 
   if ! cmp -s "$IMAGE_TOOLS/recovery/launch.sh" "$script" ||
+     ! cmp -s "$IMAGE_ASSETS/package/admin.pkg" "$admin" ||
+     ! cmp -s "$IMAGE_ASSETS/package/skipsetup.pkg" "$setup" ||
+     ! cmp -s "$IMAGE_TOOLS/firstboot/launch.sh" "$firstboot" ||
+     ! cmp -s "$IMAGE_TOOLS/firstboot/com.dockur.macos.firstboot.plist" "$daemon" ||
      [ ! -s "$admin" ] || [ ! -s "$setup" ]; then
     rm -rf "$state"
     error "Staged unattended installation files failed validation."
+    return 1
+  fi
+
+  if ! bash -n "$firstboot"; then
+    rm -rf "$state"
+    error "First-boot account setup script is invalid."
+    return 1
+  fi
+
+  if ! python3 -c 'import plistlib, sys; plistlib.load(open(sys.argv[1], "rb"))' "$daemon"; then
+    rm -rf "$state"
+    error "First-boot LaunchDaemon plist is invalid."
     return 1
   fi
 
