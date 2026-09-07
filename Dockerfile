@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.19
 
 FROM scratch AS base
-COPY --from=qemux/qemu:7.49 --exclude=usr/bin/qemu-system-x86_64 / /
+COPY --from=qemux/qemu:7.50 --exclude=usr/bin/qemu-system-x86_64 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_VM_HIDE="2.0.0"
@@ -27,6 +27,7 @@ RUN <<EOF
     cpio \
     gzip \
     mtools \
+    libbz2-1.0 \
     xmlstarlet \
     vulkan-tools
 
