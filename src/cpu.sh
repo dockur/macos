@@ -135,13 +135,7 @@ checkClocksource() {
   result="${result//[![:print:]]/}"
 
   case "${result,,}" in
-    # A single-vCPU Intel profile is promoted to two when host timing is
-    # suitable, avoiding macOS issues with the one-core topology.
-    "${CLOCKSOURCE,,}" )
-      if ! needsAmdCpuProfile && [[ "$CPU_CORES" == "1" ]]; then
-        CPU_CORES="2"
-      fi
-      ;;
+    "${CLOCKSOURCE,,}" ) ;;
     "kvm-clock" )
       warn "Nested KVM virtualization detected, this might cause issues running macOS!"
       ;;
