@@ -11,6 +11,7 @@ set -Eeuo pipefail
 : "${WIDTH:="1920"}"         # Horizontal
 : "${HEIGHT:="1080"}"        # Vertical
 : "${MODEL:="iMacPro1,1"}"   # Device model
+: "${MANUAL:="Y"}"            # Manual installation
 
 # Sanitize variables
 SN=$(strip "$SN")
@@ -278,9 +279,20 @@ install() {
 
   fi
 
-  if ! prepareAutomatedRecovery "$file" "$dest"; then
-    rm -f -- "$file" "$file.aria2"
-    return 1
+  if enabled "$MANUAL"; then
+
+    if ! mv -f "$file" "$dest"; then
+      error "Failed to save recovery image to $dest."
+      return 1
+    fi
+
+  else
+
+    if ! prepareAutomatedRecovery "$file" "$dest"; then
+      rm -f -- "$file" "$file.aria2"
+      return 1
+    fi
+
   fi
 
   rm -f -- "$file" "$file.aria2"
@@ -391,7 +403,7 @@ fi
 INSTALL_STATE_DIR="$QEMU_DIR/installstate"
 rm -rf "$INSTALL_STATE_DIR"
 
-if [ -s "$BASE_IMG" ]; then
+if [ -s "$BASE_IMG" ] && ! enabled "$MANUAL"; then
 
   if ! makeDir "$STORAGE/tmp"; then
     error "Failed to create temporary installation directory."
@@ -415,7 +427,7 @@ DISK_OPTS=""
 
 # OpenCore uses PCI 0x5. The generic disk layer attaches setup.dmg at 0x6,
 # while the state/log share is pinned at 0x7 and managed disks use 0xA-0xF.
-if [ -s "$BASE_IMG" ]; then
+if [ -s "$BASE_IMG" ] && ! enabled "$MANUAL"; then
   DISK_OPTS="-fsdev local,id=installstatefs,path=$INSTALL_STATE_DIR,security_model=none"
   DISK_OPTS+=" -device virtio-9p-pci,id=installstate9p,fsdev=installstatefs,mount_tag=installstate,bus=pcie.0,addr=0x7"
 fi
