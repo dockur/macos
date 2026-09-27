@@ -27,6 +27,7 @@ RUN <<EOF
     cpio \
     gzip \
     mtools \
+    spirv-val \
     libbz2-1.0 \
     xmlstarlet \
     vulkan-tools
