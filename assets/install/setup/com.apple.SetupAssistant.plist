@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>DidSeeAccessibility</key>
+    <true/>
+    <key>DidSeeActivationLock</key>
+    <false/>
+    <key>DidSeeAppStore</key>
+    <false/>
+    <key>DidSeeAppearanceSetup</key>
+    <true/>
+    <key>DidSeeApplePaySetup</key>
+    <false/>
+    <key>DidSeeAvatarSetup</key>
+    <false/>
+    <key>DidSeeCloudSetup</key>
+    <true/>
+    <key>DidSeePrivacy</key>
+    <true/>
+    <key>DidSeeScreenTime</key>
+    <true/>
+    <key>DidSeeSiriSetup</key>
+    <true/>
+    <key>DidSeeSyncSetup</key>
+    <false/>
+    <key>DidSeeSyncSetup2</key>
+    <false/>
+    <key>DidSeeTouchIDSetup</key>
+    <false/>
+    <key>DidSeeTrueTone</key>
+    <true/>
+    <key>DidSeeiCloudLoginForStorageServices</key>
+    <true/>
+    <key>LastPreLoginTasksPerformedBuild</key>
+    <string>@OS_BUILD@</string>
+    <key>LastPreLoginTasksPerformedVersion</key>
+    <string>@OS_VERSION@</string>
+    <key>LastPrivacyBundleVersion</key>
+    <string>2</string>
+    <key>LastSeenBuddyBuildVersion</key>
+    <string>@OS_BUILD@</string>
+    <key>LastSeenCloudProductVersion</key>
+    <string>@OS_VERSION@</string>
+    <key>LastSeenDiagnosticsProductVersion</key>
+    <string>@OS_VERSION@</string>
+    <key>LastSeenSiriProductVersion</key>
+    <string>@OS_VERSION@</string>
+    <key>MiniBuddyLaunchReason</key>
+    <integer>0</integer>
+    <key>MiniBuddyLaunchedPostMigration</key>
+    <false/>
+    <key>MiniBuddyShouldLaunchToResumeSetup</key>
+    <false/>
+    <key>NSAddServicesToContextMenus</key>
+    <false/>
+    <key>PreviousBuildVersion</key>
+    <string>0</string>
+    <key>PreviousSystemVersion</key>
+    <string>0</string>
+    <key>SkipFirstLoginOptimization</key>
+    <false/>
+</dict>
+</plist>

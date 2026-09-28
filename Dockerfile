@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.19
 
 FROM scratch AS base
-COPY --from=qemux/qemu:7.50 / /
+COPY --from=qemux/qemu:7.50 --exclude=usr/bin/qemu-system-x86_64 / /
 
 ARG VERSION_ARG="0.0"
 ARG VERSION_VM_HIDE="2.0.0"
@@ -23,15 +23,39 @@ RUN <<EOF
 
   apt-get update
   apt-get --no-install-recommends -y install \
+    xar \
+    cpio \
+    gzip \
     mtools \
-    xmlstarlet
+    libbz2-1.0 \
+    xmlstarlet \
+    spirv-tools \
+    vulkan-tools
 
   apt-get clean
 
-  # Extract macserial
-  wget "$REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-RELEASE.zip" -O /tmp/opencore.zip -q --timeout=30
-  unzip -p /tmp/opencore.zip Utilities/macserial/macserial.linux > /usr/local/bin/macserial
+  # Keep matching official RELEASE and DEBUG EFI trees so runtime can switch
+  # between normal booting and OpenCore diagnostics without another image build.
+  for build in RELEASE DEBUG; do
+    flavour=$(printf '%s' "$build" | tr '[:upper:]' '[:lower:]')
+    archive="/tmp/opencore-$flavour.zip"
+    extract="/tmp/opencore-$flavour"
+
+    wget "$REPO_OPENCORE/releases/download/$VERSION_OPENCORE/OpenCore-$VERSION_OPENCORE-$build.zip" \
+      -O "$archive" -q --timeout=30
+
+    unzip -q "$archive" 'X64/EFI/*' -d "$extract"
+    mkdir -p "/opencore/$flavour"
+    cp -a "$extract/X64/EFI" "/opencore/$flavour/EFI"
+
+    [ -s "/opencore/$flavour/EFI/BOOT/BOOTx64.efi" ]
+    [ -s "/opencore/$flavour/EFI/OC/OpenCore.efi" ]
+  done
+
+  # Extract macserial from the matching official release.
+  unzip -p /tmp/opencore-release.zip Utilities/macserial/macserial.linux > /usr/local/bin/macserial
   chmod 755 /usr/local/bin/macserial
+  printf '%s\n' "$VERSION_OPENCORE" > /opencore/version
 
   # Set version file
   echo "$VERSION_ARG" > /etc/version
@@ -41,6 +65,10 @@ EOF
 
 COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /assets/
+COPY --from=qemux/qemu-macos:latest /usr/bin/qemu-system-x86_64 /usr/bin/
+COPY --from=qemux/qemu-macos:latest /usr/share/qemu/reims-vgpu-gop.rom /usr/share/qemu/
+
+ADD --chmod=755 https://github.com/qemus/qemu-macos/releases/latest/download/air-dis /usr/local/bin/air-dis
 
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
@@ -56,7 +84,7 @@ EXPOSE 22 5900 8006
 
 ENV VERSION="14"
 ENV RAM_SIZE="4G"
-ENV CPU_CORES="1"
+ENV CPU_CORES="2"
 ENV DISK_SIZE="64G"
 
 ENTRYPOINT ["/usr/bin/tini", "-s", "/run/entry.sh"]

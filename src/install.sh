@@ -11,6 +11,7 @@ set -Eeuo pipefail
 : "${WIDTH:="1920"}"         # Horizontal
 : "${HEIGHT:="1080"}"        # Vertical
 : "${MODEL:="iMacPro1,1"}"   # Device model
+: "${MANUAL:="Y"}"            # Manual installation
 
 # Sanitize variables
 SN=$(strip "$SN")
@@ -21,8 +22,18 @@ MODEL=$(strip "$MODEL")
 WIDTH=$(strip "$WIDTH")
 HEIGHT=$(strip "$HEIGHT")
 
-BASE_IMG_ID="InstallMedia"
-BASE_IMG="$STORAGE/base.dmg"
+BASE_IMG="$STORAGE/setup.dmg"
+
+# Fixed setup values for the unattended-install proof. These are intentionally
+# not environment variables yet; locale settings will be implemented only
+# after the basic zero-click path has been proven.
+SETUP_USERNAME="admin"
+SETUP_PASSWORD="admin"
+SETUP_AUTOLOGIN="Y"
+SETUP_LANGUAGE="en-US"
+SETUP_REGION="US"
+SETUP_KEYBOARD="U.S."
+SETUP_TIMEZONE="Etc/UTC"
 
 function getRandom() {
 
@@ -195,81 +206,12 @@ function download() {
   return 0
 }
 
-checkDmgImage() {
-
-  local file="$1"
-  local size
-
-  if [ ! -s "$file" ]; then
-    error "Downloaded recovery image is missing or empty!"
-    return 1
-  fi
-
-  size=$(stat -c%s "$file")
-
-  if [ "$size" -lt 100000000 ]; then
-    error "Downloaded recovery image is too small: $(formatBytes "$size")"
-    return 1
-  fi
-
-  info "Checking recovery image format..."
-
-  # qemu-img validates the disk container structure without mounting or
-  # trusting filesystems inside the downloaded recovery image.
-  if ! qemu-img info "$file" >/dev/null; then
-    error "Downloaded recovery image is not a valid disk image!"
-    return 1
-  fi
-
-  return 0
-}
-
-checkBootableDmgImage() {
-
-  local file="$1"
-  local listing
-
-  if ! listing=$(mktemp); then
-    error "Failed to create temporary file for custom image inspection."
-    return 1
-  fi
-
-  if ! 7z l -slt "$file" > "$listing" 2>/dev/null; then
-    rm -f "$listing"
-    error "Failed to inspect the contents of the custom recovery image."
-    return 1
-  fi
-
-  # A directly bootable macOS or recovery image must expose boot.efi.
-  if grep -Eiq \
-    '^Path = (.+[\\/])?(System[\\/]Library[\\/]CoreServices[\\/]boot\.efi|com\.apple\.recovery\.boot[\\/]boot\.efi)$' \
-    "$listing"; then
-
-    rm -f "$listing"
-    return 0
-  fi
-
-  # These files identify installer distribution media rather than an image
-  # that OpenCore can boot directly.
-  if grep -Eiq \
-    '^Path = (.+[\\/])?(InstallAssistant\.pkg|SharedSupport\.dmg|BaseSystem\.dmg)$|^Path = .*Install macOS .*\.app([\\/]|$)' \
-    "$listing"; then
-
-    rm -f "$listing"
-    error "The custom DMG contains macOS installer files, but is not itself a bootable recovery image."
-    error "Provide the bootable BaseSystem.dmg or RecoveryImage.dmg as /boot.dmg."
-    return 1
-  fi
-
-  rm -f "$listing"
-  error "The custom DMG is a valid disk image, but no macOS boot loader was found."
-  return 1
-}
-
 install() {
 
   local version="$1"
   local dest="$2"
+
+  local file="$STORAGE/tmp/recovery.dmg"
 
   # Apple recovery catalogs are selected by board identifier, so each macOS
   # generation maps to a model known to receive that release.
@@ -293,38 +235,25 @@ install() {
       return 1 ;;
   esac
 
-  rm -f "$dest"
+  rm -f "$dest" "$dest.tmp"
 
   if ! makeDir "$STORAGE"; then
-    error "Failed to create directory \"$STORAGE\" !" && return 1
+    error "Failed to create directory \"$STORAGE\" !"
+    return 1
+  fi
+
+  if ! makeDir "$STORAGE/tmp"; then
+    error "Failed to create directory \"$STORAGE/tmp\" !"
+    return 1
   fi
 
   # New recovery media invalidates cached firmware state that may still point
   # at an older installer or incompatible boot entry.
   find "$STORAGE" -maxdepth 1 -type f \( -iname '*.rom' -or -iname '*.vars' \) -delete
 
-  # A bundled recovery image takes precedence over network retrieval,
-  # but is subjected to the same size and container-format validation.
-  if [ -f "/boot.dmg" ]; then
+  rm -f -- "$file" "$file.aria2"
 
-    info "Using custom macOS recovery image from /boot.dmg..."
-
-    if ! cp "/boot.dmg" "$dest"; then
-      error "Failed to copy custom recovery image to $dest."
-      return 1
-    fi
-
-    if ! checkDmgImage "$dest" || ! checkBootableDmgImage "$dest"; then
-      rm -f "$dest"
-      return 1
-    fi
-
-    return 0
-  fi
-
-  local file="$STORAGE/boot.dmg"
-
-  # Try a multi-connection download first.
+  # Try a multi-connection recovery download first.
   if download "$file" "$board" "$version" "${CONNECTIONS:-1}"; then
     local rc=0
   else
@@ -350,11 +279,23 @@ install() {
 
   fi
 
-  if ! mv -f "$file" "$dest"; then
-    error "Failed to move recovery image to $dest."
-    return 1
+  if enabled "$MANUAL"; then
+
+    if ! mv -f "$file" "$dest"; then
+      error "Failed to save recovery image to $dest."
+      return 1
+    fi
+
+  else
+
+    if ! prepareAutomatedRecovery "$file" "$dest"; then
+      rm -f -- "$file" "$file.aria2"
+      return 1
+    fi
+
   fi
 
+  rm -f -- "$file" "$file.aria2"
   return 0
 }
 
@@ -438,7 +379,7 @@ fi
 # overwriting existing disks or redownloading the installation media again.
 if [ ! -s "$BASE_IMG" ] && ! hasDisk; then
   STORAGE="$STORAGE/${VERSION,,}"
-  BASE_IMG="$STORAGE/base.dmg"
+  BASE_IMG="$STORAGE/setup.dmg"
 fi
 
 # Recovery media is required only while the primary disk is absent or blank.
@@ -459,13 +400,36 @@ if ! generateAddress; then
   error "Failed to generate MAC address!" && exit 37
 fi
 
+INSTALL_STATE_DIR="$QEMU_DIR/installstate"
+rm -rf "$INSTALL_STATE_DIR"
+
+if [ -s "$BASE_IMG" ] && ! enabled "$MANUAL"; then
+
+  if ! makeDir "$STORAGE/tmp"; then
+    error "Failed to create temporary installation directory."
+    exit 34
+  fi
+
+  if ! prepareInstallationState "$INSTALL_STATE_DIR"; then
+    exit 34
+  fi
+
+fi
+
+# All installation preparation is complete at this point. Nothing below needs
+# persistent scratch data, so never carry version-specific tmp files into QEMU.
+if ! rm -rf "$STORAGE/tmp"; then
+  error "Failed to remove temporary installation files."
+  exit 34
+fi
+
 DISK_OPTS=""
 
-# Recovery media is attached read-only and only while present; installation
-# writes belong on the separately managed primary data disk.
-if [ -s "$BASE_IMG" ]; then
-  DISK_OPTS="-device virtio-blk-pci,drive=${BASE_IMG_ID},bus=pcie.0,addr=0x6"
-  DISK_OPTS+=" -drive file=$BASE_IMG,id=$BASE_IMG_ID,format=dmg,cache=unsafe,readonly=on,if=none"
+# OpenCore uses PCI 0x5. The generic disk layer attaches setup.dmg at 0x6,
+# while the state/log share is pinned at 0x7 and managed disks use 0xA-0xF.
+if [ -s "$BASE_IMG" ] && ! enabled "$MANUAL"; then
+  DISK_OPTS="-fsdev local,id=installstatefs,path=$INSTALL_STATE_DIR,security_model=none"
+  DISK_OPTS+=" -device virtio-9p-pci,id=installstate9p,fsdev=installstatefs,mount_tag=installstate,bus=pcie.0,addr=0x7"
 fi
 
 return 0

@@ -19,7 +19,7 @@ An empty default means the variable is unset and its value is determined automat
 
 | Variable | Default | Description |
 |---|---|---|
-| `CPU_CORES` | `1` | Number of virtual CPU cores, such as `4`, `half`, or `max`. |
+| `CPU_CORES` | `2` | Number of virtual CPU cores, such as `4`, `half`, or `max`. |
 | `CPU_MODEL` |  | QEMU CPU model. Selected automatically for Intel or AMD hosts when unset. |
 | `CPU_FLAGS` |  | Additional QEMU CPU flags. |
 | `SMP` |  | Custom CPU topology. Determined from `CPU_CORES` when unset. |
@@ -72,11 +72,10 @@ An empty default means the variable is unset and its value is determined automat
 | Variable | Default | Description |
 |---|---|---|
 | `DISPLAY` | `web` | Display backend, such as `web`, `vnc`, `disabled`, or `none`. |
-| `VGA` | `vmware` | QEMU video adapter model. |
+| `VGA` | `vmware` | QEMU video adapter model used when `GPU=N`. |
 | `WIDTH` | `1920` | Display width configured for macOS and OpenCore. |
 | `HEIGHT` | `1080` | Display height configured for macOS and OpenCore. |
-| `GPU` | `N` | Enables experimental GPU acceleration. |
-| `RENDERNODE` | `/dev/dri/renderD128` | Render node used for GPU acceleration. |
+| `GPU` | `N` | Enables hardware-accelerated graphics through Reims vGPU. |
 
 ## 🌍 Web UI
 

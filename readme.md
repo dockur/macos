@@ -17,10 +17,10 @@ MacOS inside a Docker container.
 ## Features ✨
 
 - Runs macOS inside a Docker container
-- Automatic download of the installation files
-- Web-based viewer for controlling the VM
+- Automatic download and hands-free installation
 - Near-native performance with KVM acceleration
 - Customizable CPU, memory, and storage allocation
+- Hardware-accelerated graphics via [Reims vGPU](https://github.com/steelbrain/reims-vgpu)
 - Dynamic memory allocation with memory ballooning
 - USB passthrough and host folder sharing
 - Supports NAT, user-mode, macvlan, and macvtap networking
@@ -163,7 +163,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
 ### How do I change the amount of CPU or RAM?
 
-  By default, macOS will be allowed to use a single CPU core and 4 GB of RAM.
+  By default, macOS will be allowed to use 2 CPU cores and 4 GB of RAM.
 
   If you want to adjust this, you can specify the desired amount using the following environment variables:
 
@@ -174,9 +174,7 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
 > [!IMPORTANT]  
-> On AMD systems, avoid assigning multiple CPU cores or more than 8 GB of RAM initially. Depending on the specific AMD CPU model, multiple cores may reduce performance or cause instability, while more than 8 GB of RAM may cause the installation to freeze at the country selection step. Increase the RAM only after installation, and the core count only after macOS has been running reliably for several hours.
->
-> Intel processors offer much better macOS compatibility, so multiple cores and more RAM can be assigned from the start without causing these issues.
+> On AMD systems, do not assign more than 8 GB of RAM during the initial installation process.
 
 ### How do I enable audio?
 
@@ -188,6 +186,36 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
   ```
 
   Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
+
+### How do I enable GPU acceleration?
+
+To enable [Reims vGPU](https://github.com/steelbrain/reims-vgpu) hardware-accelerated graphics using an Intel or AMD GPU, add the following lines to your compose file:
+
+```yaml
+environment:
+  GPU: "Y"
+devices:
+  - /dev/dri
+```
+
+For NVIDIA GPUs, the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) must be installed on the host and the GPU must be exposed to the container:
+
+```yaml
+environment:
+  GPU: "Y"
+  NVIDIA_DRIVER_CAPABILITIES: "all"
+
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: all
+          capabilities:
+            - gpu
+```
+
+Reims vGPU uses macOS's built-in `AppleParavirtGPU` driver and translates Metal graphics commands to Vulkan on the Linux host, so no additional graphics driver needs to be installed inside macOS.
 
 ### How do I share files with the host?
 
