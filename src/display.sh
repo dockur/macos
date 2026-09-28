@@ -264,7 +264,7 @@ case "${DISPLAY,,}" in
 esac
 
 echo
-info "Hardware rendering enabled succesfully. Beware that this feature is still experimental!"
+info "Hardware rendering enabled successfully. Beware that this feature is still experimental!"
 
 enabled "$DEBUG" && echo && printf '%s\n' "$VULKAN_DETAILS"
 
