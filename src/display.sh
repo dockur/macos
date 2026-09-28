@@ -69,6 +69,8 @@ enabled "$GPU" || return 0
 msg="Configuring Reims vGPU..."
 enabled "$DEBUG" && echo "$msg"
 
+export METAL2VULKAN_LLVM_DIS="/usr/local/bin/air-dis"
+
 if [ ! -d /dev/dri ]; then
   error "GPU acceleration was requested, but '/dev/dri' was not added to the devices section of your compose file."
   exit 72
