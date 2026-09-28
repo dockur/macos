@@ -27,9 +27,9 @@ RUN <<EOF
     cpio \
     gzip \
     mtools \
-    spirv-val \
     libbz2-1.0 \
     xmlstarlet \
+    spirv-tools \
     vulkan-tools
 
   apt-get clean
@@ -67,6 +67,8 @@ COPY --chmod=755 ./src /run/
 COPY --chmod=755 ./assets /assets/
 COPY --from=qemux/qemu-macos:latest /usr/bin/qemu-system-x86_64 /usr/bin/
 COPY --from=qemux/qemu-macos:latest /usr/share/qemu/reims-vgpu-gop.rom /usr/share/qemu/
+
+ADD --chmod=755 https://github.com/qemus/qemu-macos/releases/latest/download/air-dis /usr/local/bin/air-dis
 
 ADD --chmod=644 \
     $REPO_OSX_KVM/$VERSION_OSX_KVM/OVMF_CODE.fd \
