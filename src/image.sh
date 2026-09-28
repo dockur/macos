@@ -167,8 +167,9 @@ buildProductPackage() {
       return 1
     fi
 
-    local source_mode=$(stat -c '%a' "$source_file")
-    local packaged_mode=$(stat -c '%a' "$packaged_file")
+    local source_mode packaged_mode
+    source_mode=$(stat -c '%a' "$source_file")
+    packaged_mode=$(stat -c '%a' "$packaged_file")
 
     if [ "$source_mode" != "$packaged_mode" ]; then
       rm -rf "$work" "$dest"
