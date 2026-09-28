@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.19
+# syntax=docker/dockerfile:1.27
 
 FROM scratch AS base
 COPY --from=qemux/qemu:7.50 --exclude=usr/bin/qemu-system-x86_64 / /
