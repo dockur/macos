@@ -136,7 +136,7 @@ buildProductPackage() {
     return 1
   fi
 
-  if ! grep -Fxq 'postinstall' <<< "$scripts_listing"; then
+  if ! grep -Fxq './postinstall' <<< "$scripts_listing"; then
     rm -rf "$work" "$dest"
     error "Product package $dest does not contain its postinstall script."
     return 1
