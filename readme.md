@@ -187,6 +187,38 @@ kubectl apply -f https://raw.githubusercontent.com/dockur/macos/refs/heads/maste
 
   Then enable **Audio** under **Settings → Advanced** in the web viewer. The stream is only active while this option is enabled, so it uses no extra bandwidth otherwise.
 
+### How do I enable GPU acceleration?
+
+  To enable [Reims vGPU](https://github.com/steelbrain/reims-vgpu) hardware-accelerated graphics using an Intel or AMD GPU, add the following lines to your compose file:
+
+  ```yaml
+  environment:
+    GPU: "Y"
+  devices:
+    - /dev/dri
+  ```
+
+  For NVIDIA GPUs, the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) must be installed on the host and the GPU must be exposed to the container:
+
+  ```yaml
+  environment:
+    GPU: "Y"
+    NVIDIA_DRIVER_CAPABILITIES: "all"
+
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities:
+              - gpu
+  ```
+
+  GPU acceleration provides hardware-accelerated OpenGL on Intel, AMD, and NVIDIA GPUs.
+
+  Vulkan acceleration is also enabled automatically when supported on hosts running Linux 6.13 or newer, and requires a guest with Venus support, such as Linux 5.16 or newer with Mesa 24.2 or newer. NVIDIA additionally requires driver version 570.86 or newer.
+
 ### How do I share files with the host?
 
   To share files with the host, add the following volume to your compose file:
