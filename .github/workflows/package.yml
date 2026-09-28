@@ -142,7 +142,7 @@ jobs:
             assets/install/package/skipsetup.pkg
 
       - name: Upload install packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: macos-install-packages-${{ github.run_id }}-${{ github.run_attempt }}
           if-no-files-found: error
