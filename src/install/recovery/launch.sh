@@ -99,6 +99,7 @@ select_target_disk() {
 
     if printf '%s\n' "$info" |
        /usr/bin/grep -Eq '^[[:space:]]*(Read-Only (Media|Device)|(Media|Device) Read-Only):[[:space:]]*Yes'; then
+      continue
     fi
 
     size=$(printf '%s\n' "$info" |
